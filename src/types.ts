@@ -38,12 +38,17 @@ export interface Juego {
   capas_orden?: string[];
 
   // Mines: en vez de calibrar una tabla de pagos, el RTP es un solo
-  // número (el margen de la casa, 0.03 = 3%). Las tres caras de la
-  // casilla son opcionales — sin imagen se ve un estilo por defecto.
+  // número (el margen de la casa, 0.03 = 3%). Cada cara de la casilla
+  // (tapada / segura / mina) es opcional y puede ser imagen O una
+  // animación Lottie; sin nada se ve un estilo por defecto. Un asset
+  // por cara: al setear uno se limpia el otro.
   mines_margen_pct?: number;
   mines_casilla_oculta_url?: string | null;
   mines_casilla_segura_url?: string | null;
   mines_casilla_mina_url?: string | null;
+  mines_casilla_oculta_lottie_url?: string | null;
+  mines_casilla_segura_lottie_url?: string | null;
+  mines_casilla_mina_lottie_url?: string | null;
 
   created_at?: string;
   updated_at?: string;

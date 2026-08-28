@@ -38,7 +38,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
       if (e.fase !== 'en_curso' || e.reveladas.includes(casilla)) return e;
 
       if (minasSecretas.current.includes(casilla)) {
-        return { ...e, fase: 'perdida', minasPos: minasSecretas.current, ganancia: 0 };
+        return { ...e, fase: 'perdida', minasPos: minasSecretas.current, clicMina: casilla, ganancia: 0 };
       }
 
       const reveladas = [...e.reveladas, casilla];

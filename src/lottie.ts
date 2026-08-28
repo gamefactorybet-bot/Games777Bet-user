@@ -130,6 +130,58 @@ export function detenerAnimacionesSimbolos(): void {
 }
 
 // =========================================================
+// Lottie genérico dentro de un contenedor (caras de casilla de Mines)
+// =========================================================
+
+const prefiereMenosMovimiento = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Monta una animación Lottie que ocupa todo `contenedor` (un `<canvas>`
+ * al 100%). Devuelve una función para desmontarla. Con `loop` corre
+ * indefinidamente; si no, una vez y se queda en el último cuadro.
+ * Respeta `prefers-reduced-motion` (no reproduce, muestra el final).
+ */
+export async function montarLottieEn(
+  contenedor: HTMLElement,
+  url: string,
+  opciones: { loop?: boolean } = {},
+): Promise<() => void> {
+  let DotLottie: ModuloLottie['DotLottie'];
+  try {
+    ({ DotLottie } = await cargarLottie());
+  } catch {
+    return () => {};
+  }
+
+  const canvas = document.createElement('canvas');
+  const rect = contenedor.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(2, Math.round((rect.width || 64) * dpr));
+  canvas.height = Math.max(2, Math.round((rect.height || 64) * dpr));
+  canvas.style.cssText = 'width:100%; height:100%; display:block';
+  contenedor.appendChild(canvas);
+
+  const quieto = prefiereMenosMovimiento();
+  const instancia = new DotLottie({
+    canvas, src: url,
+    autoplay: !quieto,
+    loop: !quieto && !!opciones.loop,
+    layout: { fit: 'contain' },
+  });
+  if (quieto) {
+    instancia.addEventListener('load', () => {
+      try { instancia.setFrame(instancia.totalFrames - 1); } catch { /* noop */ }
+    });
+  }
+
+  return () => {
+    try { instancia.destroy(); } catch { /* noop */ }
+    canvas.remove();
+  };
+}
+
+// =========================================================
 // Animaciones del juego (intro / girar / premio)
 // =========================================================
 

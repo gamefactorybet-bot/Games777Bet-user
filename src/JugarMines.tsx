@@ -129,7 +129,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
         body: JSON.stringify({ token, slug, roundId: roundIdRef.current, casilla }),
       });
       if (r.esMina) {
-        setEstado((e) => ({ ...e, fase: 'perdida', minasPos: r.posicionesMina ?? [], ganancia: 0, cargando: false }));
+        setEstado((e) => ({ ...e, fase: 'perdida', minasPos: r.posicionesMina ?? [], clicMina: casilla, ganancia: 0, cargando: false }));
         return;
       }
       setEstado((e) => ({

@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { casillaCara, LADO, TOTAL } from './juego/mines.ts';
-import type { EstadoPartida } from './juego/mines.ts';
+import type { Cara, EstadoPartida } from './juego/mines.ts';
+import { montarLottieEn } from './lottie.ts';
 import type { Juego } from './types.ts';
 
 interface TableroMinesProps {
@@ -18,25 +21,78 @@ interface TableroMinesProps {
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
 
+const BOTON_CELDA: CSSProperties = {
+  position: 'relative', aspectRatio: '1', padding: 0, borderRadius: 10,
+  overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  fontSize: 22, background: 'var(--surface-alt)', border: '1px solid var(--border)',
+};
+
+/** Una casilla. Resuelve su cara (lottie → imagen → estilo) y monta el
+ * Lottie solo mientras esa cara lo pide. El `useEffect` sobre `cara`
+ * evita que una gema/explosión se vuelva a reproducir en cada render. */
+function Casilla({
+  juego, cara, animar, destapable, atenuada, onClick,
+}: {
+  juego: Juego;
+  cara: Cara;
+  /** Solo la casilla que dispara la animación (la que se destapó / la mina pisada). */
+  animar: boolean;
+  destapable: boolean;
+  atenuada: boolean;
+  onClick: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const visual = casillaCara(juego, cara);
+  const usaLottie = !!visual.lottie && (animar || cara === 'oculta');
+
+  useEffect(() => {
+    if (!usaLottie || !ref.current) return;
+    let limpiar: (() => void) | null = null;
+    let vivo = true;
+    montarLottieEn(ref.current, visual.lottie!, { loop: cara === 'oculta' }).then((fn) => {
+      if (vivo) limpiar = fn; else fn();
+    });
+    return () => { vivo = false; limpiar?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usaLottie, visual.lottie, cara]);
+
+  const fondo: CSSProperties = usaLottie
+    ? { background: 'var(--surface-alt)' }
+    : visual.imagen
+      ? { background: `center/cover no-repeat url('${visual.imagen}')`, borderColor: 'transparent' }
+      : visual.estilo;
+
+  return (
+    <button
+      disabled={!destapable}
+      onClick={() => destapable && onClick()}
+      aria-label="Casilla"
+      style={{
+        ...BOTON_CELDA, ...fondo,
+        cursor: destapable ? 'pointer' : 'default',
+        opacity: atenuada ? 0.55 : 1,
+        transition: 'opacity .15s, border-color .15s',
+      }}
+    >
+      {usaLottie
+        ? <div ref={ref} style={{ position: 'absolute', inset: 0 }} />
+        : (!visual.imagen && visual.emoji)}
+    </button>
+  );
+}
+
 export function TableroMines({
   juego, estado, minBet, maxBet, pasoApuesta,
   onIniciar, onRevelar, onRetirar, onCambiarApuesta, onCambiarMinas, onNueva,
 }: TableroMinesProps) {
-  const { fase, minas, apuesta, reveladas, minasPos, multiplicador, puedeRetirar, saldo, ganancia, cargando, error } = estado;
+  const { fase, minas, apuesta, reveladas, minasPos, clicMina, multiplicador, puedeRetirar, saldo, ganancia, cargando, error } = estado;
   const jugando = fase === 'en_curso';
   const terminada = fase === 'retirada' || fase === 'perdida';
   const segurasRestantes = TOTAL - minas - reveladas.length;
   const gananciaPotencial = apuesta * multiplicador;
 
-  const cara = (i: number) => {
-    if (minasPos?.includes(i)) return casillaCara(juego, 'mina');
-    if (reveladas.includes(i)) return casillaCara(juego, 'segura');
-    return casillaCara(juego, 'oculta');
-  };
-
   return (
     <div style={{ width: 340, maxWidth: '92vw', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Estado de arriba */}
       <div style={{ display: 'flex', gap: 8 }}>
         <Caja etiqueta="Saldo" valor={fmt(saldo)} />
         {jugando
@@ -44,34 +100,27 @@ export function TableroMines({
           : <Caja etiqueta="Minas" valor={String(minas)} />}
       </div>
 
-      {/* Grilla 5×5 */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${LADO}, 1fr)`, gap: 6 }}>
         {Array.from({ length: TOTAL }, (_, i) => {
-          const c = cara(i);
-          const destapable = jugando && !cargando && !reveladas.includes(i);
+          const esMina = !!minasPos?.includes(i);
+          const revelada = reveladas.includes(i);
+          const cara: Cara = esMina ? 'mina' : revelada ? 'segura' : 'oculta';
           return (
-            <button
+            <Casilla
               key={i}
-              disabled={!destapable}
-              onClick={() => destapable && onRevelar(i)}
-              style={{
-                aspectRatio: '1', padding: 0, borderRadius: 8, fontSize: 20,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: destapable ? 'pointer' : 'default',
-                transition: 'transform .12s, opacity .12s',
-                opacity: terminada && !minasPos?.includes(i) && !reveladas.includes(i) ? 0.45 : 1,
-                ...c.style,
-              }}
-            >
-              {c.emoji}
-            </button>
+              juego={juego}
+              cara={cara}
+              animar={(esMina && i === clicMina) || (cara === 'segura' && revelada)}
+              atenuada={esMina && i !== clicMina}
+              destapable={jugando && !cargando && !revelada}
+              onClick={() => onRevelar(i)}
+            />
           );
         })}
       </div>
 
       {error && <p className="hint error" style={{ margin: 0 }}>{error}</p>}
 
-      {/* Controles según la fase */}
       {fase === 'inactiva' && (
         <>
           <label style={{ fontSize: 12 }}>

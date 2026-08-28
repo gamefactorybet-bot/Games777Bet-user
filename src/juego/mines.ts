@@ -25,26 +25,42 @@ export const minasValidas = (minas: number): boolean => _minasValidas(minas) as 
 
 export const margenDe = (juego: Juego): number => Number(juego.mines_margen_pct ?? 0.03);
 
-/** Cara de una casilla: la imagen configurada del juego o un estilo
- * por defecto con un emoji, así se puede probar la mecánica sin arte. */
-export function casillaCara(
-  juego: Juego,
-  cara: 'oculta' | 'segura' | 'mina',
-): { style: CSSProperties; emoji: string | null } {
-  const url = cara === 'oculta' ? juego.mines_casilla_oculta_url
-    : cara === 'segura' ? juego.mines_casilla_segura_url
-    : juego.mines_casilla_mina_url;
+export type Cara = 'oculta' | 'segura' | 'mina';
 
-  if (url) {
-    return { style: { background: `center/cover no-repeat url('${url}')` }, emoji: null };
-  }
-  if (cara === 'oculta') {
-    return { style: { background: 'var(--surface-alt)', border: '1px solid var(--border)' }, emoji: null };
-  }
-  if (cara === 'segura') {
-    return { style: { background: 'rgba(91,191,136,.18)', border: '1px solid var(--ok)' }, emoji: '💎' };
-  }
-  return { style: { background: 'rgba(229,104,107,.22)', border: '1px solid var(--danger)' }, emoji: '💣' };
+/** Cómo mostrar una cara de la casilla. Orden de resolución:
+ * animación Lottie → imagen → estilo por defecto (con emoji). */
+export interface CaraVisual {
+  lottie: string | null;
+  imagen: string | null;
+  /** Estilo cuando no hay lottie ni imagen. */
+  estilo: CSSProperties;
+  emoji: string | null;
+}
+
+const CAMPO_LOTTIE: Record<Cara, keyof Juego> = {
+  oculta: 'mines_casilla_oculta_lottie_url',
+  segura: 'mines_casilla_segura_lottie_url',
+  mina: 'mines_casilla_mina_lottie_url',
+};
+const CAMPO_IMAGEN: Record<Cara, keyof Juego> = {
+  oculta: 'mines_casilla_oculta_url',
+  segura: 'mines_casilla_segura_url',
+  mina: 'mines_casilla_mina_url',
+};
+
+export function casillaCara(juego: Juego, cara: Cara): CaraVisual {
+  const defecto = cara === 'oculta'
+    ? { estilo: { background: 'var(--surface-alt)', border: '1px solid var(--border)' } as CSSProperties, emoji: null }
+    : cara === 'segura'
+      ? { estilo: { background: 'rgba(91,191,136,.14)', border: '1px solid var(--ok)' } as CSSProperties, emoji: '💎' }
+      : { estilo: { background: 'rgba(229,104,107,.16)', border: '1px solid var(--danger)' } as CSSProperties, emoji: '💣' };
+
+  return {
+    lottie: (juego[CAMPO_LOTTIE[cara]] as string) || null,
+    imagen: (juego[CAMPO_IMAGEN[cara]] as string) || null,
+    estilo: defecto.estilo,
+    emoji: defecto.emoji,
+  };
 }
 
 /** Estado visible de una partida de Mines, común a la vista previa y a
@@ -56,6 +72,8 @@ export interface EstadoPartida {
   apuesta: number;
   reveladas: number[];
   minasPos: number[] | null;
+  /** Casilla que pisó el jugador (para animar solo esa como explosión). */
+  clicMina: number | null;
   multiplicador: number;
   puedeRetirar: boolean;
   saldo: number;
@@ -66,7 +84,7 @@ export interface EstadoPartida {
 
 export function estadoInicial(minas: number, apuesta: number, saldo: number): EstadoPartida {
   return {
-    fase: 'inactiva', minas, apuesta, reveladas: [], minasPos: null,
+    fase: 'inactiva', minas, apuesta, reveladas: [], minasPos: null, clicMina: null,
     multiplicador: 1, puedeRetirar: false, saldo, ganancia: null,
     cargando: false, error: null,
   };

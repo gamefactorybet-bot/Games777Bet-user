@@ -8,6 +8,7 @@ import {
   perfilDesdeSimbolos, sugerirCompensacion,
 } from './juego/calibracion.ts';
 import type { Sugerencia } from './juego/calibracion.ts';
+import { montarLottieEn } from './lottie.ts';
 import { listarClientesActivos } from './Clientes.tsx';
 import { Preview } from './Preview.tsx';
 import { PreviewMines } from './PreviewMines.tsx';
@@ -244,6 +245,12 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const guardarCampoJuego = async (campo: string, valor: unknown) => {
     await supabase.from('juegos').update({ [campo]: valor }).eq('id', juego.id);
     setJuego((j) => ({ ...j, [campo]: valor }));
+    marcarGuardado();
+  };
+
+  const guardarCamposJuego = async (patch: Record<string, unknown>) => {
+    await supabase.from('juegos').update(patch).eq('id', juego.id);
+    setJuego((j) => ({ ...j, ...patch }));
     marcarGuardado();
   };
 
@@ -546,7 +553,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
       )}
 
       {grupo === 'jugabilidad' && esMines && (
-        <SeccionMines juego={juego} onImagen={setImagen} onCampo={guardarCampoJuego} />
+        <SeccionMines juego={juego} onCampo={guardarCampoJuego} onCampos={guardarCamposJuego} />
       )}
 
       {grupo === 'jugabilidad' && !esMines && (
@@ -728,11 +735,17 @@ function Historial({ html }: { html: string }) {
 
 interface SeccionMinesProps {
   juego: Juego;
-  onImagen: (campo: string, url: string | null) => void | Promise<void>;
   onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+  onCampos: (patch: Record<string, unknown>) => void | Promise<void>;
 }
 
-function SeccionMines({ juego, onImagen, onCampo }: SeccionMinesProps) {
+const CARAS_MINES: { cara: 'oculta' | 'segura' | 'mina'; etiqueta: string; nota: string }[] = [
+  { cara: 'oculta', etiqueta: 'Casilla tapada', nota: 'la animación corre en loop' },
+  { cara: 'segura', etiqueta: 'Casilla segura', nota: 'corre una vez al destapar' },
+  { cara: 'mina', etiqueta: 'Mina', nota: 'corre una vez al perder' },
+];
+
+function SeccionMines({ juego, onCampo, onCampos }: SeccionMinesProps) {
   const [margenTxt, setMargenTxt] = useState(String(Number(juego.mines_margen_pct ?? 0.03) * 100));
   useEffect(() => { setMargenTxt(String(Number(juego.mines_margen_pct ?? 0.03) * 100)); }, [juego.id]);
 
@@ -788,13 +801,91 @@ function SeccionMines({ juego, onImagen, onCampo }: SeccionMinesProps) {
 
       <div className="card">
         <strong style={{ fontSize: 15 }}>Caras de la casilla</strong>
-        <p className="hint" style={{ marginBottom: 14 }}>Opcional. Sin imagen, cada cara se ve con un estilo por defecto.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-          <SubirImagen juego={juego} campo="mines_casilla_oculta_url" etiqueta="Casilla tapada" posicionable onSet={onImagen} />
-          <SubirImagen juego={juego} campo="mines_casilla_segura_url" etiqueta="Casilla segura" posicionable onSet={onImagen} />
-          <SubirImagen juego={juego} campo="mines_casilla_mina_url" etiqueta="Mina" posicionable onSet={onImagen} />
+        <p className="hint" style={{ marginBottom: 14 }}>
+          Cada cara acepta una imagen o una animación Lottie (.json / .lottie). Un asset por cara.
+          Sin nada, se ve un estilo por defecto.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {CARAS_MINES.map((c) => (
+            <CaraCasilla key={c.cara} juego={juego} cara={c.cara} etiqueta={c.etiqueta} nota={c.nota} onCampos={onCampos} />
+          ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CaraCasilla({ juego, cara, etiqueta, nota, onCampos }: {
+  juego: Juego;
+  cara: 'oculta' | 'segura' | 'mina';
+  etiqueta: string;
+  nota: string;
+  onCampos: (patch: Record<string, unknown>) => void | Promise<void>;
+}) {
+  const campoImg = `mines_casilla_${cara}_url`;
+  const campoLottie = `mines_casilla_${cara}_lottie_url`;
+  const imgUrl = (juego[campoImg] as string) || null;
+  const lottieUrl = (juego[campoLottie] as string) || null;
+
+  const [modo, setModo] = useState<'img' | 'anim'>(lottieUrl ? 'anim' : 'img');
+  useEffect(() => { setModo(lottieUrl ? 'anim' : 'img'); }, [juego.id]); // al cambiar de juego
+
+  const prevRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!lottieUrl || !prevRef.current) return;
+    let limpiar: (() => void) | null = null;
+    let vivo = true;
+    montarLottieEn(prevRef.current, lottieUrl, { loop: true }).then((fn) => {
+      if (vivo) limpiar = fn; else fn();
+    });
+    return () => { vivo = false; limpiar?.(); };
+  }, [lottieUrl]);
+
+  const subir = async (f: File, esLottie: boolean) => {
+    const url = await subirArchivo(f, `mines/${juego.id}`);
+    if (!url) return;
+    await onCampos(esLottie ? { [campoLottie]: url, [campoImg]: null } : { [campoImg]: url, [campoLottie]: null });
+  };
+  const quitar = () => onCampos({ [campoImg]: null, [campoLottie]: null });
+
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'var(--surface-alt)', borderRadius: 8, padding: 12, flexWrap: 'wrap' }}>
+      <div style={{
+        width: 52, height: 52, borderRadius: 8, flexShrink: 0, position: 'relative', overflow: 'hidden',
+        border: '1px solid var(--border)', background: 'var(--surface)',
+        backgroundImage: !lottieUrl && imgUrl ? `url('${imgUrl}')` : undefined,
+        backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+      }}>
+        {lottieUrl && <div ref={prevRef} style={{ position: 'absolute', inset: 2 }} />}
+        {!lottieUrl && !imgUrl && (cara === 'segura' ? '💎' : cara === 'mina' ? '💣' : '')}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 130 }}>
+        <strong style={{ fontSize: 13 }}>{etiqueta}</strong>
+        <p className="hint" style={{ margin: '2px 0 0' }}>
+          {lottieUrl ? `Animación · ${nota}` : imgUrl ? 'Imagen fija' : 'Sin configurar'}
+        </p>
+      </div>
+
+      <div className="grupo-nav" style={{ gap: 4 }}>
+        <button className={`grupo-btn ${modo === 'img' ? 'on' : ''}`} style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => setModo('img')}>Imagen</button>
+        <button className={`grupo-btn ${modo === 'anim' ? 'on' : ''}`} style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => setModo('anim')}>Animación</button>
+      </div>
+
+      <label style={{ fontSize: 12 }}>
+        <span className="hint">{modo === 'img' ? 'Subir imagen' : 'Subir .json / .lottie'}</span>
+        <input
+          type="file"
+          accept={modo === 'img' ? 'image/*' : '.json,.lottie'}
+          onChange={(e) => e.target.files?.[0] && subir(e.target.files[0], modo === 'anim')}
+          style={{ display: 'block', marginTop: 4 }}
+        />
+      </label>
+
+      {(imgUrl || lottieUrl) && (
+        <button style={{ fontSize: 12, color: 'var(--danger)' }} onClick={quitar}>Quitar</button>
+      )}
     </div>
   );
 }
