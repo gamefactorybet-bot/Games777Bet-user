@@ -62,11 +62,15 @@ function Casilla({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usaLottie, visual.lottie, cara]);
 
-  const fondo: CSSProperties = usaLottie
-    ? { background: 'var(--surface-alt)' }
-    : visual.imagen
-      ? { background: `center/cover no-repeat url('${visual.imagen}')`, borderColor: 'transparent' }
-      : visual.estilo;
+  // Textura de la casilla (campo fondo_url de Arte, en Mines por casilla).
+  const textura = (juego.fondo_url as string) || null;
+  const caraPlana = !usaLottie && !visual.imagen; // cara "por defecto" (solo tinte + emoji)
+  const tinte = caraPlana && cara === 'segura' ? 'rgba(91,191,136,.16)'
+    : caraPlana && cara === 'mina' ? 'rgba(229,104,107,.18)'
+    : null;
+  const borde = cara === 'oculta' ? 'var(--border)'
+    : (usaLottie || visual.imagen) ? 'transparent'
+    : cara === 'segura' ? 'var(--ok)' : 'var(--danger)';
 
   return (
     <button
@@ -74,15 +78,24 @@ function Casilla({
       onClick={() => destapable && onClick()}
       aria-label="Casilla"
       style={{
-        ...BOTON_CELDA, ...fondo,
+        ...BOTON_CELDA,
+        background: textura ? `center/cover no-repeat url('${textura}')` : 'var(--surface-alt)',
+        borderColor: borde,
         cursor: destapable ? 'pointer' : 'default',
         opacity: atenuada ? 0.55 : 1,
         transition: 'opacity .15s, border-color .15s',
       }}
     >
-      {usaLottie
-        ? <div ref={ref} style={{ position: 'absolute', inset: 0 }} />
-        : (!visual.imagen && visual.emoji)}
+      {/* Imagen propia de la cara (segura/mina) — tapa la textura. */}
+      {!usaLottie && visual.imagen && (
+        <span style={{ position: 'absolute', inset: 0, background: `center/cover no-repeat url('${visual.imagen}')` }} />
+      )}
+      {/* Tinte semitransparente para las caras por defecto — deja ver la textura. */}
+      {tinte && <span style={{ position: 'absolute', inset: 0, background: tinte }} />}
+      {/* Animación Lottie. */}
+      {usaLottie && <div ref={ref} style={{ position: 'absolute', inset: 0 }} />}
+      {/* Emoji de la cara por defecto. */}
+      {caraPlana && visual.emoji && <span style={{ position: 'relative' }}>{visual.emoji}</span>}
     </button>
   );
 }
