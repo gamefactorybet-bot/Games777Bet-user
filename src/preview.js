@@ -9,9 +9,9 @@
 
 import { supabase } from './supabase.ts';
 import { cargarMotor, resolverNivel } from '../motor/registro.js';
-import { ANCHO_ESC, ALTO_ESC, construirCadena, iniciarAnimacionLuces } from './luces.js';
-import { mostrarTablaPagos } from './tabla-pagos.js';
-import { animarSimboloGanador, detenerAnimacionesSimbolos, mostrarAnimacionJuego, detenerAnimacionesJuego } from './lottie.js';
+import { ANCHO_ESC, ALTO_ESC, construirCadena, iniciarAnimacionLuces } from './luces.ts';
+import { mostrarTablaPagos } from './tabla-pagos.ts';
+import { animarSimboloGanador, detenerAnimacionesSimbolos, mostrarAnimacionJuego, detenerAnimacionesJuego } from './lottie.ts';
 
 function celdaHtml(s, iconoTamano = 60) {
   if (s.icono_url) return `<img src="${s.icono_url}" style="width:${iconoTamano}%; height:${iconoTamano}%; object-fit:contain" />`;

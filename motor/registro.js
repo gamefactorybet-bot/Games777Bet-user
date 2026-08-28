@@ -33,6 +33,9 @@ export const MOTORES_DISPONIBLES = [
  * viejo, un dato corrupto), cae en el motor por defecto en vez de
  * romper — más vale mostrar el juego con el motor de siempre que no
  * mostrar nada.
+ *
+ * @param {string} [nombreMotor]
+ * @returns {Promise<import('../src/types.ts').MotorModulo>}
  */
 export async function cargarMotor(nombreMotor) {
   const cargar = MOTORES[nombreMotor] || MOTORES[MOTOR_POR_DEFECTO];
@@ -52,6 +55,13 @@ export async function cargarMotor(nombreMotor) {
  */
 const CAMPO_PAGO = { 2: 'pago_dos', 3: 'pago_tres', 4: 'pago_cuatro', 5: 'pago_cinco' };
 
+/**
+ * @param {import('../src/types.ts').Simbolo[]} simbolos
+ * @param {import('../src/types.ts').Simbolo} simbolo
+ * @param {number} cadena
+ * @param {number} columnas
+ * @returns {{ premio: number, nivel: import('../src/types.ts').NivelPremio | null }}
+ */
 export function resolverNivel(simbolos, simbolo, cadena, columnas) {
   const campo = CAMPO_PAGO[cadena];
   const premio = Number(simbolo[campo]) || 0;

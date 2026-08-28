@@ -1,8 +1,8 @@
 // =========================================================
 // ANIMACIONES CON LOTTIE
 //
-// Compartido entre el ensamblador (preview.js) y la pantalla real del
-// jugador (jugar.js) — misma decisión que el motor unificado y las
+// Compartido entre el ensamblador (Preview) y la pantalla real del
+// jugador (Jugar) — misma decisión que el motor unificado y las
 // luces: una sola copia, para que no se desincronicen.
 //
 // Reemplaza a Rive (que dejó de permitir exportar el .riv en el plan
@@ -13,17 +13,21 @@
 // Alcance, igual que antes:
 //   - Símbolos: solo sobre celdas YA FRENADAS que ganaron, nunca
 //     durante el relleno del giro. Dos archivos por símbolo (uno
-//     para premio chico, otro para premio mayor) en vez de un
-//     archivo con disparadores internos.
+//     para premio chico, otro para premio mayor).
 //   - Animaciones del juego: intro (antes de la carga), y las que
 //     acompañan girar/premio chico/premio mayor, posicionables
 //     libremente en la pantalla.
 // =========================================================
 
-let dotLottiePromise = null;
+import type { DotLottie } from '@lottiefiles/dotlottie-web';
+import type { AnimacionLottie, Simbolo } from './types.ts';
+
+type ModuloLottie = typeof import('@lottiefiles/dotlottie-web');
+
+let dotLottiePromise: Promise<ModuloLottie> | null = null;
 // La librería se carga recién la primera vez que hace falta: un
 // juego sin animaciones no paga el costo de bajarla.
-function cargarLottie() {
+function cargarLottie(): Promise<ModuloLottie> {
   if (!dotLottiePromise) dotLottiePromise = import('@lottiefiles/dotlottie-web');
   return dotLottiePromise;
 }
@@ -34,12 +38,8 @@ function cargarLottie() {
  * durante la pantalla de carga del jugador, igual que las imágenes y
  * los sonidos — así el primer símbolo que gana no se queda esperando
  * a que el motor termine de prepararse en ese instante.
- *
- * Sin esto, la librería igual funciona — solo que la prepara recién
- * la primera vez que un símbolo o una animación del juego la
- * necesitan, que sería justo en medio del festejo de un premio.
  */
-export async function precargarLottie() {
+export async function precargarLottie(): Promise<void> {
   const { DotLottie } = await cargarLottie();
   await DotLottie.preload?.();
 }
@@ -48,8 +48,8 @@ export async function precargarLottie() {
 // Símbolos ganadores
 // =========================================================
 
-// celda del DOM -> { instancia, tope }
-const instanciasSimbolo = new Map();
+// celda del DOM -> { revertir }
+const instanciasSimbolo = new Map<Element, { revertir: () => void }>();
 
 /**
  * Muestra la animación Lottie del símbolo ENCIMA de lo que ya hay en
@@ -57,15 +57,14 @@ const instanciasSimbolo = new Map();
  * la animación y destapa exactamente lo que había — nunca reconstruye
  * ni le exige a quien llama que le pase el HTML de vuelta.
  *
- * Esto es a propósito: preview.js arma sus celdas reconstruyendo HTML
- * en cada giro, jugar.js las crea UNA sola vez al abrir el juego y
- * nunca las vuelve a tocar (por rendimiento). Tapar/destapar funciona
- * igual de bien con cualquiera de los dos, sin acoplarse a ninguno.
- *
  * Si el símbolo no tiene animación para ese nivel, no hace nada — la
  * celda se queda como estaba, como si esto no existiera.
  */
-export async function animarSimboloGanador(celdaEl, simbolo, nivel) {
+export async function animarSimboloGanador(
+  celdaEl: HTMLElement,
+  simbolo: Simbolo | null | undefined,
+  nivel: string,
+): Promise<void> {
   const url = nivel === 'premio_mayor' ? simbolo?.lottie_grande_url : simbolo?.lottie_chico_url;
   if (!url) return;
 
@@ -75,7 +74,7 @@ export async function animarSimboloGanador(celdaEl, simbolo, nivel) {
   const previa = instanciasSimbolo.get(celdaEl);
   if (previa) previa.revertir();
 
-  let DotLottie;
+  let DotLottie: ModuloLottie['DotLottie'];
   try {
     ({ DotLottie } = await cargarLottie());
   } catch {
@@ -84,7 +83,7 @@ export async function animarSimboloGanador(celdaEl, simbolo, nivel) {
 
   // Se tapa (display:none), nunca se borra — así lo que sea que haya
   // adentro (imágenes fijas o reconstruidas) sigue intacto debajo.
-  const hijosPrevios = Array.from(celdaEl.children);
+  const hijosPrevios = Array.from(celdaEl.children) as HTMLElement[];
   hijosPrevios.forEach((el) => {
     el.dataset.lottieDisplayPrevio = el.style.display;
     el.style.display = 'none';
@@ -95,6 +94,9 @@ export async function animarSimboloGanador(celdaEl, simbolo, nivel) {
   canvas.height = celdaEl.clientHeight || 64;
   canvas.style.cssText = 'width:100%; height:100%; display:block';
   celdaEl.appendChild(canvas);
+
+  let instancia: DotLottie;
+  let tope: ReturnType<typeof setTimeout>;
 
   const revertir = () => {
     clearTimeout(tope);
@@ -107,7 +109,7 @@ export async function animarSimboloGanador(celdaEl, simbolo, nivel) {
     instanciasSimbolo.delete(celdaEl);
   };
 
-  const instancia = new DotLottie({
+  instancia = new DotLottie({
     canvas, src: url, autoplay: true, loop: false,
     layout: { fit: 'contain' },
   });
@@ -116,13 +118,13 @@ export async function animarSimboloGanador(celdaEl, simbolo, nivel) {
   instancia.addEventListener('complete', revertir);
   instancia.addEventListener('loadError', revertir);
 
-  const tope = setTimeout(revertir, 4000);
+  tope = setTimeout(revertir, 4000);
   instanciasSimbolo.set(celdaEl, { revertir });
 }
 
 // Corta todas las animaciones de símbolo activas ya mismo — se usa
 // al arrancar un giro nuevo o al cerrar la vista previa.
-export function detenerAnimacionesSimbolos() {
+export function detenerAnimacionesSimbolos(): void {
   Array.from(instanciasSimbolo.values()).forEach(({ revertir }) => revertir());
   instanciasSimbolo.clear();
 }
@@ -131,8 +133,8 @@ export function detenerAnimacionesSimbolos() {
 // Animaciones del juego (intro / girar / premio)
 // =========================================================
 
-const ANCHO_ESC = 420, ALTO_ESC = 860;
-const activasJuego = new Set(); // funciones "cortar" de cada una
+const ANCHO_ESC = 420;
+const activasJuego = new Set<() => void>(); // funciones "cortar" de cada una
 
 /**
  * Muestra una animación del juego dentro de "contenedor", en la
@@ -143,10 +145,14 @@ const activasJuego = new Set(); // funciones "cortar" de cada una
  * un tiempo fijo. Se limpia sola (canvas + instancia) apenas termina,
  * con un tope de seguridad por si el archivo nunca avisa.
  */
-export async function mostrarAnimacionJuego(contenedor, cfg, alTerminar) {
+export async function mostrarAnimacionJuego(
+  contenedor: HTMLElement,
+  cfg: Partial<AnimacionLottie> | null | undefined,
+  alTerminar?: () => void,
+): Promise<() => void> {
   if (!cfg?.lottie_url) { alTerminar?.(); return () => {}; }
 
-  let DotLottie;
+  let DotLottie: ModuloLottie['DotLottie'];
   try {
     ({ DotLottie } = await cargarLottie());
   } catch {
@@ -169,6 +175,9 @@ export async function mostrarAnimacionJuego(contenedor, cfg, alTerminar) {
   let avisado = false;
   const avisarFin = () => { if (!avisado) { avisado = true; alTerminar?.(); } };
 
+  let instancia: DotLottie;
+  let topeSeguridad: ReturnType<typeof setTimeout>;
+
   const cortar = () => {
     clearTimeout(topeSeguridad);
     instancia.destroy();
@@ -176,7 +185,7 @@ export async function mostrarAnimacionJuego(contenedor, cfg, alTerminar) {
     activasJuego.delete(cortar);
   };
 
-  const instancia = new DotLottie({
+  instancia = new DotLottie({
     canvas, src: cfg.lottie_url, autoplay: true, loop: false,
     layout: { fit: 'contain' },
   });
@@ -185,13 +194,13 @@ export async function mostrarAnimacionJuego(contenedor, cfg, alTerminar) {
 
   // Respaldo: si el evento real nunca llega, esto no puede dejar a
   // quien esperaba (sobre todo la intro) colgado para siempre.
-  const topeSeguridad = setTimeout(() => { cortar(); avisarFin(); }, 6000);
+  topeSeguridad = setTimeout(() => { cortar(); avisarFin(); }, 6000);
 
   activasJuego.add(cortar);
   return cortar;
 }
 
-export function detenerAnimacionesJuego() {
+export function detenerAnimacionesJuego(): void {
   activasJuego.forEach((cortar) => cortar());
   activasJuego.clear();
 }

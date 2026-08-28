@@ -10,9 +10,9 @@
 // solo se juega.
 
 import './styles.css';
-import { ANCHO_ESC, ALTO_ESC, construirCadena, iniciarAnimacionLuces } from './luces.js';
-import { mostrarTablaPagos } from './tabla-pagos.js';
-import { animarSimboloGanador, detenerAnimacionesSimbolos, mostrarAnimacionJuego, detenerAnimacionesJuego, precargarLottie } from './lottie.js';
+import { ANCHO_ESC, ALTO_ESC, construirCadena, iniciarAnimacionLuces } from './luces.ts';
+import { mostrarTablaPagos } from './tabla-pagos.ts';
+import { animarSimboloGanador, detenerAnimacionesSimbolos, mostrarAnimacionJuego, detenerAnimacionesJuego, precargarLottie } from './lottie.ts';
 import { cargarMotor } from '../motor/registro.js';
 
 const params = new URLSearchParams(location.search);

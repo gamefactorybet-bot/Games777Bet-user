@@ -1,9 +1,9 @@
 // =========================================================
 // TABLA DE PAGOS Y REGLAS
 //
-// Compartido entre el ensamblador (preview.js) y la pantalla real
-// del jugador (jugar.js): el jugador tiene que poder ver exactamente
-// la misma información que ve Max al armar el juego. Si estuviera
+// Compartido entre el ensamblador (Preview) y la pantalla real del
+// jugador (Jugar): el jugador tiene que poder ver exactamente la
+// misma información que ve Max al armar el juego. Si estuviera
 // duplicado, tarde o temprano una copia diría algo distinto de la
 // otra — que en un casino es un problema serio, no un detalle.
 //
@@ -11,7 +11,9 @@
 // que nunca queda desactualizada respecto de lo que realmente paga.
 // =========================================================
 
-export function mostrarTablaPagos(overlayJuego, simbolos, juego) {
+import type { Juego, Simbolo } from './types.ts';
+
+export function mostrarTablaPagos(overlayJuego: HTMLElement, simbolos: Simbolo[], juego: Juego): void {
   const ordenados = [...simbolos].sort((a, b) => b.pago_tres - a.pago_tres);
 
   const filasPagos = ordenados.map((s) => `
@@ -70,28 +72,27 @@ export function mostrarTablaPagos(overlayJuego, simbolos, juego) {
     </div>
   `;
 
-  const marcarActivo = (activaId) => {
-    modal.querySelectorAll('.tp-tab').forEach((btn) => {
+  const marcarActivo = (activaId: string) => {
+    modal.querySelectorAll<HTMLElement>('.tp-tab').forEach((btn) => {
       const activo = btn.id === activaId;
       btn.style.borderColor = activo ? 'var(--accent)' : 'var(--border)';
       btn.style.color = activo ? 'var(--accent)' : 'var(--text)';
     });
-    modal.querySelector('#tp-panel-pagos').style.display = activaId === 'tp-tab-pagos' ? 'block' : 'none';
-    modal.querySelector('#tp-panel-reglas').style.display = activaId === 'tp-tab-reglas' ? 'block' : 'none';
+    (modal.querySelector('#tp-panel-pagos') as HTMLElement).style.display = activaId === 'tp-tab-pagos' ? 'block' : 'none';
+    (modal.querySelector('#tp-panel-reglas') as HTMLElement).style.display = activaId === 'tp-tab-reglas' ? 'block' : 'none';
   };
 
-  modal.querySelector('#tp-tab-pagos').addEventListener('click', () => marcarActivo('tp-tab-pagos'));
-  modal.querySelector('#tp-tab-reglas').addEventListener('click', () => marcarActivo('tp-tab-reglas'));
+  modal.querySelector('#tp-tab-pagos')!.addEventListener('click', () => marcarActivo('tp-tab-pagos'));
+  modal.querySelector('#tp-tab-reglas')!.addEventListener('click', () => marcarActivo('tp-tab-reglas'));
   marcarActivo('tp-tab-pagos');
 
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-  modal.querySelector('#tp-cerrar').addEventListener('click', () => modal.remove());
+  modal.querySelector('#tp-cerrar')!.addEventListener('click', () => modal.remove());
   overlayJuego.appendChild(modal);
 }
 
-
-function escapeHtml(str) {
+function escapeHtml(str: unknown): string {
   const div = document.createElement('div');
-  div.textContent = str ?? '';
+  div.textContent = (str ?? '') as string;
   return div.innerHTML;
 }

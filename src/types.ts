@@ -122,10 +122,149 @@ export interface ResultadoAnalisis {
   premioMayor: number;
 }
 
+/** Punto en la pantalla del juego, en píxeles de la escala fija 420×860. */
+export interface Punto {
+  x: number;
+  y: number;
+}
+
+/** Rectángulo en píxeles de la escala fija (para la geometría de luces). */
+export interface Rect {
+  left: number;
+  top: number;
+  w: number;
+  h: number;
+}
+
+/** Una fila de la tabla `cadenas_luces`. Los campos de forma/figura/foco
+ * pueden no existir todavía si no se corrió el SQL correspondiente — por
+ * eso casi todos son opcionales y el código pone defaults en memoria. */
+export interface CadenaLuz {
+  id: string;
+  juego_id: string;
+  orden: number;
+  modo: 'marco' | 'figura' | 'libre';
+  cantidad: number;
+  animacion: 'secuencial' | 'sincronizado' | 'ola' | 'alternado' | 'aleatorio' | 'vaiven';
+  velocidad: number;
+  colores: string[];
+  puntos: Punto[];
+
+  tamano?: number;
+  forma?: 'circulo' | 'cuadrado' | 'rombo' | 'barra';
+  ancho?: number;
+  alto?: number;
+
+  figura?: 'rectangulo' | 'circulo' | 'linea';
+  figura_x?: number;
+  figura_y?: number;
+  figura_ancho?: number;
+  figura_alto?: number;
+  figura_rotacion?: number;
+
+  glow?: number;
+  nucleo?: number;
+  apagado?: number;
+  vidrio?: boolean;
+
+  /** Focos ya montados en el DOM — se llena en `construirCadena`. */
+  _dots?: Foco[];
+  created_at?: string;
+  [columna: string]: unknown;
+}
+
+/** Un foco de una cadena de luces: un div con memoria de su último
+ * color/opacidad para no repintar de gusto en cada frame. */
+export interface Foco extends HTMLDivElement {
+  _color?: string;
+  _op?: number;
+}
+
+/** Una fila de la tabla `capas_libres` (imágenes sueltas posicionables). */
+export interface CapaLibre {
+  id: string;
+  juego_id: string;
+  orden: number;
+  imagen_url?: string | null;
+  x: number;
+  y: number;
+  tamano: number;
+  angulo: number;
+  blur: number;
+  oscurecer: number;
+  created_at?: string;
+}
+
+/** Una fila de la tabla `animaciones_lottie` (intro y complementos de premio). */
+export interface AnimacionLottie {
+  id: string;
+  juego_id: string;
+  orden: number;
+  evento: 'intro' | 'girar' | 'premio_chico' | 'premio_mayor';
+  lottie_url?: string | null;
+  x: number;
+  y: number;
+  tamano: number;
+  created_at?: string;
+}
+
+/** Una fila de la tabla `premios_visuales` (cuadro de premio por nivel). */
+export interface PremioVisual {
+  id?: string | null;
+  juego_id: string;
+  nivel_premio: NivelPremio;
+  imagen_url?: string | null;
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+  blur: number;
+  oscurecer: number;
+  imagen_x: number;
+  imagen_y: number;
+  imagen_tamano: number;
+  monto_x: number;
+  monto_y: number;
+  monto_alto: number;
+  monto_espaciado: number;
+}
+
+/** Una fila de la tabla `botones` (los botones chicos: −, +, x1, x2, x3). */
+export interface Boton {
+  id?: string | null;
+  juego_id: string;
+  clave: 'menos' | 'mas' | 'x1' | 'x2' | 'x3';
+  imagen_url?: string | null;
+  tamano: number;
+  imagen_tamano: number;
+  sin_fondo: boolean;
+}
+
+/** Una fila de la tabla `digitos` (íconos por carácter del monto ganado). */
+export interface Digito {
+  id?: string;
+  juego_id: string;
+  caracter: string;
+  imagen_url?: string | null;
+}
+
+/** Resultado de un giro: lo devuelve `girar()` de cada motor y también,
+ * con la misma forma, el endpoint `/api/jugar-girar`. */
+export interface ResultadoGiro {
+  grilla: Simbolo[][];
+  premio: number;
+  nivel: NivelPremio | null;
+  filaPago: number;
+  simbolosGanadores: number[];
+  /** Solo en la respuesta del servidor (no en el motor local). */
+  saldo?: number;
+}
+
 /** Lo que expone cada archivo de motor cargado por `cargarMotor()`. */
 export interface MotorModulo {
-  COLUMNAS?: number;
-  FILAS?: number;
-  girar?: (...args: unknown[]) => unknown;
-  [exportName: string]: unknown;
+  COLUMNAS: number;
+  FILAS: number;
+  FILA_PAGO: number;
+  elegirSimbolo(simbolos: Simbolo[], total: number): Simbolo;
+  girar(simbolos: Simbolo[]): ResultadoGiro;
 }

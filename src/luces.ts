@@ -1,16 +1,18 @@
 // =========================================================
 // CADENAS DE LUCES — módulo compartido.
 //
-// Lo importan tanto el ensamblador (preview.js) como la pantalla real
-// del jugador (jugar.js). Una sola copia a propósito: cuando esta
-// lógica estaba duplicada en los dos archivos, se desincronizó y
-// aparecieron bugs difíciles de ver. Si algo se corrige acá, queda
-// corregido en los dos lados.
+// Lo importan tanto el ensamblador (Preview) como la pantalla real del
+// jugador (Jugar). Una sola copia a propósito: cuando esta lógica
+// estaba duplicada en los dos archivos, se desincronizó y aparecieron
+// bugs difíciles de ver. Si algo se corrige acá, queda corregido en
+// los dos lados.
 //
 // La pantalla del juego mide SIEMPRE 420x860 por dentro (se escala
 // entera al dispositivo), así que toda la geometría se calcula en
 // esos píxeles fijos.
 // =========================================================
+
+import type { CadenaLuz, Foco, Punto, Rect } from './types.ts';
 
 export const ANCHO_ESC = 420;
 export const ALTO_ESC = 860;
@@ -19,7 +21,7 @@ export const ALTO_ESC = 860;
 // Círculo, cuadrado, rombo (cuadrado girado 45°) o barra
 // (rectángulo con las puntas redondeadas). Ancho y alto van por
 // separado, así se pueden hacer barras verticales u horizontales.
-export function estiloForma(c) {
+export function estiloForma(c: CadenaLuz): { ancho: number; alto: number; radio: string; giro: string } {
   const ancho = Number(c.ancho ?? c.tamano ?? 11);
   const alto = Number(c.alto ?? c.tamano ?? 11);
   const forma = c.forma || 'circulo';
@@ -31,7 +33,7 @@ export function estiloForma(c) {
 }
 
 // ---------------- Geometría de la cadena ----------------
-export function puntoEnPerimetro(i, total, rect) {
+export function puntoEnPerimetro(i: number, total: number, rect: Rect): Punto {
   const per = 2 * (rect.w + rect.h);
   const d = (per * i) / total;
   if (d < rect.w) return { x: rect.left + d, y: rect.top };
@@ -42,13 +44,13 @@ export function puntoEnPerimetro(i, total, rect) {
 
 // Figura propia de la cadena: rectángulo, elipse o línea, con su
 // tamaño y su rotación sobre el centro.
-export function puntosFigura(c) {
+export function puntosFigura(c: CadenaLuz): Punto[] {
   const cx = (c.figura_x ?? 50) / 100 * ANCHO_ESC;
   const cy = (c.figura_y ?? 50) / 100 * ALTO_ESC;
   const w = (c.figura_ancho ?? 60) / 100 * ANCHO_ESC;
   const h = (c.figura_alto ?? 30) / 100 * ALTO_ESC;
   const n = c.cantidad;
-  const crudos = [];
+  const crudos: Punto[] = [];
 
   if ((c.figura || 'rectangulo') === 'circulo') {
     for (let i = 0; i < n; i++) {
@@ -61,7 +63,7 @@ export function puntosFigura(c) {
       crudos.push({ x: -w / 2 + t * w, y: 0 });
     }
   } else {
-    const rect = { left: -w / 2, top: -h / 2, w, h };
+    const rect: Rect = { left: -w / 2, top: -h / 2, w, h };
     for (let i = 0; i < n; i++) crudos.push(puntoEnPerimetro(i, n, rect));
   }
 
@@ -76,7 +78,7 @@ export function puntosFigura(c) {
 // En modo "libre" la fila de puntos sigue a la cantidad: al subirla
 // se agregan cerca del último, al bajarla se recortan del final. Lo
 // que ya se arrastró no se toca.
-export function sincronizarPuntos(c) {
+export function sincronizarPuntos(c: CadenaLuz): void {
   if (!Array.isArray(c.puntos)) c.puntos = [];
   while (c.puntos.length < c.cantidad) {
     const ultimo = c.puntos[c.puntos.length - 1] || { x: 30, y: 50 };
@@ -85,7 +87,7 @@ export function sincronizarPuntos(c) {
   if (c.puntos.length > c.cantidad) c.puntos.length = c.cantidad;
 }
 
-export function posicionesCadena(c, rectMarco) {
+export function posicionesCadena(c: CadenaLuz, rectMarco: () => Rect): Punto[] {
   if (c.modo === 'marco') {
     const r = rectMarco();
     return Array.from({ length: c.cantidad }, (_, i) => puntoEnPerimetro(i, c.cantidad, r));
@@ -100,13 +102,13 @@ export function posicionesCadena(c, rectMarco) {
 // blanco y se abre al color hacia el borde, con un resplandor que
 // desborda. Apagado no desaparece — queda opaco y oscurecido, como
 // una lámpara sin corriente.
-export function construirCadena(wrap, c, rectMarco) {
+export function construirCadena(wrap: HTMLElement, c: CadenaLuz, rectMarco: () => Rect): void {
   wrap.innerHTML = '';
   const f = estiloForma(c);
   const posiciones = posicionesCadena(c, rectMarco);
 
   c._dots = posiciones.map((p) => {
-    const dot = document.createElement('div');
+    const dot = document.createElement('div') as Foco;
     dot.style.cssText = `position:absolute; left:${p.x / ANCHO_ESC * 100}%; top:${p.y / ALTO_ESC * 100}%;`
       + `width:${f.ancho}px; height:${f.alto}px; border-radius:${f.radio};`
       + `transform:translate(-50%,-50%)${f.giro};`
@@ -125,8 +127,6 @@ export function construirCadena(wrap, c, rectMarco) {
   });
 }
 
-// Pinta UN foco. Separado a propósito: es lo único que corre en cada
-// frame, así el resto (posiciones, elementos) no se recalcula.
 // Pinta UN foco. Es lo único que corre en cada paso de la animación,
 // así que está escrito para tocar lo menos posible:
 //
@@ -144,7 +144,7 @@ export function construirCadena(wrap, c, rectMarco) {
 // Con luces en pantalla el giro de los rodillos se sentía despareja:
 // el repintado del resplandor competía con la animación. Este es el
 // motivo por el que se hizo así y no de la forma obvia.
-function pintarFoco(dot, color, encendido, c) {
+function pintarFoco(dot: Foco, color: string, encendido: boolean, c: CadenaLuz): void {
   if (dot._color !== color) {
     dot._color = color;
     const glow = Number(c.glow ?? 14);
@@ -159,14 +159,14 @@ function pintarFoco(dot, color, encendido, c) {
   const op = encendido ? 1 : apagado;
   if (dot._op !== op) {
     dot._op = op;
-    dot.style.opacity = op;
+    dot.style.opacity = String(op);
   }
 }
 
 // ---------------- Animaciones ----------------
 // Todas reciben el tiempo transcurrido y deciden, para cada foco, qué
 // color le toca y si está encendido. El resto lo hace pintarFoco.
-export function animarCadena(c, ahora) {
+export function animarCadena(c: CadenaLuz, ahora: number): void {
   const dots = c._dots || [];
   if (!dots.length) return;
   const n = dots.length;
@@ -231,7 +231,10 @@ export function animarCadena(c, ahora) {
 // Se limita a ~11 cuadros por segundo a propósito: las luces no
 // necesitan más y así le dejan el resto del tiempo a la animación de
 // los rodillos, que sí necesita ir fluida.
-export function iniciarAnimacionLuces(obtenerCadenas, estaOcupado) {
+export function iniciarAnimacionLuces(
+  obtenerCadenas: () => CadenaLuz[],
+  estaOcupado?: () => boolean,
+): () => void {
   const t0 = Date.now();
   let ultimo = 0;
   let vivo = true;
