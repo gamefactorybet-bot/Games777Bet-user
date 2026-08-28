@@ -260,6 +260,21 @@ export interface ResultadoGiro {
   saldo?: number;
 }
 
+/** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`
+ * y como lo junta la vista previa desde consultas sueltas. */
+export interface DatosJuego {
+  juego: Juego;
+  simbolos: Simbolo[];
+  sonidos: Sonido[];
+  efectos: Efecto[];
+  premios: PremioVisual[];
+  digitos: Digito[];
+  capasLibres: CapaLibre[];
+  botones: Boton[];
+  cadenasLuces: CadenaLuz[];
+  animaciones: AnimacionLottie[];
+}
+
 /** Lo que expone cada archivo de motor cargado por `cargarMotor()`. */
 export interface MotorModulo {
   COLUMNAS: number;
