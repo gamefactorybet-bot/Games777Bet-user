@@ -288,6 +288,14 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const btnMas = q<HTMLButtonElement>('[data-apuesta-mas]');
   const cintas = Array.from({ length: COLUMNAS }, (_, i) => q(`[data-cinta="${i}"]`));
 
+  // En la pantalla del jugador el botón ℹ va en la esquina, no en la
+  // fila del título (que puede estar oculta si mostrar_nombre es false).
+  if (modo === 'jugar') {
+    Object.assign(q('[data-info]').style, {
+      position: 'absolute', right: '22px', top: '22px', zIndex: '12', width: '30px', height: '30px',
+    });
+  }
+
   // ---------------- Escala 420×860 ----------------
   const escalar = () => {
     if (modo === 'jugar') {
