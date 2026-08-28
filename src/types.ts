@@ -66,6 +66,31 @@ export interface Simbolo {
   [columna: string]: unknown;
 }
 
+/** Peso y pagos de un símbolo, tal como los guarda un perfil de RTP
+ * (una foto de la tabla de pagos). */
+export interface PagosSimbolo {
+  peso: number;
+  pago_dos: number;
+  pago_tres: number;
+  pago_cuatro?: number | null;
+  pago_cinco?: number | null;
+}
+
+/** Una fila de la tabla `perfiles_rtp` (un "modo de pago" guardado del
+ * juego: Tacaño, Nivelado, Generoso…). El juego tiene uno activo, que
+ * es el que aplica el servidor al resolver cada giro. */
+export interface PerfilRtp {
+  id: string;
+  juego_id: string;
+  nombre: string;
+  rtp_objetivo?: number | null;
+  /** `{ [simbolo_id]: PagosSimbolo }` */
+  pagos: Record<string, PagosSimbolo>;
+  activo: boolean;
+  orden: number;
+  created_at?: string;
+}
+
 /** Una fila de la tabla `sonidos`. */
 export interface Sonido {
   id: string;

@@ -3,10 +3,15 @@ import { supabase } from './supabase.ts';
 import { analizar } from './motor.ts';
 import { cargarMotor, MOTORES_DISPONIBLES } from '../motor/registro.js';
 import { subirArchivo } from './juego/subir.ts';
+import {
+  rtpDe, escalarPagos, factorParaObjetivo, aplicarPerfil,
+  perfilDesdeSimbolos, sugerirCompensacion,
+} from './juego/calibracion.ts';
+import type { Sugerencia } from './juego/calibracion.ts';
 import { listarClientesActivos } from './Clientes.tsx';
 import { Preview } from './Preview.tsx';
 import type {
-  ClienteActivo, Efecto, EstadoJuego, Juego, Simbolo, Sonido,
+  ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, Simbolo, Sonido,
 } from './types.ts';
 
 const COLORES = ['#f87171', '#fbbf24', '#facc15', '#4ade80', '#38bdf8', '#a78bfa', '#f472b6', '#94a3b8'];
@@ -367,6 +372,17 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (!juego.publicado) {
       if (juego.estado !== 'listo') { alert('Marcá el juego como Listo antes de publicarlo.'); return; }
       const { errores, avisos } = revisarAntesDePublicar();
+
+      // Lo que cobra el jugador sale del perfil activo, no del borrador.
+      const { data: perfilActivo } = await supabase
+        .from('perfiles_rtp').select('nombre, pagos')
+        .eq('juego_id', juego.id).eq('activo', true).maybeSingle();
+      if (perfilActivo?.pagos && simbolos.length) {
+        const rtpP = rtpDe(aplicarPerfil(simbolos, perfilActivo.pagos), columnasMotor);
+        if (rtpP > 100) errores.push(`El perfil activo "${perfilActivo.nombre}" tiene RTP ${rtpP.toFixed(2)}% — el juego pierde plata en cada giro.`);
+        else if (rtpP < 85 || rtpP > 97) avisos.push(`El perfil activo "${perfilActivo.nombre}" tiene RTP ${rtpP.toFixed(2)}%, fuera del rango habitual (85-97%).`);
+      }
+
       if (errores.length) { alert('No se puede publicar todavía:\n\n' + errores.map((e) => '· ' + e).join('\n')); return; }
       if (avisos.length) {
         const seguir = confirm('Se puede publicar, pero revisá esto:\n\n' + avisos.map((a) => '· ' + a).join('\n') + '\n\n¿Publicar igual?');
@@ -550,6 +566,17 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
             </div>
             <button style={{ marginTop: 10 }} onClick={agregarSimbolo}>+ Agregar símbolo</button>
           </div>
+
+          <PerfilesYCalibrado
+            juego={juego}
+            simbolos={simbolos}
+            columnasMotor={columnasMotor}
+            onAplicarSimbolos={async (nuevos) => {
+              setSimbolos(nuevos);
+              for (const s of nuevos) await guardarSimbolo(s);
+              marcarGuardado();
+            }}
+          />
         </div>
       )}
 
@@ -664,6 +691,162 @@ function Historial({ html }: { html: string }) {
   if (html === '__VACIO__') return <p className="hint" style={{ margin: 0 }}>Todavía no se jugó ninguna ronda con dinero real.</p>;
   if (html.startsWith('__ERROR__')) return <p className="hint error" style={{ margin: 0 }}>{html.slice(9)}</p>;
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+// ---------------- Calibración de RTP + perfiles ("modos de pago") ----------------
+
+interface PerfilesProps {
+  juego: Juego;
+  simbolos: Simbolo[];
+  columnasMotor: number;
+  onAplicarSimbolos: (nuevos: Simbolo[]) => Promise<void>;
+}
+
+function PerfilesYCalibrado({ juego, simbolos, columnasMotor, onAplicarSimbolos }: PerfilesProps) {
+  const [objetivo, setObjetivo] = useState(94);
+  const [perfiles, setPerfiles] = useState<PerfilRtp[]>([]);
+  const [sug, setSug] = useState<Sugerencia | null>(null);
+  const [trabajando, setTrabajando] = useState(false);
+
+  const rtpActual = simbolos.length ? analizar(simbolos, columnasMotor).rtp : 0;
+  const factor = factorParaObjetivo(rtpActual, objetivo);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase.from('perfiles_rtp').select('*').eq('juego_id', juego.id).order('orden');
+    setPerfiles((data as PerfilRtp[]) || []);
+  }, [juego.id]);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  // Aviso contextual: el RTP del borrador se salió de banda del
+  // objetivo. La sugerencia por símbolo hace decenas de análisis, así
+  // que se calcula recién cuando dejás de tocar los controles.
+  useEffect(() => {
+    if (!simbolos.length || Math.abs(rtpActual - objetivo) <= 1) { setSug(null); return; }
+    const t = setTimeout(() => setSug(sugerirCompensacion(simbolos, columnasMotor, objetivo)), 400);
+    return () => clearTimeout(t);
+  }, [rtpActual, objetivo, columnasMotor, simbolos]);
+
+  const calibrar = async () => {
+    setTrabajando(true);
+    await onAplicarSimbolos(escalarPagos(simbolos, factorParaObjetivo(rtpActual, objetivo)));
+    setTrabajando(false);
+  };
+
+  const aplicarPorSimbolo = async () => {
+    if (!sug?.porSimbolo) return;
+    const { nombre, campo, a } = sug.porSimbolo;
+    setTrabajando(true);
+    await onAplicarSimbolos(simbolos.map((s) => (s.nombre === nombre ? ({ ...s, [campo]: a } as Simbolo) : s)));
+    setTrabajando(false);
+  };
+
+  const guardarPerfil = async () => {
+    const nombre = prompt('Nombre del perfil (ej. Tacaño, Nivelado, Generoso):');
+    if (!nombre?.trim()) return;
+    let base = simbolos;
+    if (confirm(`¿Calibrar los pagos a ${objetivo}% antes de guardar?\n\nCancelar = guardar tal como están (${rtpActual.toFixed(1)}%).`)) {
+      base = escalarPagos(simbolos, factorParaObjetivo(rtpActual, objetivo));
+      await onAplicarSimbolos(base);
+    }
+    const rtpGuardado = rtpDe(base, columnasMotor);
+    const { error } = await supabase.from('perfiles_rtp').insert({
+      juego_id: juego.id, nombre: nombre.trim(),
+      rtp_objetivo: Number(rtpGuardado.toFixed(2)),
+      pagos: perfilDesdeSimbolos(base),
+      orden: perfiles.length,
+    });
+    if (error) { alert(error.message); return; }
+    cargar();
+  };
+
+  const activar = async (p: PerfilRtp) => {
+    const { error } = await supabase.rpc('activar_perfil', { p_perfil_id: p.id });
+    if (error) { alert(error.message); return; }
+    cargar();
+  };
+  const desactivar = async (p: PerfilRtp) => {
+    await supabase.from('perfiles_rtp').update({ activo: false }).eq('id', p.id);
+    cargar();
+  };
+  const cargarEnEditor = async (p: PerfilRtp) => {
+    if (!confirm(`Cargar "${p.nombre}" en el editor: los pagos y pesos de los símbolos cambian a los de este perfil. El juego en vivo no cambia hasta que actives un perfil.`)) return;
+    setTrabajando(true);
+    await onAplicarSimbolos(aplicarPerfil(simbolos, p.pagos));
+    setTrabajando(false);
+  };
+  const actualizar = async (p: PerfilRtp) => {
+    if (!confirm(`Sobrescribir "${p.nombre}" con lo que estás editando ahora (${rtpActual.toFixed(1)}%)?`)) return;
+    await supabase.from('perfiles_rtp').update({
+      pagos: perfilDesdeSimbolos(simbolos), rtp_objetivo: Number(rtpActual.toFixed(2)),
+    }).eq('id', p.id);
+    cargar();
+  };
+  const renombrar = async (p: PerfilRtp) => {
+    const nombre = prompt('Nuevo nombre:', p.nombre);
+    if (!nombre?.trim()) return;
+    await supabase.from('perfiles_rtp').update({ nombre: nombre.trim() }).eq('id', p.id);
+    cargar();
+  };
+  const borrar = async (p: PerfilRtp) => {
+    if (!confirm(`¿Borrar el perfil "${p.nombre}"?`)) return;
+    await supabase.from('perfiles_rtp').delete().eq('id', p.id);
+    cargar();
+  };
+
+  return (
+    <div className="card">
+      <strong style={{ fontSize: 15 }}>Calibración y perfiles de RTP</strong>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '12px 0' }}>
+        <label style={{ fontSize: 12 }}>RTP objetivo
+          <input type="number" value={objetivo} onChange={(e) => setObjetivo(Number(e.target.value) || 0)} style={{ width: 80 }} />
+        </label>
+        <span className="hint">actual {rtpActual.toFixed(1)}% · factor ×{factor.toFixed(3)}</span>
+        <button disabled={trabajando || !simbolos.length} onClick={calibrar}>Calibrar a {objetivo}%</button>
+      </div>
+
+      {sug && (
+        <div style={{ background: 'rgba(217,164,65,.12)', color: 'var(--warning)', borderRadius: 8, padding: 10, fontSize: 13, marginBottom: 12 }}>
+          RTP en {sug.rtpActual}% (objetivo {sug.objetivo}%). Para calibrar:
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+            <button disabled={trabajando} onClick={calibrar}>Escalar todos los pagos ×{sug.factorGlobal}</button>
+            {sug.porSimbolo && (
+              <button disabled={trabajando} onClick={aplicarPorSimbolo}>
+                {sug.porSimbolo.campo === 'pago_cinco' ? 'x5' : 'x3'} de {sug.porSimbolo.nombre}: {sug.porSimbolo.de} → {sug.porSimbolo.a}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <strong style={{ fontSize: 14, flex: 1 }}>Perfiles guardados</strong>
+        <button onClick={guardarPerfil} disabled={!simbolos.length}>+ Guardar perfil</button>
+      </div>
+      <p className="hint" style={{ marginBottom: 10 }}>
+        La vista previa siempre usa lo que estás editando ahora. El juego en vivo usa el perfil activo.
+      </p>
+      {perfiles.length === 0 && (
+        <p className="hint">Todavía no guardaste ningún perfil. Calibrá los pagos y guardá "Tacaño", "Nivelado", "Generoso"…</p>
+      )}
+      {perfiles.map((p) => (
+        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-alt)', borderRadius: 8, padding: '8px 10px', marginBottom: 6, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: 13 }}>{p.nombre}</strong>
+          {p.activo && <span className="badge listo">activo</span>}
+          <span className="hint" style={{ flex: 1, minWidth: 120 }}>
+            objetivo {p.rtp_objetivo ?? '—'}% · ahora {rtpDe(aplicarPerfil(simbolos, p.pagos), columnasMotor).toFixed(1)}%
+          </span>
+          {p.activo
+            ? <button onClick={() => desactivar(p)}>Desactivar</button>
+            : <button className="primary" onClick={() => activar(p)}>Activar</button>}
+          <button onClick={() => cargarEnEditor(p)}>Cargar</button>
+          <button onClick={() => actualizar(p)}>Actualizar</button>
+          <button onClick={() => renombrar(p)}>Renombrar</button>
+          <button style={{ color: 'var(--danger)' }} onClick={() => borrar(p)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 interface FilaSimboloProps {

@@ -39,15 +39,37 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `La apuesta debe estar entre ${juego.min_bet} y ${juego.max_bet}` });
     }
 
-    // Los símbolos se piden mientras Win777 procesa el débito: las dos
-    // cosas tardan y no dependen entre sí. Si el débito falla, la
-    // consulta de símbolos se descarta sola.
-    const [simbolosRes, trasApostar] = await Promise.all([
+    // Los símbolos y el perfil de RTP activo se piden mientras Win777
+    // procesa el débito: las tres cosas tardan y no dependen entre sí.
+    // Si el débito falla, las consultas se descartan solas.
+    const [simbolosRes, perfilRes, trasApostar] = await Promise.all([
       supabaseAdmin.from('simbolos').select('*').eq('juego_id', juego.id),
+      supabaseAdmin.from('perfiles_rtp').select('pagos').eq('juego_id', juego.id).eq('activo', true).maybeSingle(),
       apostar(token, clientId, monto),
     ]);
-    const simbolos = simbolosRes.data;
+    let simbolos = simbolosRes.data;
     if (!simbolos?.length) return res.status(400).json({ error: 'El juego no tiene símbolos configurados' });
+
+    // Perfil de RTP activo ("modo de pago"): si hay uno, pisa el peso y
+    // los pagos de cada símbolo con los de la foto guardada. La tabla
+    // `simbolos` es solo el borrador que se edita en el ensamblador —
+    // lo que cobra el jugador sale del perfil activo. Sin perfil, se
+    // usa el borrador tal cual (juegos sin perfiles configurados).
+    const pagosPerfil = perfilRes.data?.pagos;
+    if (pagosPerfil) {
+      simbolos = simbolos.map((s) => {
+        const p = pagosPerfil[s.id];
+        if (!p) return s; // símbolo agregado después de crear el perfil
+        return {
+          ...s,
+          peso: p.peso ?? s.peso,
+          pago_dos: p.pago_dos ?? s.pago_dos,
+          pago_tres: p.pago_tres ?? s.pago_tres,
+          pago_cuatro: p.pago_cuatro ?? s.pago_cuatro,
+          pago_cinco: p.pago_cinco ?? s.pago_cinco,
+        };
+      });
+    }
 
     // Resultado — se calcula acá, con el motor que este juego tiene
     // elegido (no siempre el mismo). El mismo roundId (clientId) va
