@@ -38,6 +38,10 @@ export interface CrearEscenarioOpts {
   animaciones: AnimacionLottie[];
   botones: Boton[];
   motor: { COLUMNAS: number; FILAS: number; FILA_PAGO: number };
+  /** Mines: escenario sin rodillos ni controles de slot. La grilla
+   *  queda como una caja vacía y posicionable (el tablero se monta
+   *  adentro por fuera). Todo lo de arte/luces/libres funciona igual. */
+  esMines?: boolean;
 }
 
 const CLAVES_BOTON: { clave: Boton['clave']; etiqueta: string }[] = [
@@ -131,6 +135,7 @@ export interface Escenario {
 export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const { modo, juego, sonidos, efectos, premios, digitos, animaciones, motor } = opts;
   const { COLUMNAS, FILAS } = motor;
+  const esMines = !!opts.esMines;
 
   const pos = conDefaults(juego);
   const ordenCapas = ordenPorDefecto(juego);
@@ -204,8 +209,8 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
   el.innerHTML = `
     <style>${cssEfectos}</style>
-    ${juego.fondo_pantalla_url ? `<img data-capa-img="fondo_pantalla" src="${juego.fondo_pantalla_url}" style="position:absolute; object-fit:fill" />` : ''}
-    ${juego.marco_url ? `<img data-capa-img="marco" src="${juego.marco_url}" style="position:absolute; object-fit:fill" />` : ''}
+    ${juego.fondo_pantalla_url ? `<img data-capa-img="fondo_pantalla" src="${juego.fondo_pantalla_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
+    ${juego.marco_url ? `<img data-capa-img="marco" src="${juego.marco_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
 
     <div style="display:flex; align-items:center; gap:8px; position:relative; z-index:10">
       <div style="width:28px"></div>
@@ -213,14 +218,18 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
       <button data-info aria-label="Ver información del juego" style="width:28px; height:28px; padding:0; border-radius:50%; flex-shrink:0">ℹ</button>
     </div>
 
+    ${esMines ? `
+    <div data-grilla style="position:absolute; overflow:visible; transform:translate(-50%,-50%)"></div>
+    ` : `
     <div data-grilla style="display:grid; grid-template-columns:repeat(${COLUMNAS},1fr); gap:6px; border-radius:12px; padding:8px; position:absolute; overflow:hidden; aspect-ratio:${COLUMNAS}/${FILAS}">
       <div data-grilla-fondo style="position:absolute; inset:0; background:${fondoBg}; z-index:0"></div>
       ${Array.from({ length: COLUMNAS }, (_, i) => `
       <div class="jg-columna" data-col="${i}" style="position:relative; overflow:hidden; z-index:1"><div class="jg-cinta" data-cinta="${i}" style="display:flex; flex-direction:column; position:absolute; top:0; left:0; width:100%"></div></div>`).join('')}
       <div data-efecto-premio style="position:absolute; inset:0; pointer-events:none; opacity:0; z-index:2"></div>
     </div>
+    `}
 
-    ${juego.cartel_url ? `<img data-capa-img="cartel" src="${juego.cartel_url}" style="position:absolute; object-fit:fill" />` : ''}
+    ${juego.cartel_url ? `<img data-capa-img="cartel" src="${juego.cartel_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
 
     <div data-capas-libres style="position:absolute; inset:0; z-index:8; pointer-events:none"></div>
     <div data-cadenas-luces style="position:absolute; inset:0; z-index:9; pointer-events:none"></div>
@@ -290,10 +299,17 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
   // En la pantalla del jugador el botón ℹ va en la esquina, no en la
   // fila del título (que puede estar oculta si mostrar_nombre es false).
-  if (modo === 'jugar') {
+  if (modo === 'jugar' && !esMines) {
     Object.assign(q('[data-info]').style, {
       position: 'absolute', right: '22px', top: '22px', zIndex: '12', width: '30px', height: '30px',
     });
+  }
+
+  // Mines: sin controles de slot ni cuadro de premio (el tablero trae
+  // los suyos). Se dejan en el DOM pero ocultos.
+  if (esMines) {
+    [premioPopupEl, efectoPremio, grupoSaldoEl, grupoApuestaEl, grupoTurboEl, fichasEl, btnGirar, q('[data-info]')]
+      .forEach((n) => { if (n) n.style.display = 'none'; });
   }
 
   // ---------------- Escala 420×860 ----------------
@@ -338,7 +354,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     if (ELEMENTO_CAPA.fondo_pantalla) ELEMENTO_CAPA.fondo_pantalla.style.filter = filtroCss(pos.fondo_pantalla_blur, pos.fondo_pantalla_oscurecer);
     if (ELEMENTO_CAPA.marco) ELEMENTO_CAPA.marco.style.filter = filtroCss(pos.marco_blur, pos.marco_oscurecer);
     if (ELEMENTO_CAPA.cartel) ELEMENTO_CAPA.cartel.style.filter = filtroCss(pos.cartel_blur, pos.cartel_oscurecer);
-    grillaFondoEl.style.filter = filtroCss(pos.fondo_blur, pos.fondo_oscurecer);
+    if (grillaFondoEl) grillaFondoEl.style.filter = filtroCss(pos.fondo_blur, pos.fondo_oscurecer);
   };
 
   const aplicarCapasLibres = () => {
@@ -560,18 +576,20 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     if (conFichas) pintarFichas();
   };
 
-  btnMas.addEventListener('click', () => {
-    if (escenario.girando) return;
-    escenario.apuesta = Math.min(apuestaMax, escenario.apuesta + pasoApuesta);
-    pintarApuesta();
-    if (fichasEl.style.display !== 'none') pintarFichas();
-  });
-  btnMenos.addEventListener('click', () => {
-    if (escenario.girando) return;
-    escenario.apuesta = Math.max(apuestaMin, escenario.apuesta - pasoApuesta);
-    pintarApuesta();
-    if (fichasEl.style.display !== 'none') pintarFichas();
-  });
+  if (!esMines) {
+    btnMas.addEventListener('click', () => {
+      if (escenario.girando) return;
+      escenario.apuesta = Math.min(apuestaMax, escenario.apuesta + pasoApuesta);
+      pintarApuesta();
+      if (fichasEl.style.display !== 'none') pintarFichas();
+    });
+    btnMenos.addEventListener('click', () => {
+      if (escenario.girando) return;
+      escenario.apuesta = Math.max(apuestaMin, escenario.apuesta - pasoApuesta);
+      pintarApuesta();
+      if (fichasEl.style.display !== 'none') pintarFichas();
+    });
+  }
 
   // ---------------- Limpieza ----------------
   const alRedimensionar = () => escalar();
@@ -625,13 +643,15 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   aplicarOrden();
   aplicarFiltros();
   aplicarCapasLibres();
-  aplicarPosicionPremio('dos_iguales');
-  aplicarGirar();
-  aplicarGrupos();
-  aplicarBotonesApuesta();
-  pintarTurbo();
-  pintarApuesta();
-  aplicarModo();
+  if (!esMines) {
+    aplicarPosicionPremio('dos_iguales');
+    aplicarGirar();
+    aplicarGrupos();
+    aplicarBotonesApuesta();
+    pintarTurbo();
+    pintarApuesta();
+    aplicarModo();
+  }
 
   return escenario;
 }

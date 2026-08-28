@@ -118,7 +118,7 @@ export function TableroMines({
     : Math.abs(Math.floor(i / LADO) - Math.floor(clicMina / LADO)) + Math.abs((i % LADO) - (clicMina % LADO)));
 
   return (
-    <div style={{ width: 340, maxWidth: '92vw', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8 }}>
         <Caja etiqueta="Saldo" valor={fmt(saldo)} />
         {jugando

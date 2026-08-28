@@ -95,18 +95,25 @@ interface AjustePanelProps {
   juego: Juego;
   simbolos: Simbolo[];
   onGrillaCambio: () => void;
+  /** Limita las categorías (Mines: solo 'capas' y 'extras'). */
+  categorias?: string[];
+  /** En Mines, la capa "grilla" es el tablero (otro nombre y rangos). */
+  esMines?: boolean;
 }
 
-export function AjustePanel({ escenario, juego, onGrillaCambio }: AjustePanelProps) {
-  const [categoria, setCategoria] = useState<string>('capas');
-  const [capa, setCapa] = useState<string>('grilla');
+export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMines }: AjustePanelProps) {
+  const cats = CATEGORIAS_PANEL.filter((c) => !categorias || categorias.includes(c.id));
+  const [categoria, setCategoria] = useState<string>(cats[0]?.id ?? 'capas');
+  const [capa, setCapa] = useState<string>(cats[0]?.tabs[0] ?? 'grilla');
   const [, forzar] = useState(0);
   const redibujar = () => forzar((x) => x + 1);
 
   const cambiarCategoria = (id: string) => {
     setCategoria(id);
-    setCapa(CATEGORIAS_PANEL.find((c) => c.id === id)!.tabs[0]);
+    setCapa(cats.find((c) => c.id === id)!.tabs[0]);
   };
+
+  const etiquetaCapa = (t: string) => (esMines && t === 'grilla' ? 'Tablero' : ETIQUETA_CAPA[t]);
 
   const esCapa = ['fondo_pantalla', 'marco', 'grilla', 'cartel'].includes(capa);
 
@@ -126,17 +133,17 @@ export function AjustePanel({ escenario, juego, onGrillaCambio }: AjustePanelPro
 
       <p style={{ fontWeight: 600, margin: '0 0 6px', fontSize: 13 }}>Estoy ajustando</p>
       <div className="cat-nav" style={{ marginBottom: 8 }}>
-        {CATEGORIAS_PANEL.map((c) => (
+        {cats.map((c) => (
           <button key={c.id} className={`cat-btn ${c.id === categoria ? 'on' : ''}`}
             style={{ flex: '1 1 40%', fontSize: 12, justifyContent: 'center' }}
             onClick={() => cambiarCategoria(c.id)}>{c.etiqueta}</button>
         ))}
       </div>
       <div className="grupo-nav" style={{ marginBottom: 14 }}>
-        {CATEGORIAS_PANEL.find((c) => c.id === categoria)!.tabs.map((t) => (
+        {cats.find((c) => c.id === categoria)!.tabs.map((t) => (
           <button key={t} className={`grupo-btn ${t === capa ? 'on' : ''}`}
             style={{ flex: '1 1 30%', fontSize: 12, justifyContent: 'center' }}
-            onClick={() => setCapa(t)}>{ETIQUETA_CAPA[t]}</button>
+            onClick={() => setCapa(t)}>{etiquetaCapa(t)}</button>
         ))}
       </div>
 
@@ -147,12 +154,12 @@ export function AjustePanel({ escenario, juego, onGrillaCambio }: AjustePanelPro
         {capa === 'luces' && <PanelLuces escenario={escenario} juego={juego} />}
         {capa === 'girar' && <PanelGirar escenario={escenario} juego={juego} />}
         {capa === 'controles' && <PanelControles escenario={escenario} juego={juego} />}
-        {esCapa && <PanelCapa escenario={escenario} capa={capa} onGrillaCambio={onGrillaCambio} />}
+        {esCapa && <PanelCapa escenario={escenario} capa={capa} esMines={esMines} onGrillaCambio={onGrillaCambio} />}
       </div>
 
       {esCapa && (
         <>
-          <OrdenCapas escenario={escenario} />
+          <OrdenCapas escenario={escenario} esMines={esMines} />
           <BotonGuardar texto="Guardar posición" onGuardar={guardarPosicion} />
         </>
       )}
@@ -174,7 +181,15 @@ function BotonGuardar({ texto, onGuardar }: { texto: string; onGuardar: (msg: (t
 
 // ---------------- Sliders de una de las cuatro capas ----------------
 
-function PanelCapa({ escenario, capa, onGrillaCambio }: { escenario: Escenario; capa: string; onGrillaCambio: () => void }) {
+const CAMPOS_TABLERO_MINES: Campo[] = [
+  ['grilla_x', 'Posición X', -20, 120], ['grilla_y', 'Posición Y', -20, 120],
+  ['grilla_tamano', 'Tamaño', 30, 100],
+];
+
+function PanelCapa({ escenario, capa, esMines, onGrillaCambio }: {
+  escenario: Escenario; capa: string; esMines?: boolean; onGrillaCambio: () => void;
+}) {
+  const tableroMines = esMines && capa === 'grilla';
   const hayImagen: Record<string, boolean> = {
     fondo_pantalla: !!escenario.el.querySelector('[data-capa-img="fondo_pantalla"]'),
     grilla: true,
@@ -193,15 +208,20 @@ function PanelCapa({ escenario, capa, onGrillaCambio }: { escenario: Escenario; 
     if (capa === 'grilla' && !escenario.girando) onGrillaCambio();
   };
 
+  const campos = tableroMines ? CAMPOS_TABLERO_MINES : CAMPOS_POR_CAPA[capa];
+  const filtros = tableroMines ? [] : FILTROS_POR_CAPA[capa];
+
   return (
     <>
-      {CAMPOS_POR_CAPA[capa].map(([clave, etiqueta, min, max]) => (
+      {campos.map(([clave, etiqueta, min, max]) => (
         <Rango key={clave} etiqueta={etiqueta} min={min} max={max}
           valor={(escenario.pos as Record<string, number>)[clave]}
           onInput={(n) => aplicar(clave, n)} />
       ))}
-      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '12px 0 8px' }}>Nitidez y oscurecimiento</p>
-      {FILTROS_POR_CAPA[capa].map(([clave, etiqueta, min, max]) => (
+      {filtros.length > 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '12px 0 8px' }}>Nitidez y oscurecimiento</p>
+      )}
+      {filtros.map(([clave, etiqueta, min, max]) => (
         <Rango key={clave} etiqueta={etiqueta} min={min} max={max} unidad={clave.includes('blur') ? 'px' : '%'}
           valor={(escenario.pos as Record<string, number>)[clave]}
           onInput={(n) => aplicar(clave, n)} />
@@ -210,7 +230,7 @@ function PanelCapa({ escenario, capa, onGrillaCambio }: { escenario: Escenario; 
   );
 }
 
-function OrdenCapas({ escenario }: { escenario: Escenario }) {
+function OrdenCapas({ escenario, esMines }: { escenario: Escenario; esMines?: boolean }) {
   const [, forzar] = useState(0);
   const mover = (i: number, dir: 1 | -1) => {
     const o = escenario.ordenCapas;
@@ -224,7 +244,7 @@ function OrdenCapas({ escenario }: { escenario: Escenario }) {
       <p className="hint" style={{ margin: '0 0 8px' }}>De atrás hacia adelante. La de arriba de la lista es la más al fondo.</p>
       {escenario.ordenCapas.map((c, i) => (
         <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 8px', marginBottom: 4 }}>
-          <span style={{ flex: 1, fontSize: 12 }}>{NOMBRE_CAPA[c]}</span>
+          <span style={{ flex: 1, fontSize: 12 }}>{esMines && c === 'grilla' ? 'Tablero' : NOMBRE_CAPA[c]}</span>
           <button aria-label="Subir" disabled={i === escenario.ordenCapas.length - 1} style={{ padding: '2px 8px' }} onClick={() => mover(i, 1)}>↑</button>
           <button aria-label="Bajar" disabled={i === 0} style={{ padding: '2px 8px' }} onClick={() => mover(i, -1)}>↓</button>
         </div>

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { TableroMines } from './TableroMines.tsx';
-import { MarcoMines } from './MarcoMines.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
+import { crearEscenario } from './juego/escenario.ts';
 import { fetchJson, correrIntro } from './juego/recursos.ts';
 import { estadoInicial, puedeRetirar as calcPuedeRetirar } from './juego/mines.ts';
+import type { Escenario } from './juego/escenario.ts';
 import type { EstadoPartida } from './juego/mines.ts';
 import type { DatosJuego, RondaMines, RevelarMines, RetirarMines } from './types.ts';
 
@@ -13,6 +15,8 @@ interface JugarMinesProps {
   slug: string;
   token: string;
 }
+
+const MOTOR_STUB = { COLUMNAS: 5, FILAS: 5, FILA_PAGO: 0 };
 
 // Pantalla real de Mines. Cada paso (empezar, destapar, retirar) lo
 // resuelve el servidor (api/mines-iniciar|revelar|retirar); acá solo
@@ -25,16 +29,32 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const paso = Number(juego.paso_apuesta) || 500;
 
   const pantallaRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const escRef = useRef<Escenario | null>(null);
   const roundIdRef = useRef<string | null>(null);
 
   const [estado, setEstado] = useState<EstadoPartida>(() => estadoInicial(3, minBet, saldoInicial));
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
+  const [listo, setListo] = useState(false);
 
-  // ---------------- Precarga + intro ----------------
+  // ---------------- Escenario + precarga + intro ----------------
   useEffect(() => {
     let cancelado = false;
+    if (!hostRef.current) return;
+
+    const esc = crearEscenario({
+      modo: 'jugar', esMines: true, juego, motor: MOTOR_STUB,
+      simbolos: [], sonidos: datos.sonidos, efectos: datos.efectos, premios: [], digitos: [], botones: [],
+      cadenasLuces: datos.cadenasLuces, capasLibres: datos.capasLibres, animaciones: datos.animaciones,
+    });
+    escRef.current = esc;
+    esc.el.style.opacity = '0';
+    esc.el.style.transition = 'opacity .45s';
+    hostRef.current.appendChild(esc.wrap);
+    setListo(true);
+
     (async () => {
       const urls = [
         juego.fondo_url, juego.fondo_pantalla_url, juego.marco_url, juego.cartel_url,
@@ -43,9 +63,9 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
 
       const total = urls.length || 1;
       let hechos = 0;
-      const descarga = Promise.all(urls.map((url) => new Promise<void>((listo) => {
+      const descarga = Promise.all(urls.map((url) => new Promise<void>((fin) => {
         const img = new Image();
-        img.onload = img.onerror = () => { hechos++; setProgreso({ hechos, total }); listo(); };
+        img.onload = img.onerror = () => { hechos++; setProgreso({ hechos, total }); fin(); };
         img.src = url;
       })));
       if (!urls.length) setProgreso({ hechos: 1, total: 1 });
@@ -55,10 +75,12 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
       await descarga;
 
       if (cancelado) return;
+      esc.el.style.opacity = '1';
       setPantallaVisible(false);
       setTimeout(() => { if (!cancelado) setPantallaMontada(false); }, 400);
     })();
-    return () => { cancelado = true; };
+
+    return () => { cancelado = true; esc.destruir(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -150,7 +172,8 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
         #app button, #app button * { pointer-events: auto; }
       `}</style>
 
-      <MarcoMines juego={juego}>
+      <div ref={hostRef} />
+      {listo && escRef.current && createPortal(
         <TableroMines
           juego={juego}
           estado={estado}
@@ -163,8 +186,9 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
           onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
           onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
           onNueva={nueva}
-        />
-      </MarcoMines>
+        />,
+        escRef.current.grillaEl,
+      )}
 
       {pantallaMontada && (
         <PantallaCarga
