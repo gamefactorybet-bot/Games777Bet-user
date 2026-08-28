@@ -1,8 +1,8 @@
 // Carga de datos y precarga de recursos de la pantalla del jugador.
 // Extraído de `jugar.js` — lógica pura, sin DOM salvo `Image`/`Audio`.
 
-import { precargarLottie } from '../lottie.ts';
-import type { DatosJuego } from '../types.ts';
+import { precargarLottie, mostrarAnimacionJuego, detenerAnimacionesJuego } from '../lottie.ts';
+import type { AnimacionLottie, DatosJuego } from '../types.ts';
 
 export async function fetchJson<T = unknown>(url: string, opciones?: RequestInit): Promise<T> {
   const res = await fetch(url, opciones);
@@ -95,4 +95,39 @@ export function esperarRecursos(
     Promise.all(tareas),
     new Promise((listo) => setTimeout(listo, 15000)),
   ]);
+}
+
+/**
+ * Corre la animación de intro por encima de la pantalla de carga, y
+ * devuelve el control cuando la animación terminó su pasada.
+ *
+ * TOPE DE 2,5 SEGUNDOS: si alguien sube por error una animación larga,
+ * o el archivo nunca avisa que terminó, la entrada al juego no puede
+ * quedar trabada esperándola.
+ */
+export function correrIntro(cfg: AnimacionLottie, pantallaEl: HTMLElement): Promise<void> {
+  return new Promise((listo) => {
+    // La animación se posiciona en % de la pantalla del juego (420x860),
+    // así que la capa que la contiene tiene que tener esa forma y
+    // escalarse igual.
+    const escala = Math.min(window.innerWidth / 420, window.innerHeight / 860);
+    const capa = document.createElement('div');
+    capa.style.cssText = 'position:absolute; left:50%; top:50%; width:420px; height:860px;'
+      + `transform:translate(-50%,-50%) scale(${escala}); z-index:2; pointer-events:none;`;
+    pantallaEl.appendChild(capa);
+
+    let cerrado = false;
+    const cerrar = () => {
+      if (cerrado) return;
+      cerrado = true;
+      clearTimeout(tope);
+      capa.style.transition = 'opacity .3s';
+      capa.style.opacity = '0';
+      setTimeout(() => { detenerAnimacionesJuego(); capa.remove(); }, 320);
+      listo();
+    };
+
+    const tope = setTimeout(cerrar, 2500);
+    mostrarAnimacionJuego(capa, cfg, cerrar);
+  });
 }
