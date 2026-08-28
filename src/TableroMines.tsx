@@ -31,14 +31,17 @@ const BOTON_CELDA: CSSProperties = {
  * Lottie solo mientras esa cara lo pide. El `useEffect` sobre `cara`
  * evita que una gema/explosión se vuelva a reproducir en cada render. */
 function Casilla({
-  juego, cara, animar, destapable, atenuada, onClick,
+  juego, cara, animar, destapable, atenuada, retardoMs, onClick,
 }: {
   juego: Juego;
   cara: Cara;
-  /** Solo la casilla que dispara la animación (la que se destapó / la mina pisada). */
+  /** Si esta casilla debe reproducir su animación (gema al destapar, o
+   *  explosión — en todas las minas al perder). */
   animar: boolean;
   destapable: boolean;
   atenuada: boolean;
+  /** Retraso del arranque, para que las explosiones no salgan todas juntas. */
+  retardoMs: number;
   onClick: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -49,10 +52,13 @@ function Casilla({
     if (!usaLottie || !ref.current) return;
     let limpiar: (() => void) | null = null;
     let vivo = true;
-    montarLottieEn(ref.current, visual.lottie!, { loop: cara === 'oculta' }).then((fn) => {
-      if (vivo) limpiar = fn; else fn();
-    });
-    return () => { vivo = false; limpiar?.(); };
+    const contenedor = ref.current;
+    const t = setTimeout(() => {
+      montarLottieEn(contenedor, visual.lottie!, { loop: cara === 'oculta' }).then((fn) => {
+        if (vivo) limpiar = fn; else fn();
+      });
+    }, retardoMs);
+    return () => { vivo = false; clearTimeout(t); limpiar?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usaLottie, visual.lottie, cara]);
 
@@ -105,13 +111,25 @@ export function TableroMines({
           const esMina = !!minasPos?.includes(i);
           const revelada = reveladas.includes(i);
           const cara: Cara = esMina ? 'mina' : revelada ? 'segura' : 'oculta';
+
+          // Al perder, TODAS las minas reproducen su animación, con un
+          // retraso que sale desde la casilla que se pisó (onda expansiva).
+          const explota = esMina && fase === 'perdida';
+          let retardo = 0;
+          if (explota && clicMina != null) {
+            const dist = Math.abs(Math.floor(i / LADO) - Math.floor(clicMina / LADO))
+              + Math.abs((i % LADO) - (clicMina % LADO));
+            retardo = dist * 55;
+          }
+
           return (
             <Casilla
               key={i}
               juego={juego}
               cara={cara}
-              animar={(esMina && i === clicMina) || (cara === 'segura' && revelada)}
-              atenuada={esMina && i !== clicMina}
+              animar={explota || (cara === 'segura' && revelada)}
+              atenuada={esMina && fase === 'retirada'}
+              retardoMs={retardo}
               destapable={jugando && !cargando && !revelada}
               onClick={() => onRevelar(i)}
             />
