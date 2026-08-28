@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase.ts';
-import { renderPreview } from './preview.js';
+import { Preview } from './Preview.tsx';
 import type { Juego, Simbolo, Sonido, Efecto } from './types.ts';
 
 /**
@@ -12,6 +12,7 @@ export function Catalogo() {
   const [juegos, setJuegos] = useState<Juego[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<null | { juego: Juego; simbolos: Simbolo[]; sonidos: Sonido[]; efectos: Efecto[] }>(null);
 
   useEffect(() => {
     (async () => {
@@ -34,7 +35,7 @@ export function Catalogo() {
       supabase.from('efectos').select('*').eq('juego_id', juego.id),
     ]);
 
-    renderPreview({
+    setPreview({
       juego,
       simbolos: (simbolos as Simbolo[]) || [],
       sonidos: (sonidos as Sonido[]) || [],
@@ -77,6 +78,8 @@ export function Catalogo() {
           </button>
         ))}
       </div>
+
+      {preview && <Preview {...preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
