@@ -1,8 +1,8 @@
-import { supabase } from './supabase.js';
-import { analizar } from './motor.js';
+import { supabase } from './supabase.ts';
+import { analizar } from './motor.ts';
 import { cargarMotor, MOTORES_DISPONIBLES } from '../motor/registro.js';
 import { renderPreview } from './preview.js';
-import { listarClientesActivos } from './clientes.js';
+import { listarClientesActivos } from './Clientes.tsx';
 
 const COLORES = ['#f87171', '#fbbf24', '#facc15', '#4ade80', '#38bdf8', '#a78bfa', '#f472b6', '#94a3b8'];
 

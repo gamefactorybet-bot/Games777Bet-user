@@ -6,10 +6,17 @@
 // cadena más larga que arranca en el primer rodillo, el wild
 // sustituye a cualquiera. No usa Math.random en ningún lado: es
 // exacto, no una simulación.
-const CAMPO_PAGO = { 2: 'pago_dos', 3: 'pago_tres', 4: 'pago_cuatro', 5: 'pago_cinco' };
+import type { Simbolo, ResultadoAnalisis } from './types.ts';
 
-function pagoDeLinea(linea) {
-  const esWild = (s) => s.nombre === 'wild';
+const CAMPO_PAGO: Record<number, keyof Simbolo> = {
+  2: 'pago_dos',
+  3: 'pago_tres',
+  4: 'pago_cuatro',
+  5: 'pago_cinco',
+};
+
+function pagoDeLinea(linea: Simbolo[]): number {
+  const esWild = (s: Simbolo) => s.nombre === 'wild';
   const base = linea.find((s) => !esWild(s)) || linea[0];
   let cadena = 0;
   for (const s of linea) {
@@ -20,16 +27,18 @@ function pagoDeLinea(linea) {
   return Number(base[CAMPO_PAGO[cadena]]) || 0;
 }
 
-export function analizar(simbolos, columnas = 3) {
+export function analizar(simbolos: Simbolo[], columnas = 3): ResultadoAnalisis {
   const total = simbolos.reduce((a, s) => a + s.peso, 0) || 1;
-  const prob = (s) => s.peso / total;
+  const prob = (s: Simbolo) => s.peso / total;
 
-  let ev = 0, ev2 = 0, hits = 0;
+  let ev = 0;
+  let ev2 = 0;
+  let hits = 0;
 
   // Recorre TODAS las combinaciones posibles de "columnas" símbolos
   // — 8^3=512 para el 3x3, 8^5≈32.768 para el 5x3. Rápido en los dos
   // casos, sin necesidad de una aproximación.
-  const recorrer = (linea, p) => {
+  const recorrer = (linea: Simbolo[], p: number) => {
     if (linea.length === columnas) {
       const pago = pagoDeLinea(linea);
       ev += p * pago;

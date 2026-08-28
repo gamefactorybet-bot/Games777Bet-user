@@ -7,7 +7,7 @@
 // selector de "qué estoy editando" arriba del panel, viendo el
 // resultado en vivo sobre el tamaño real de un celular.
 
-import { supabase } from './supabase.js';
+import { supabase } from './supabase.ts';
 import { cargarMotor, resolverNivel } from '../motor/registro.js';
 import { ANCHO_ESC, ALTO_ESC, construirCadena, iniciarAnimacionLuces } from './luces.js';
 import { mostrarTablaPagos } from './tabla-pagos.js';
