@@ -30,7 +30,12 @@ export default async function handler(req, res) {
     supabaseAdmin.from('animaciones_lottie').select('*').eq('juego_id', juego.id).order('orden'),
   ]);
 
-  if (!simbolos?.length) return res.status(400).json({ error: 'Este juego todavía no tiene símbolos configurados' });
+  // Mines no tiene tabla de símbolos — su config vive en columnas de
+  // `juegos` (mines_margen_pct, mines_casilla_*).
+  const esMines = String(juego.motor || '').startsWith('mines');
+  if (!esMines && !simbolos?.length) {
+    return res.status(400).json({ error: 'Este juego todavía no tiene símbolos configurados' });
+  }
 
   return res.status(200).json({
     juego, simbolos, sonidos: sonidos || [], efectos: efectos || [],

@@ -37,10 +37,52 @@ export interface Juego {
   grilla_icono_tamano?: number;
   capas_orden?: string[];
 
+  // Mines: en vez de calibrar una tabla de pagos, el RTP es un solo
+  // número (el margen de la casa, 0.03 = 3%). Las tres caras de la
+  // casilla son opcionales — sin imagen se ve un estilo por defecto.
+  mines_margen_pct?: number;
+  mines_casilla_oculta_url?: string | null;
+  mines_casilla_segura_url?: string | null;
+  mines_casilla_mina_url?: string | null;
+
   created_at?: string;
   updated_at?: string;
 
   [columna: string]: unknown;
+}
+
+export type EstadoMines = 'en_curso' | 'retirada' | 'perdida';
+
+/** Respuesta de `POST /api/mines-iniciar`. */
+export interface RondaMines {
+  roundId: string;
+  minas: number;
+  reveladas: number[];
+  estado: EstadoMines;
+  multiplicador: number;
+  saldo?: number;
+  yaExistia: boolean;
+}
+
+/** Respuesta de `POST /api/mines-revelar`. */
+export interface RevelarMines {
+  esMina: boolean;
+  casilla: number;
+  estado: EstadoMines;
+  multiplicador?: number;
+  puedeRetirar?: boolean;
+  tableroCompleto?: boolean;
+  /** Solo cuando se pisó una mina: dónde estaban todas. */
+  posicionesMina?: number[];
+}
+
+/** Respuesta de `POST /api/mines-retirar`. */
+export interface RetirarMines {
+  ganancia: number;
+  multiplicador: number;
+  saldo: number | null;
+  posicionesMina?: number[];
+  repetido?: boolean;
 }
 
 /** Una fila de la tabla `simbolos`. */

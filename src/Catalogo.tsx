@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { Preview } from './Preview.tsx';
+import { PreviewMines } from './PreviewMines.tsx';
 import type { Juego, Simbolo, Sonido, Efecto } from './types.ts';
 
 /**
@@ -13,6 +14,7 @@ export function Catalogo() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<null | { juego: Juego; simbolos: Simbolo[]; sonidos: Sonido[]; efectos: Efecto[] }>(null);
+  const [previewMines, setPreviewMines] = useState<Juego | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +31,7 @@ export function Catalogo() {
   }, []);
 
   const abrir = async (juego: Juego) => {
+    if (juego.motor.startsWith('mines')) { setPreviewMines(juego); return; }
     const [{ data: simbolos }, { data: sonidos }, { data: efectos }] = await Promise.all([
       supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden'),
       supabase.from('sonidos').select('*').eq('juego_id', juego.id),
@@ -80,6 +83,7 @@ export function Catalogo() {
       </div>
 
       {preview && <Preview {...preview} onClose={() => setPreview(null)} />}
+      {previewMines && <PreviewMines juego={previewMines} onClose={() => setPreviewMines(null)} />}
     </div>
   );
 }

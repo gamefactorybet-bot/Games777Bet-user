@@ -10,6 +10,8 @@ import {
 import type { Sugerencia } from './juego/calibracion.ts';
 import { listarClientesActivos } from './Clientes.tsx';
 import { Preview } from './Preview.tsx';
+import { PreviewMines } from './PreviewMines.tsx';
+import { simularMines } from '../motor/mines-clasico.js';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, Simbolo, Sonido,
 } from './types.ts';
@@ -59,9 +61,10 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const [digitos, setDigitos] = useState<DigitoFila[]>([]);
   const [grupo, setGrupo] = useState<GrupoId>('jugabilidad');
   const [columnasMotor, setColumnasMotor] = useState(3);
+  const esMines = juego.motor.startsWith('mines');
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
-  const [preview, setPreview] = useState<null | { juego: Juego; simbolos: Simbolo[]; sonidos: Sonido[]; efectos: Efecto[] }>(null);
+  const [previewAbierto, setPreviewAbierto] = useState(false);
 
   // "Guardado hace Xs": un solo reloj para todo el editor. Se marca
   // desde cualquier punto que realmente escriba en la base.
@@ -103,11 +106,13 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
   // El motor de este juego se elige una sola vez, al crearlo. Se carga
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
+  // Mines no es de rodillos, no hace falta.
   useEffect(() => {
+    if (esMines) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor]);
+  }, [juego.motor, esMines]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -182,10 +187,17 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   );
   const rtpReal = simbolos.length ? analizar(simbolos, columnasMotor).rtp : 0;
 
+  const margenMinesOk = (() => {
+    const m = Number(juego.mines_margen_pct ?? 0.03);
+    return m >= 0 && m < 1;
+  })();
+
   const puntos: Record<GrupoId, boolean> = {
     general: Number(juego.min_bet) <= 0 || Number(juego.max_bet) < Number(juego.min_bet),
     arte: !juego.portada_url,
-    jugabilidad: !simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100,
+    jugabilidad: esMines
+      ? !margenMinesOk
+      : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
     sonido: !sonidos.length,
     efectos: false,
   };
@@ -226,6 +238,12 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     const patch = { [campo]: url, ...(url === null ? camposReset : {}) };
     await supabase.from('juegos').update(patch).eq('id', juego.id);
     setJuego((j) => ({ ...j, ...patch }));
+    marcarGuardado();
+  };
+
+  const guardarCampoJuego = async (campo: string, valor: unknown) => {
+    await supabase.from('juegos').update({ [campo]: valor }).eq('id', juego.id);
+    setJuego((j) => ({ ...j, [campo]: valor }));
     marcarGuardado();
   };
 
@@ -351,20 +369,26 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const revisarAntesDePublicar = () => {
     const errores: string[] = [];
     const avisos: string[] = [];
-    if (!simbolos.length) errores.push('No tiene símbolos cargados.');
-    const sinIcono = simbolos.filter((s) => !s.icono_url);
-    if (sinIcono.length) errores.push(`${sinIcono.length} símbolo(s) sin ícono: ${sinIcono.map((s) => s.nombre).join(', ')}.`);
-    if (simbolos.length) {
-      const { rtp } = analizar(simbolos, columnasMotor);
-      if (rtp > 100) errores.push(`El RTP es ${rtp.toFixed(2)}% — el juego pierde plata en cada giro.`);
-      else if (rtp < 85 || rtp > 97) avisos.push(`RTP de ${rtp.toFixed(2)}%, fuera del rango habitual (85-97%).`);
+
+    if (esMines) {
+      if (!margenMinesOk) errores.push('El margen de la casa tiene que estar entre 0% y 100%.');
+    } else {
+      if (!simbolos.length) errores.push('No tiene símbolos cargados.');
+      const sinIcono = simbolos.filter((s) => !s.icono_url);
+      if (sinIcono.length) errores.push(`${sinIcono.length} símbolo(s) sin ícono: ${sinIcono.map((s) => s.nombre).join(', ')}.`);
+      if (simbolos.length) {
+        const { rtp } = analizar(simbolos, columnasMotor);
+        if (rtp > 100) errores.push(`El RTP es ${rtp.toFixed(2)}% — el juego pierde plata en cada giro.`);
+        else if (rtp < 85 || rtp > 97) avisos.push(`RTP de ${rtp.toFixed(2)}%, fuera del rango habitual (85-97%).`);
+      }
     }
+
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (!sonidos.length) avisos.push('Sin sonidos cargados.');
+    if (!esMines && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
-    if (x < 0 || x > 100 || y < 0 || y > 100) avisos.push('El botón de girar quedó fuera de la pantalla.');
+    if (!esMines && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
   };
 
@@ -479,7 +503,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
               <button onClick={publicar} style={{ whiteSpace: 'nowrap', ...(juego.publicado ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : {}) }}>
                 {juego.publicado ? '✓ Publicado' : 'Publicar'}
               </button>
-              <button className="primary" onClick={() => setPreview({ juego, simbolos, sonidos, efectos })}>▶ Vista previa</button>
+              <button className="primary" onClick={() => setPreviewAbierto(true)}>▶ Vista previa</button>
             </div>
 
             <label style={{ display: 'block', marginBottom: 10 }}>Descripción
@@ -521,7 +545,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         </div>
       )}
 
-      {grupo === 'jugabilidad' && (
+      {grupo === 'jugabilidad' && esMines && (
+        <SeccionMines juego={juego} onImagen={setImagen} onCampo={guardarCampoJuego} />
+      )}
+
+      {grupo === 'jugabilidad' && !esMines && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -662,7 +690,10 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         </div>
       )}
 
-      {preview && <Preview {...preview} onClose={() => setPreview(null)} />}
+      {previewAbierto && (esMines
+        ? <PreviewMines juego={juego} onClose={() => setPreviewAbierto(false)} />
+        : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
+      )}
     </>
   );
 }
@@ -691,6 +722,81 @@ function Historial({ html }: { html: string }) {
   if (html === '__VACIO__') return <p className="hint" style={{ margin: 0 }}>Todavía no se jugó ninguna ronda con dinero real.</p>;
   if (html.startsWith('__ERROR__')) return <p className="hint error" style={{ margin: 0 }}>{html.slice(9)}</p>;
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+// ---------------- Mines: ajuste del juego (grupo "jugabilidad") ----------------
+
+interface SeccionMinesProps {
+  juego: Juego;
+  onImagen: (campo: string, url: string | null) => void | Promise<void>;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}
+
+function SeccionMines({ juego, onImagen, onCampo }: SeccionMinesProps) {
+  const [margenTxt, setMargenTxt] = useState(String(Number(juego.mines_margen_pct ?? 0.03) * 100));
+  useEffect(() => { setMargenTxt(String(Number(juego.mines_margen_pct ?? 0.03) * 100)); }, [juego.id]);
+
+  const [simMinas, setSimMinas] = useState(3);
+  const [simRetiro, setSimRetiro] = useState(5);
+  const [simOut, setSimOut] = useState('');
+  const [simulando, setSimulando] = useState(false);
+
+  const margen = (Number(margenTxt) || 0) / 100;
+
+  const guardarMargen = () => {
+    onCampo('mines_margen_pct', Math.max(0, Math.min(0.9999, margen)));
+  };
+
+  const simular = async () => {
+    setSimulando(true);
+    setSimOut('Simulando…');
+    await new Promise((r) => setTimeout(r, 30));
+    const r = simularMines({ partidas: 300_000, minas: simMinas, margenCasa: margen, retirarEn: simRetiro });
+    setSimOut(
+      `RTP obtenido ${r.rtp.toFixed(2)}% · esperado ${(100 - margen * 100).toFixed(2)}% · `
+      + `${r.retiros.toLocaleString('es-PY')} retiros / ${r.perdidas.toLocaleString('es-PY')} perdidas`,
+    );
+    setSimulando(false);
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Mines — ajuste del juego</strong>
+        <p className="hint" style={{ marginBottom: 14 }}>
+          En Mines no hay tabla de símbolos: el RTP es un solo número. El margen de la casa es lo que se queda el juego en promedio (RTP ≈ 100 − margen).
+        </p>
+        <label style={{ fontSize: 12, display: 'block', maxWidth: 220 }}>
+          Margen de la casa (%)
+          <input type="number" step="0.1" value={margenTxt} onChange={(e) => setMargenTxt(e.target.value)} onBlur={guardarMargen} />
+        </label>
+        <p className="hint" style={{ margin: '6px 0 0' }}>RTP ≈ {(100 - (Number(margenTxt) || 0)).toFixed(1)}%</p>
+
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 14 }}>
+          <strong style={{ fontSize: 14 }}>Simulador</strong>
+          <p className="hint" style={{ marginBottom: 10 }}>
+            El multiplicador es exacto por diseño: el RTP es 100 − margen sin importar cuántas minas. El simulador lo confirma con 300.000 partidas; con muchas minas la varianza es alta, corrélo varias veces.
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+            <label style={{ fontSize: 12 }}>Minas<input type="number" min={1} max={24} value={simMinas} onChange={(e) => setSimMinas(Number(e.target.value) || 1)} style={{ width: 70 }} /></label>
+            <label style={{ fontSize: 12 }}>Retira a los N aciertos<input type="number" min={1} max={24} value={simRetiro} onChange={(e) => setSimRetiro(Number(e.target.value) || 1)} style={{ width: 90 }} /></label>
+            <button disabled={simulando} onClick={simular}>Simular</button>
+          </div>
+          <p className="hint" style={{ margin: 0 }}>{simOut}</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Caras de la casilla</strong>
+        <p className="hint" style={{ marginBottom: 14 }}>Opcional. Sin imagen, cada cara se ve con un estilo por defecto.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
+          <SubirImagen juego={juego} campo="mines_casilla_oculta_url" etiqueta="Casilla tapada" posicionable onSet={onImagen} />
+          <SubirImagen juego={juego} campo="mines_casilla_segura_url" etiqueta="Casilla segura" posicionable onSet={onImagen} />
+          <SubirImagen juego={juego} campo="mines_casilla_mina_url" etiqueta="Mina" posicionable onSet={onImagen} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ---------------- Calibración de RTP + perfiles ("modos de pago") ----------------
