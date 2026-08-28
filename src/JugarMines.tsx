@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { TableroMines } from './TableroMines.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { crearEscenario } from './juego/escenario.ts';
+import { precargarLottie } from './lottie.ts';
 import { fetchJson, correrIntro } from './juego/recursos.ts';
 import { estadoInicial, puedeRetirar as calcPuedeRetirar } from './juego/mines.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -50,34 +51,56 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
       cadenasLuces: datos.cadenasLuces, capasLibres: datos.capasLibres, animaciones: datos.animaciones,
     });
     escRef.current = esc;
+    // Se arma escondido y se revela entero recién cuando todo bajó — así
+    // no se ve el escenario armándose de a pedazos.
     esc.el.style.opacity = '0';
-    esc.el.style.transition = 'opacity .45s';
     hostRef.current.appendChild(esc.wrap);
     setListo(true);
 
     (async () => {
-      const urls = [
+      const imgs = [
         juego.fondo_url, juego.fondo_pantalla_url, juego.marco_url, juego.cartel_url,
         juego.mines_casilla_oculta_url, juego.mines_casilla_segura_url, juego.mines_casilla_mina_url,
+        juego.portada_url, juego.carga_url,
+        ...(datos.capasLibres || []).map((c) => c.imagen_url),
       ].filter(Boolean) as string[];
 
-      const total = urls.length || 1;
+      const lottieUrls = [
+        juego.mines_casilla_oculta_lottie_url, juego.mines_casilla_segura_lottie_url, juego.mines_casilla_mina_lottie_url,
+        ...(datos.animaciones || []).map((a) => a.lottie_url),
+      ].filter(Boolean) as string[];
+
+      // Bajar imágenes (con decode, así no hay hitch al pintar), los
+      // bytes de los Lottie, y compilar el WASM de Lottie si hace falta.
+      const tareas: Promise<unknown>[] = [
+        ...imgs.map((url) => {
+          const img = new Image();
+          img.src = url;
+          return (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).finally(marcar);
+        }),
+        ...lottieUrls.map((url) => fetch(url).then((r) => r.blob()).catch(() => {}).finally(marcar)),
+        ...(lottieUrls.length ? [precargarLottie().catch(() => {}).finally(marcar)] : []),
+      ];
+      const total = tareas.length || 1;
       let hechos = 0;
-      const descarga = Promise.all(urls.map((url) => new Promise<void>((fin) => {
-        const img = new Image();
-        img.onload = img.onerror = () => { hechos++; setProgreso({ hechos, total }); fin(); };
-        img.src = url;
-      })));
-      if (!urls.length) setProgreso({ hechos: 1, total: 1 });
+      function marcar() { hechos++; setProgreso({ hechos, total }); }
+      if (!tareas.length) setProgreso({ hechos: 1, total: 1 });
+
+      const descarga = Promise.race([
+        Promise.all(tareas),
+        new Promise((r) => setTimeout(r, 12000)), // tope de seguridad
+      ]);
 
       const intro = (datos.animaciones || []).find((a) => a.evento === 'intro' && a.lottie_url);
       if (intro && pantallaRef.current) await correrIntro(intro, pantallaRef.current);
       await descarga;
 
       if (cancelado) return;
+      // El escenario ya está completo detrás de la pantalla de carga:
+      // se muestra de una y recién ahí se disuelve la tapa.
       esc.el.style.opacity = '1';
-      setPantallaVisible(false);
-      setTimeout(() => { if (!cancelado) setPantallaMontada(false); }, 400);
+      requestAnimationFrame(() => { if (!cancelado) setPantallaVisible(false); });
+      setTimeout(() => { if (!cancelado) setPantallaMontada(false); }, 450);
     })();
 
     return () => { cancelado = true; esc.destruir(); };
@@ -86,7 +109,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
 
   // ---------------- Partida contra el servidor ----------------
   const conError = useCallback((err: unknown) => {
-    setEstado((e) => ({ ...e, cargando: false, error: (err as Error).message || 'Algo falló. Probá de nuevo.' }));
+    setEstado((e) => ({ ...e, cargando: false, pendiente: null, error: (err as Error).message || 'Algo falló. Probá de nuevo.' }));
   }, []);
 
   const iniciar = async () => {
@@ -115,23 +138,24 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   };
 
   const revelar = async (casilla: number) => {
-    if (!roundIdRef.current || estado.fase !== 'en_curso') return;
-    setEstado((e) => ({ ...e, cargando: true, error: null }));
+    if (!roundIdRef.current || estado.fase !== 'en_curso' || estado.pendiente != null) return;
+    // Feedback inmediato: la casilla se marca antes de que conteste el servidor.
+    setEstado((e) => ({ ...e, pendiente: casilla, error: null }));
     try {
       const r = await fetchJson<RevelarMines>('/api/mines-revelar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, slug, roundId: roundIdRef.current, casilla }),
       });
       if (r.esMina) {
-        setEstado((e) => ({ ...e, fase: 'perdida', minasPos: r.posicionesMina ?? [], clicMina: casilla, ganancia: 0, cargando: false }));
+        setEstado((e) => ({ ...e, pendiente: null, fase: 'perdida', minasPos: r.posicionesMina ?? [], clicMina: casilla, ganancia: 0 }));
         return;
       }
       setEstado((e) => ({
         ...e,
+        pendiente: null,
         reveladas: [...e.reveladas, r.casilla],
         multiplicador: r.multiplicador ?? e.multiplicador,
         puedeRetirar: !!r.puedeRetirar,
-        cargando: false,
       }));
     } catch (err) { conError(err); }
   };

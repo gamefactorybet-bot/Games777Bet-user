@@ -74,6 +74,9 @@ export interface EstadoPartida {
   minasPos: number[] | null;
   /** Casilla que pisó el jugador (para animar solo esa como explosión). */
   clicMina: number | null;
+  /** Casilla tocada que está esperando la respuesta del servidor
+   *  (feedback inmediato al click, antes de saber si es mina o segura). */
+  pendiente: number | null;
   multiplicador: number;
   puedeRetirar: boolean;
   saldo: number;
@@ -84,7 +87,7 @@ export interface EstadoPartida {
 
 export function estadoInicial(minas: number, apuesta: number, saldo: number): EstadoPartida {
   return {
-    fase: 'inactiva', minas, apuesta, reveladas: [], minasPos: null, clicMina: null,
+    fase: 'inactiva', minas, apuesta, reveladas: [], minasPos: null, clicMina: null, pendiente: null,
     multiplicador: 1, puedeRetirar: false, saldo, ganancia: null,
     cargando: false, error: null,
   };

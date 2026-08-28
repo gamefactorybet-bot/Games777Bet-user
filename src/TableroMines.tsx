@@ -31,7 +31,7 @@ const BOTON_CELDA: CSSProperties = {
  * Lottie solo mientras esa cara lo pide. El `useEffect` sobre `cara`
  * evita que una gema/explosión se vuelva a reproducir en cada render. */
 function Casilla({
-  juego, cara, animar, destapable, atenuada, retardoMs, onClick,
+  juego, cara, animar, destapable, atenuada, pendiente, retardoMs, onClick,
 }: {
   juego: Juego;
   cara: Cara;
@@ -40,6 +40,8 @@ function Casilla({
   animar: boolean;
   destapable: boolean;
   atenuada: boolean;
+  /** Esperando la respuesta del servidor — muestra un pulso al instante. */
+  pendiente: boolean;
   /** Retraso del arranque, para que las explosiones no salgan todas juntas. */
   retardoMs: number;
   onClick: () => void;
@@ -80,10 +82,11 @@ function Casilla({
       style={{
         ...BOTON_CELDA,
         background: textura ? `center/cover no-repeat url('${textura}')` : 'var(--surface-alt)',
-        borderColor: borde,
+        borderColor: pendiente ? 'var(--accent)' : borde,
         cursor: destapable ? 'pointer' : 'default',
         opacity: atenuada ? 0.55 : 1,
-        transition: 'opacity .15s, border-color .15s',
+        transform: pendiente ? 'scale(.94)' : 'none',
+        transition: 'opacity .15s, border-color .15s, transform .12s',
       }}
     >
       {/* Imagen propia de la cara (segura/mina) — tapa la textura. */}
@@ -95,7 +98,9 @@ function Casilla({
       {/* Animación Lottie. */}
       {usaLottie && <div ref={ref} style={{ position: 'absolute', inset: 0 }} />}
       {/* Emoji de la cara por defecto. */}
-      {caraPlana && visual.emoji && <span style={{ position: 'relative' }}>{visual.emoji}</span>}
+      {caraPlana && !pendiente && visual.emoji && <span style={{ position: 'relative' }}>{visual.emoji}</span>}
+      {/* Feedback inmediato mientras el servidor responde. */}
+      {pendiente && <span className="mines-pendiente" />}
     </button>
   );
 }
@@ -104,7 +109,7 @@ export function TableroMines({
   juego, estado, minBet, maxBet, pasoApuesta,
   onIniciar, onRevelar, onRetirar, onCambiarApuesta, onCambiarMinas, onNueva,
 }: TableroMinesProps) {
-  const { fase, minas, apuesta, reveladas, minasPos, clicMina, multiplicador, puedeRetirar, saldo, ganancia, cargando, error } = estado;
+  const { fase, minas, apuesta, reveladas, minasPos, clicMina, pendiente, multiplicador, puedeRetirar, saldo, ganancia, cargando, error } = estado;
   const jugando = fase === 'en_curso';
   const terminada = fase === 'retirada' || fase === 'perdida';
   const segurasRestantes = TOTAL - minas - reveladas.length;
@@ -134,9 +139,13 @@ export function TableroMines({
 
           // Al perder: TODAS las minas explotan y (en modo 'todo') las
           // seguras se destapan, con un retraso en onda expansiva desde
-          // la casilla que se pisó.
+          // la casilla que se pisó. La animación en loop de la casilla
+          // tapada arranca escalonada, para que el tablero pinte al
+          // instante y las 25 instancias de Lottie no salgan de golpe.
           const explota = esMina && perdio;
-          const retardo = (explota || (limpiarTablero && !esMina)) ? distClic(i) * 55 : 0;
+          const retardo = (explota || (limpiarTablero && !esMina)) ? distClic(i) * 55
+            : cara === 'oculta' ? 120 + i * 35
+            : 0;
 
           return (
             <Casilla
@@ -145,8 +154,9 @@ export function TableroMines({
               cara={cara}
               animar={explota || (cara === 'segura' && revelada)}
               atenuada={esMina && fase === 'retirada'}
+              pendiente={pendiente === i}
               retardoMs={retardo}
-              destapable={jugando && !cargando && !revelada}
+              destapable={jugando && !cargando && pendiente == null && !revelada}
               onClick={() => onRevelar(i)}
             />
           );

@@ -108,6 +108,23 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
 .celda-ganadora { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 8px; }
 .celda-ganadora img, .celda-ganadora span { transform: scale(1.12); transition: transform .15s; }
 
+/* Mines: pulso de feedback inmediato al tocar una casilla, mientras
+   el servidor responde. */
+.mines-pendiente {
+  position: absolute;
+  width: 38%; height: 38%;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: mines-pulso .7s ease-in-out infinite;
+}
+@keyframes mines-pulso {
+  0%, 100% { transform: scale(.55); opacity: .35; }
+  50%      { transform: scale(1);   opacity: .9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mines-pendiente { animation: none; opacity: .6; }
+}
+
 /* ---------------------------------------------------------
    Navegación agrupada del ensamblador (editor y Ajustar posición).
    Vidrio sutil: blur + fondo semitransparente, contenido a la vista
