@@ -49,6 +49,8 @@ export interface Juego {
   mines_casilla_oculta_lottie_url?: string | null;
   mines_casilla_segura_lottie_url?: string | null;
   mines_casilla_mina_lottie_url?: string | null;
+  /** 'minas' = solo las minas al perder; 'todo' = tablero entero. */
+  mines_revelado_al_perder?: 'minas' | 'todo';
 
   created_at?: string;
   updated_at?: string;

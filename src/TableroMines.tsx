@@ -97,6 +97,13 @@ export function TableroMines({
   const segurasRestantes = TOTAL - minas - reveladas.length;
   const gananciaPotencial = apuesta * multiplicador;
 
+  // Al perder, 'todo' (por defecto) destapa el tablero entero: las
+  // seguras que el jugador no eligió también se muestran.
+  const perdio = fase === 'perdida';
+  const limpiarTablero = perdio && (juego.mines_revelado_al_perder ?? 'todo') !== 'minas';
+  const distClic = (i: number) => (clicMina == null ? 0
+    : Math.abs(Math.floor(i / LADO) - Math.floor(clicMina / LADO)) + Math.abs((i % LADO) - (clicMina % LADO)));
+
   return (
     <div style={{ width: 340, maxWidth: '92vw', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -109,18 +116,14 @@ export function TableroMines({
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${LADO}, 1fr)`, gap: 6 }}>
         {Array.from({ length: TOTAL }, (_, i) => {
           const esMina = !!minasPos?.includes(i);
-          const revelada = reveladas.includes(i);
+          const revelada = reveladas.includes(i) || (limpiarTablero && !esMina);
           const cara: Cara = esMina ? 'mina' : revelada ? 'segura' : 'oculta';
 
-          // Al perder, TODAS las minas reproducen su animación, con un
-          // retraso que sale desde la casilla que se pisó (onda expansiva).
-          const explota = esMina && fase === 'perdida';
-          let retardo = 0;
-          if (explota && clicMina != null) {
-            const dist = Math.abs(Math.floor(i / LADO) - Math.floor(clicMina / LADO))
-              + Math.abs((i % LADO) - (clicMina % LADO));
-            retardo = dist * 55;
-          }
+          // Al perder: TODAS las minas explotan y (en modo 'todo') las
+          // seguras se destapan, con un retraso en onda expansiva desde
+          // la casilla que se pisó.
+          const explota = esMina && perdio;
+          const retardo = (explota || (limpiarTablero && !esMina)) ? distClic(i) * 55 : 0;
 
           return (
             <Casilla

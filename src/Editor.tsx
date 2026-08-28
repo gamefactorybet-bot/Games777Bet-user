@@ -800,15 +800,36 @@ function SeccionMines({ juego, onCampo, onCampos }: SeccionMinesProps) {
       </div>
 
       <div className="card">
-        <strong style={{ fontSize: 15 }}>Caras de la casilla</strong>
-        <p className="hint" style={{ marginBottom: 14 }}>
-          Cada cara acepta una imagen o una animación Lottie (.json / .lottie). Un asset por cara.
-          Sin nada, se ve un estilo por defecto.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {CARAS_MINES.map((c) => (
-            <CaraCasilla key={c.cara} juego={juego} cara={c.cara} etiqueta={c.etiqueta} nota={c.nota} onCampos={onCampos} />
-          ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+          <div>
+            <strong style={{ fontSize: 14 }}>Al perder</strong>
+            <p className="hint" style={{ margin: '2px 0 0', maxWidth: 320 }}>
+              {(juego.mines_revelado_al_perder ?? 'todo') === 'minas'
+                ? 'Se muestran solo las minas; el resto del tablero queda tapado.'
+                : 'Se destapa el tablero entero: el jugador ve las seguras que no llegó a elegir.'}
+            </p>
+          </div>
+          <select
+            style={{ width: 'auto' }}
+            value={juego.mines_revelado_al_perder ?? 'todo'}
+            onChange={(e) => onCampo('mines_revelado_al_perder', e.target.value)}
+          >
+            <option value="todo">Limpiar el tablero</option>
+            <option value="minas">Solo las minas</option>
+          </select>
+        </div>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <strong style={{ fontSize: 15 }}>Caras de la casilla</strong>
+          <p className="hint" style={{ marginBottom: 14 }}>
+            Cada cara acepta una imagen o una animación Lottie (.json / .lottie). Un asset por cara.
+            Sin nada, se ve un estilo por defecto.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {CARAS_MINES.map((c) => (
+              <CaraCasilla key={c.cara} juego={juego} cara={c.cara} etiqueta={c.etiqueta} nota={c.nota} onCampos={onCampos} />
+            ))}
+          </div>
         </div>
       </div>
     </div>

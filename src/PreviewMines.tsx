@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TableroMines } from './TableroMines.tsx';
+import { MarcoMines } from './MarcoMines.tsx';
 import {
-  colocarMinas, multiplicador, puedeRetirar, margenDe, estadoInicial, TOTAL,
+  colocarMinas, multiplicador, puedeRetirar, margenDe, estadoInicial,
 } from './juego/mines.ts';
 import type { EstadoPartida } from './juego/mines.ts';
 import type { Juego } from './types.ts';
@@ -63,27 +64,29 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
   const nueva = () => setEstado((e) => estadoInicial(e.minas, e.apuesta, e.saldo));
 
   const overlay = (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, gap: 12 }}>
-      <div style={{ display: 'flex', gap: 8, width: 340, maxWidth: '92vw' }}>
-        <strong style={{ flex: 1 }}>Vista previa · Mines</strong>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.9)', zIndex: 100, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, display: 'flex', gap: 8 }}>
+        <span className="hint" style={{ alignSelf: 'center' }}>
+          plata de mentira · RTP ≈ {(100 - margen * 100).toFixed(1)}%
+        </span>
         <button onClick={onClose}>✕ Cerrar prueba</button>
       </div>
-      <TableroMines
-        juego={juego}
-        estado={estado}
-        minBet={minBet}
-        maxBet={maxBet}
-        pasoApuesta={paso}
-        onIniciar={iniciar}
-        onRevelar={revelar}
-        onRetirar={retirar}
-        onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
-        onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
-        onNueva={nueva}
-      />
-      <p className="hint" style={{ width: 340, maxWidth: '92vw', margin: 0 }}>
-        Corre local con plata de mentira. Tablero de {TOTAL} casillas · RTP ≈ {(100 - margen * 100).toFixed(1)}%.
-      </p>
+
+      <MarcoMines juego={juego}>
+        <TableroMines
+          juego={juego}
+          estado={estado}
+          minBet={minBet}
+          maxBet={maxBet}
+          pasoApuesta={paso}
+          onIniciar={iniciar}
+          onRevelar={revelar}
+          onRetirar={retirar}
+          onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
+          onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
+          onNueva={nueva}
+        />
+      </MarcoMines>
     </div>
   );
 

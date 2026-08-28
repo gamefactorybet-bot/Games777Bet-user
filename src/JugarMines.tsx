@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import { TableroMines } from './TableroMines.tsx';
+import { MarcoMines } from './MarcoMines.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
-import { conDefaults, filtroCss } from './juego/defaults.ts';
 import { fetchJson, correrIntro } from './juego/recursos.ts';
 import { estadoInicial, puedeRetirar as calcPuedeRetirar } from './juego/mines.ts';
 import type { EstadoPartida } from './juego/mines.ts';
@@ -25,7 +24,6 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const maxBet = Number(juego.max_bet) || 100000;
   const paso = Number(juego.paso_apuesta) || 500;
 
-  const capRef = useRef<HTMLDivElement>(null);
   const pantallaRef = useRef<HTMLDivElement>(null);
   const roundIdRef = useRef<string | null>(null);
 
@@ -33,32 +31,6 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
-
-  // ---------------- Marco 420×860 escalado ----------------
-  const pos = conDefaults(juego);
-  const posImg = (capa: 'fondo_pantalla' | 'marco' | 'cartel'): CSSProperties => ({
-    position: 'absolute',
-    left: `${pos[`${capa}_x`]}%`, top: `${pos[`${capa}_y`]}%`,
-    width: `${pos[`${capa}_ancho`]}%`, height: `${pos[`${capa}_alto`]}%`,
-    objectFit: 'fill', transform: 'translate(-50%,-50%)',
-    filter: filtroCss(pos[`${capa}_blur`], pos[`${capa}_oscurecer`]),
-  });
-
-  useEffect(() => {
-    const escalar = () => {
-      if (!capRef.current) return;
-      const s = Math.min(window.innerWidth / 420, window.innerHeight / 860);
-      capRef.current.style.transform = `scale(${s})`;
-      capRef.current.style.margin = `${(860 * s - 860) / 2}px ${(420 * s - 420) / 2}px`;
-    };
-    escalar();
-    window.addEventListener('resize', escalar);
-    window.addEventListener('orientationchange', escalar);
-    return () => {
-      window.removeEventListener('resize', escalar);
-      window.removeEventListener('orientationchange', escalar);
-    };
-  }, []);
 
   // ---------------- Precarga + intro ----------------
   useEffect(() => {
@@ -168,7 +140,6 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   };
 
   const imagenCarga = (juego.carga_url as string) || (juego.portada_url as string) || null;
-  const mostrarNombre = (juego.mostrar_nombre ?? true) as boolean;
 
   return (
     <>
@@ -179,42 +150,21 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
         #app button, #app button * { pointer-events: auto; }
       `}</style>
 
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <div
-          ref={capRef}
-          style={{
-            width: 420, height: 860, flexShrink: 0, position: 'relative',
-            background: 'var(--surface)', borderRadius: 20, padding: 22, overflow: 'hidden',
-            transformOrigin: 'center center',
-            backgroundImage: juego.fondo_url ? `url('${juego.fondo_url}')` : undefined,
-            backgroundSize: 'cover', backgroundPosition: 'center',
-          }}
-        >
-          {juego.fondo_pantalla_url && <img src={juego.fondo_pantalla_url} style={posImg('fondo_pantalla')} />}
-          {juego.marco_url && <img src={juego.marco_url} style={posImg('marco')} />}
-
-          <div style={{ position: 'relative', zIndex: 5, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-            {mostrarNombre && (
-              <p style={{ fontWeight: 600, letterSpacing: '.04em', margin: 0 }}>{juego.nombre.toUpperCase()}</p>
-            )}
-            <TableroMines
-              juego={juego}
-              estado={estado}
-              minBet={minBet}
-              maxBet={maxBet}
-              pasoApuesta={paso}
-              onIniciar={iniciar}
-              onRevelar={revelar}
-              onRetirar={retirar}
-              onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
-              onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
-              onNueva={nueva}
-            />
-          </div>
-
-          {juego.cartel_url && <img src={juego.cartel_url} style={posImg('cartel')} />}
-        </div>
-      </div>
+      <MarcoMines juego={juego}>
+        <TableroMines
+          juego={juego}
+          estado={estado}
+          minBet={minBet}
+          maxBet={maxBet}
+          pasoApuesta={paso}
+          onIniciar={iniciar}
+          onRevelar={revelar}
+          onRetirar={retirar}
+          onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
+          onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
+          onNueva={nueva}
+        />
+      </MarcoMines>
 
       {pantallaMontada && (
         <PantallaCarga
