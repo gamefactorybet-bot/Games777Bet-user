@@ -3,8 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase.ts';
 import { Catalogo } from './Catalogo.tsx';
 import { Clientes } from './Clientes.tsx';
-// editor.js sigue en JS vanilla — se monta por ref hasta que se migre.
-import { renderEditor } from './editor.js';
+import { Editor } from './Editor.tsx';
 import { MOTORES_DISPONIBLES, MOTOR_POR_DEFECTO } from '../motor/registro.js';
 import type { Juego } from './types.ts';
 
@@ -179,24 +178,7 @@ export function App({ onSalir }: AppProps) {
         {seleccionado && <button style={{ color: 'var(--danger)' }} onClick={eliminar}>Eliminar</button>}
       </div>
 
-      {juegoSel && <MontajeEditor juego={juegoSel} onCambio={cargarLista} />}
+      {juegoSel && <Editor key={juegoSel.id} juego={juegoSel} onCambio={cargarLista} />}
     </div>
   );
-}
-
-/**
- * Puente hacia editor.js (todavía en JS vanilla): monta el editor en un
- * div propio y lo vuelve a montar cuando cambia el juego seleccionado.
- */
-function MontajeEditor({ juego, onCambio }: { juego: Juego; onCambio: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (ref.current) renderEditor(ref.current, juego, onCambio);
-    // El editor se reconstruye por completo al cambiar de juego (mismo
-    // comportamiento que la versión anterior).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [juego.id]);
-
-  return <div ref={ref} />;
 }
