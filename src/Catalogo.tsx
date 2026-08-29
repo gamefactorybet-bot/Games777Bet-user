@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { Preview } from './Preview.tsx';
 import { PreviewMines } from './PreviewMines.tsx';
+import { PreviewRuleta } from './PreviewRuleta.tsx';
+import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
 import type { Juego, Simbolo, Sonido, Efecto } from './types.ts';
 
 /**
@@ -15,6 +17,8 @@ export function Catalogo() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<null | { juego: Juego; simbolos: Simbolo[]; sonidos: Sonido[]; efectos: Efecto[] }>(null);
   const [previewMines, setPreviewMines] = useState<Juego | null>(null);
+  const [previewRuleta, setPreviewRuleta] = useState<null | { juego: Juego; simbolos: Simbolo[] }>(null);
+  const [previewBotones, setPreviewBotones] = useState<Juego | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -32,6 +36,12 @@ export function Catalogo() {
 
   const abrir = async (juego: Juego) => {
     if (juego.motor.startsWith('mines')) { setPreviewMines(juego); return; }
+    if (juego.motor === 'ruleta-botones') { setPreviewBotones(juego); return; }
+    if (juego.motor === 'ruleta') {
+      const { data } = await supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden');
+      setPreviewRuleta({ juego, simbolos: (data as Simbolo[]) || [] });
+      return;
+    }
     const [{ data: simbolos }, { data: sonidos }, { data: efectos }] = await Promise.all([
       supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden'),
       supabase.from('sonidos').select('*').eq('juego_id', juego.id),
@@ -84,6 +94,8 @@ export function Catalogo() {
 
       {preview && <Preview {...preview} onClose={() => setPreview(null)} />}
       {previewMines && <PreviewMines juego={previewMines} onClose={() => setPreviewMines(null)} />}
+      {previewRuleta && <PreviewRuleta {...previewRuleta} onClose={() => setPreviewRuleta(null)} />}
+      {previewBotones && <PreviewRuletaBotones juego={previewBotones} onClose={() => setPreviewBotones(null)} />}
     </div>
   );
 }

@@ -19,6 +19,7 @@
 const MOTORES = {
   'clasico-3x3': () => import('./clasico-3x3.js'),
   'clasico-5x3': () => import('./clasico-5x3.js'),
+  'ruleta': () => import('./ruleta.js'),
 };
 
 export const MOTOR_POR_DEFECTO = 'clasico-3x3';
@@ -29,6 +30,8 @@ export const MOTORES_DISPONIBLES = [
   { valor: 'clasico-3x3', etiqueta: '3 rodillos, 1 línea' },
   { valor: 'clasico-5x3', etiqueta: '5 rodillos, 1 línea' },
   { valor: 'mines-clasico', etiqueta: 'Mines — grilla 5×5' },
+  { valor: 'ruleta', etiqueta: 'Ruleta de multiplicadores' },
+  { valor: 'ruleta-botones', etiqueta: 'Ruleta de botones (con sorpresa)' },
 ];
 
 /**

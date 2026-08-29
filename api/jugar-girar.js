@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { cargarMotor } from '../motor/registro.js';
 import { apostar, premiar } from './_lib/proveedorCliente.js';
+import { aplicarRotacion } from './_lib/rotacion.js';
 
 // Resuelve un giro con plata real. El navegador manda la apuesta y
 // un client_id (generado una vez por giro); acá se debita en
@@ -38,6 +39,11 @@ export default async function handler(req, res) {
     if (monto < Number(juego.min_bet) || monto > Number(juego.max_bet)) {
       return res.status(400).json({ error: `La apuesta debe estar entre ${juego.min_bet} y ${juego.max_bet}` });
     }
+
+    // Rotación automática de perfiles de RTP: si el tramo actual venció,
+    // el servidor activa el próximo perfil antes de leerlo abajo. No
+    // hace nada si el juego no tiene rotación configurada.
+    await aplicarRotacion(juego.id);
 
     // Los símbolos y el perfil de RTP activo se piden mientras Win777
     // procesa el débito: las tres cosas tardan y no dependen entre sí.

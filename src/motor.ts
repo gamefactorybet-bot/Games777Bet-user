@@ -57,3 +57,32 @@ export function analizar(simbolos: Simbolo[], columnas = 3): ResultadoAnalisis {
     premioMayor: Math.max(0, ...simbolos.map((s) => Number(s[CAMPO_PAGO[columnas]]) || 0)),
   };
 }
+
+// Ruleta de multiplicadores: cada símbolo es un multiplicador con
+// `peso` tajadas iguales. RTP = Σ (tajadas_i / total) · multiplicador_i.
+// Exacto también, sin simular: hay un solo giro con un resultado por
+// tajada, todas equiprobables.
+export function analizarRuleta(simbolos: Simbolo[]): ResultadoAnalisis {
+  const items = simbolos.map((s) => ({
+    cant: Math.max(0, Math.round(Number(s.peso) || 0)),
+    mult: Number(s.pago_tres) || 0,
+  }));
+  const total = items.reduce((a, it) => a + it.cant, 0) || 1;
+
+  let ev = 0;
+  let ev2 = 0;
+  let hits = 0;
+  for (const it of items) {
+    const p = it.cant / total;
+    ev += p * it.mult;
+    ev2 += p * it.mult * it.mult;
+    if (it.mult > 0) hits += p;
+  }
+
+  return {
+    rtp: ev * 100,
+    volatilidad: Math.sqrt(Math.max(ev2 - ev * ev, 0)),
+    frecuencia: hits > 0 ? 1 / hits : null,
+    premioMayor: Math.max(0, ...items.map((it) => it.mult)),
+  };
+}

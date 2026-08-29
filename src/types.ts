@@ -7,7 +7,7 @@
 
 export type EstadoJuego = 'borrador' | 'en_prueba' | 'listo';
 
-export type NombreMotor = 'clasico-3x3' | 'clasico-5x3';
+export type NombreMotor = 'clasico-3x3' | 'clasico-5x3' | 'ruleta' | 'ruleta-botones';
 
 /** Una fila de la tabla `juegos`. */
 export interface Juego {
@@ -53,6 +53,9 @@ export interface Juego {
   mines_revelado_al_perder?: 'minas' | 'todo';
   /** Posición/aspecto de los controles del tablero de Mines (jsonb). */
   mines_controles?: Partial<PosControlesMines>;
+
+  /** Ruleta de botones: toda su config (números, fichas, sorpresa). */
+  ruleta_botones_cfg?: Partial<RuletaBotonesCfg>;
 
   created_at?: string;
   updated_at?: string;
@@ -136,6 +139,9 @@ export interface Simbolo {
   pago_cuatro?: number | null;
   pago_cinco?: number | null;
 
+  /** Ruleta de multiplicadores: color de la tajada. */
+  color?: string | null;
+
   orden: number;
 
   // Reacciones Lottie opcionales (ver sql/30_migrar_a_lottie.sql).
@@ -169,6 +175,37 @@ export interface PerfilRtp {
   activo: boolean;
   orden: number;
   created_at?: string;
+}
+
+/** Config de rotación automática de perfiles de RTP (una fila por juego). */
+export interface RotacionRtp {
+  juego_id: string;
+  activa: boolean;
+  /** Franja "noche" en hora local del servidor (0-23). El resto es día. */
+  noche_desde: number;
+  noche_hasta: number;
+  /** Peso de cada perfil por franja: `{ [perfil_id]: peso }`. */
+  pesos_dia: Record<string, number>;
+  pesos_noche: Record<string, number>;
+  segmento_min: number;
+  segmento_max: number;
+}
+
+/** Tramo de rotación vigente (una fila por juego). */
+export interface RotacionEstado {
+  juego_id: string;
+  perfil_id: string | null;
+  hasta_ts: string;
+}
+
+/** Una fila del historial de rotación. */
+export interface RotacionHistorialFila {
+  id: number;
+  juego_id: string;
+  perfil_id: string | null;
+  perfil_nombre: string | null;
+  desde_ts: string;
+  hasta_ts: string | null;
 }
 
 /** Una fila de la tabla `sonidos`. */
@@ -363,6 +400,66 @@ export interface ResultadoGiro {
   simbolosGanadores: number[];
   /** Solo en la respuesta del servidor (no en el motor local). */
   saldo?: number;
+}
+
+/** Una tajada de la rueda de multiplicadores, ya lista para dibujar. */
+export interface RuletaSlot {
+  et: string;
+  mult: number;
+  color: string | null;
+}
+
+/** Respuesta de `/api/jugar-girar` cuando el motor es `ruleta`. La
+ * `grilla` no es una matriz de símbolos sino el estado de la rueda. */
+export interface ResultadoRuleta {
+  grilla: { tipo: 'ruleta'; slots: RuletaSlot[]; ganadora: number };
+  premio: number;
+  nivel: NivelPremio | null;
+  saldo: number;
+  repetido?: boolean;
+}
+
+// ---------------- Ruleta de botones ----------------
+
+/** Un multiplicador fijo (un botón) de la ruleta de botones. */
+export interface NumeroRuleta {
+  mult: number;
+  /** Tajadas iguales que ocupa en la rueda. */
+  cant: number;
+  color: string;
+  et: string;
+}
+export interface SorpresaPoolItem { mult: number; peso: number; }
+export interface SorpresaCfg {
+  /** Fracción de jugadas en las que aparece (0–1). */
+  frecuencia: number;
+  pool: SorpresaPoolItem[];
+  /** Tope de premio por jugada. 0 = sin tope. */
+  tope: number;
+}
+export interface RuletaBotonesCfg {
+  numeros: NumeroRuleta[];
+  fichas: number[];
+  sorpresa: SorpresaCfg;
+}
+
+/** Estado resuelto de un giro de la ruleta de botones. */
+export interface ResueltoBotones {
+  slots: RuletaSlot[];
+  ganadora: number;
+  ganadorIdx: number;
+  sorpresa: { num: number; mult: number } | null;
+  conSorpresa: boolean;
+  /** Plata ganada (ya calculada). */
+  premio: number;
+}
+
+/** Respuesta de `POST /api/ruleta-botones-girar`. */
+export interface ResultadoRuletaBotones {
+  resultado: ResueltoBotones;
+  premio: number;
+  saldo: number;
+  repetido?: boolean;
 }
 
 /** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`

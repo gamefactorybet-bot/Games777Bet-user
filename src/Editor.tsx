@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { supabase } from './supabase.ts';
-import { analizar } from './motor.ts';
+import { analizar, analizarRuleta } from './motor.ts';
 import { cargarMotor, MOTORES_DISPONIBLES } from '../motor/registro.js';
+import { PALETA_RULETA } from './juego/ruleta.ts';
 import { subirArchivo } from './juego/subir.ts';
 import {
   rtpDe, escalarPagos, factorParaObjetivo, aplicarPerfil,
@@ -12,9 +13,16 @@ import { montarLottieEn } from './lottie.ts';
 import { listarClientesActivos } from './Clientes.tsx';
 import { Preview } from './Preview.tsx';
 import { PreviewMines } from './PreviewMines.tsx';
+import { PreviewRuleta } from './PreviewRuleta.tsx';
+import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
 import { simularMines } from '../motor/mines-clasico.js';
+import {
+  cfgDe as cfgBotonesDe, rtpPromedio as rtpBotonesPromedio, totalTajadas as totalTajadasBotones,
+  rtpNumero as rtpNumeroB, factorSorpresa as factorSorpresaB, sorpresaEsperada as sorpresaEsperadaB,
+} from './juego/ruleta-botones.ts';
 import type {
-  ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, Simbolo, Sonido,
+  ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
+  RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
 } from './types.ts';
 
 const COLORES = ['#f87171', '#fbbf24', '#facc15', '#4ade80', '#38bdf8', '#a78bfa', '#f472b6', '#94a3b8'];
@@ -63,6 +71,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const [grupo, setGrupo] = useState<GrupoId>('jugabilidad');
   const [columnasMotor, setColumnasMotor] = useState(3);
   const esMines = juego.motor.startsWith('mines');
+  const esRuleta = juego.motor === 'ruleta';
+  const esRuletaBotones = juego.motor === 'ruleta-botones';
+  const sinSimbolos = esMines || esRuletaBotones;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
   const [previewAbierto, setPreviewAbierto] = useState(false);
@@ -109,11 +120,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
   // Mines no es de rodillos, no hace falta.
   useEffect(() => {
-    if (esMines) return;
+    if (esMines || esRuleta || esRuletaBotones) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor, esMines]);
+  }, [juego.motor, esMines, esRuleta, esRuletaBotones]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -186,7 +197,14 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const analisisTiles = analizar(
     simbolos.length ? simbolos : [{ nombre: '-', peso: 1, pago_tres: 0, pago_dos: 0 } as unknown as Simbolo],
   );
-  const rtpReal = simbolos.length ? analizar(simbolos, columnasMotor).rtp : 0;
+  const rtpBotones = esRuletaBotones ? rtpBotonesPromedio(juego.ruleta_botones_cfg || {}) : 0;
+  const rtpReal = esRuletaBotones
+    ? rtpBotones
+    : !simbolos.length
+      ? 0
+      : esRuleta
+        ? analizarRuleta(simbolos).rtp
+        : esMines ? 0 : analizar(simbolos, columnasMotor).rtp;
 
   const margenMinesOk = (() => {
     const m = Number(juego.mines_margen_pct ?? 0.03);
@@ -198,7 +216,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     arte: !juego.portada_url,
     jugabilidad: esMines
       ? !margenMinesOk
-      : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
+      : esRuletaBotones
+        ? (totalTajadasBotones(cfgBotonesDe(juego).numeros) < 2 || rtpBotones > 100)
+        : esRuleta
+          ? (!simbolos.length || rtpReal > 100)
+          : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
     sonido: !sonidos.length,
     efectos: false,
   };
@@ -379,6 +401,25 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
     if (esMines) {
       if (!margenMinesOk) errores.push('El margen de la casa tiene que estar entre 0% y 100%.');
+    } else if (esRuleta) {
+      if (!simbolos.length) errores.push('La ruleta no tiene multiplicadores cargados.');
+      const totalTaj = simbolos.reduce((a, s) => a + Math.max(0, Math.round(Number(s.peso) || 0)), 0);
+      if (simbolos.length && totalTaj < 2) errores.push('La rueda necesita al menos 2 tajadas en total (columna "Tajadas").');
+      if (simbolos.length) {
+        const { rtp } = analizarRuleta(simbolos);
+        if (rtp > 100) errores.push(`El RTP es ${rtp.toFixed(2)}% — la rueda pierde plata en cada giro.`);
+        else if (rtp < 80 || rtp > 98) avisos.push(`RTP de ${rtp.toFixed(2)}%, fuera del rango habitual (80-98%).`);
+      }
+    } else if (esRuletaBotones) {
+      const c = cfgBotonesDe(juego);
+      if (totalTajadasBotones(c.numeros) < 2) errores.push('La rueda necesita al menos 2 tajadas en total.');
+      if (rtpBotones > 100) errores.push(`El RTP promedio es ${rtpBotones.toFixed(1)}% — la casa pierde. Bajá la frecuencia o los pesos altos de la sorpresa.`);
+      const numeroCaro = c.numeros.some((_n, i) => {
+        const total = totalTajadasBotones(c.numeros) || 1;
+        return (Math.max(0, Math.round(c.numeros[i].cant)) / total) * c.numeros[i].mult > 1;
+      });
+      if (numeroCaro) avisos.push('Algún número tiene RTP base > 100% (paga más de lo que recauda).');
+      if (!c.sorpresa.tope) avisos.push('Sin tope de premio por jugada: un ×300 sobre una apuesta grande es un pago enorme de golpe.');
     } else {
       if (!simbolos.length) errores.push('No tiene símbolos cargados.');
       const sinIcono = simbolos.filter((s) => !s.icono_url);
@@ -483,7 +524,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="ed-resumen-fila" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span className="ed-resumen-chip">RTP {simbolos.length ? rtpReal.toFixed(1) + '%' : '--'}</span>
+          <span className="ed-resumen-chip">RTP {esMines ? '--' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
           <span className="ed-resumen-chip">versión {juego.version || 1}</span>
           <span className="ed-resumen-chip">{juego.publicado ? 'publicado ✓' : 'sin publicar'}</span>
         </div>
@@ -542,7 +583,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : 'Fondo del rodillo'} onSet={setImagen} />
+            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : 'Fondo del rodillo'} onSet={setImagen} />
             <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />
@@ -556,7 +597,15 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionMines juego={juego} onCampo={guardarCampoJuego} onCampos={guardarCamposJuego} />
       )}
 
-      {grupo === 'jugabilidad' && !esMines && (
+      {grupo === 'jugabilidad' && esRuleta && (
+        <SeccionRuleta juego={juego} simbolos={simbolos} onRecargar={cargarSimbolos} />
+      )}
+
+      {grupo === 'jugabilidad' && esRuletaBotones && (
+        <SeccionRuletaBotones juego={juego} onCampo={guardarCampoJuego} />
+      )}
+
+      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -612,6 +661,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
               marcarGuardado();
             }}
           />
+
+          <PanelRotacion juego={juego} />
         </div>
       )}
 
@@ -699,7 +750,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       {previewAbierto && (esMines
         ? <PreviewMines juego={juego} onClose={() => setPreviewAbierto(false)} />
-        : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
+        : esRuleta
+          ? <PreviewRuleta juego={juego} simbolos={simbolos} onClose={() => setPreviewAbierto(false)} />
+          : esRuletaBotones
+            ? <PreviewRuletaBotones juego={juego} onClose={() => setPreviewAbierto(false)} />
+            : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
       )}
     </>
   );
@@ -911,6 +966,280 @@ function CaraCasilla({ juego, cara, etiqueta, nota, onCampos }: {
   );
 }
 
+// ---------------- Ruleta: multiplicadores (grupo "jugabilidad") ----------------
+
+function SeccionRuleta({ juego, simbolos, onRecargar }: {
+  juego: Juego;
+  simbolos: Simbolo[];
+  onRecargar: () => void;
+}) {
+  const [filas, setFilas] = useState<Simbolo[]>(simbolos);
+  useEffect(() => { setFilas(simbolos); }, [simbolos]);
+  const [objetivo, setObjetivo] = useState(92);
+  const [msg, setMsg] = useState('');
+
+  const analisis = analizarRuleta(filas);
+  const total = filas.reduce((a, s) => a + Math.max(0, Math.round(Number(s.peso) || 0)), 0) || 1;
+
+  const setFila = (i: number, patch: Partial<Simbolo>) =>
+    setFilas((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+
+  const guardar = async (s: Simbolo) => {
+    if (s.id) {
+      await supabase.from('simbolos').update({
+        nombre: s.nombre, peso: Number(s.peso) || 0,
+        pago_tres: Number(s.pago_tres) || 0, color: s.color ?? null,
+      }).eq('id', s.id);
+    } else {
+      await supabase.from('simbolos').insert({
+        juego_id: juego.id, nombre: s.nombre, peso: Number(s.peso) || 0,
+        pago_tres: Number(s.pago_tres) || 0, pago_dos: 0, color: s.color ?? null,
+        orden: filas.length,
+      });
+    }
+    setMsg('Guardado ✓');
+    onRecargar();
+  };
+
+  const agregar = async () => {
+    await supabase.from('simbolos').insert({
+      juego_id: juego.id, nombre: '×2', peso: 4, pago_tres: 2, pago_dos: 0,
+      color: PALETA_RULETA[filas.length % PALETA_RULETA.length], orden: filas.length,
+    });
+    onRecargar();
+  };
+
+  const borrar = async (s: Simbolo) => {
+    if (s.id) await supabase.from('simbolos').delete().eq('id', s.id);
+    onRecargar();
+  };
+
+  const calibrar = async () => {
+    const actual = analizarRuleta(filas).rtp;
+    if (actual <= 0) { setMsg('No hay pagos para calibrar.'); return; }
+    const k = objetivo / actual;
+    const nuevas = filas.map((s) => ({
+      ...s, pago_tres: Math.round((Number(s.pago_tres) || 0) * k * 100) / 100,
+    }));
+    setFilas(nuevas);
+    for (const s of nuevas) await guardar(s);
+    setMsg('Calibrado ✓');
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Ruleta — multiplicadores</strong>
+        <p className="hint" style={{ marginBottom: 14 }}>
+          Cada fila es un multiplicador: su color, su etiqueta, cuántas <b>tajadas iguales</b> ocupa
+          en la rueda, y cuánto paga. La probabilidad de cada uno = sus tajadas / el total.
+          Un multiplicador ×0 pierde la apuesta.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 84px 84px 74px 28px', gap: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-dim)', padding: '0 2px 4px' }}>
+          <span /><span>Etiqueta</span><span>Tajadas</span><span>Multiplic.</span><span>Prob · RTP</span><span />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filas.length === 0 && <p className="hint">Todavía no agregaste multiplicadores.</p>}
+          {filas.map((s, i) => {
+            const cant = Math.max(0, Math.round(Number(s.peso) || 0));
+            const mult = Number(s.pago_tres) || 0;
+            const prob = (cant / total) * 100;
+            return (
+              <div key={s.id || `n-${i}`} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 84px 84px 74px 28px', gap: 8, alignItems: 'center', background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 8px' }}>
+                <input type="color" value={s.color || PALETA_RULETA[i % PALETA_RULETA.length]}
+                  onChange={(e) => setFila(i, { color: e.target.value })}
+                  onBlur={() => guardar(filas[i])}
+                  style={{ width: 26, height: 24, padding: 0 }} />
+                <input value={s.nombre} onChange={(e) => setFila(i, { nombre: e.target.value })} onBlur={() => guardar(filas[i])} />
+                <input type="number" min={0} step={1} value={cant}
+                  onChange={(e) => setFila(i, { peso: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+                  onBlur={() => guardar(filas[i])} />
+                <input type="number" min={0} step={0.5} value={mult}
+                  onChange={(e) => setFila(i, { pago_tres: Math.max(0, Number(e.target.value) || 0) })}
+                  onBlur={() => guardar(filas[i])} />
+                <span className="hint" style={{ margin: 0, fontSize: 11 }}>{prob.toFixed(1)}% · {(prob * mult / 100).toFixed(0)}%</span>
+                <button onClick={() => borrar(filas[i])} style={{ padding: '4px 6px' }}>✕</button>
+              </div>
+            );
+          })}
+        </div>
+        <button style={{ marginTop: 10 }} onClick={agregar}>+ Agregar multiplicador</button>
+        <p className="hint" style={{ margin: '10px 0 0' }}>
+          Total: <b>{total} tajadas</b> · RTP <b>{analisis.rtp.toFixed(1)}%</b>
+          {analisis.rtp > 100 && <span style={{ color: 'var(--danger)' }}> — la rueda pierde plata en cada giro</span>}
+        </p>
+
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 12 }}>RTP objetivo
+            <input type="number" step={1} value={objetivo} onChange={(e) => setObjetivo(Number(e.target.value) || 92)} style={{ width: 60, marginLeft: 6 }} />%
+          </label>
+          <button onClick={calibrar}>Calibrar (escala los multiplicadores)</button>
+          <span className="hint" style={{ margin: 0 }}>{msg}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Ruleta de botones (grupo "jugabilidad") ----------------
+
+function SeccionRuletaBotones({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<RuletaBotonesCfg>(() => cfgBotonesDe(juego));
+  useEffect(() => { setCfg(cfgBotonesDe(juego)); }, [juego.id]);
+  const [objetivo, setObjetivo] = useState(92);
+  const [msg, setMsg] = useState('');
+
+  const guardar = (next: RuletaBotonesCfg) => {
+    setCfg(next);
+    onCampo('ruleta_botones_cfg', next);
+    setMsg('Guardado ✓');
+  };
+  const setNumeros = (numeros: RuletaBotonesCfg['numeros']) => guardar({ ...cfg, numeros });
+  const setSorpresa = (sorpresa: RuletaBotonesCfg['sorpresa']) => guardar({ ...cfg, sorpresa });
+
+  const total = totalTajadasBotones(cfg.numeros) || 1;
+  const es = sorpresaEsperadaB(cfg.sorpresa.pool);
+  const factor = factorSorpresaB(cfg.numeros, cfg.sorpresa);
+  const rtpBase = (cfg.numeros.reduce((a, _n, i) => a + rtpNumeroB(cfg.numeros, i), 0) / (cfg.numeros.length || 1)) * 100;
+  const rtpTot = rtpBase * factor;
+
+  const emparejarTajadas = () => {
+    const pesos = cfg.numeros.map((n) => 1 / Math.max(1, n.mult));
+    const suma = pesos.reduce((a, b) => a + b, 0);
+    setNumeros(cfg.numeros.map((n, i) => ({ ...n, cant: Math.max(1, Math.round((pesos[i] / suma) * total)) })));
+  };
+  const calibrarFrecuencia = () => {
+    const rb = rtpBase / 100;
+    const n = cfg.numeros.length || 1;
+    if (rb <= 0 || es <= 1) return;
+    let f = ((objetivo / 100) / rb - 1) * n / (es - 1);
+    f = Math.max(0, Math.min(1, f));
+    setSorpresa({ ...cfg.sorpresa, frecuencia: Math.round(f * 20) / 20 });
+    setMsg(f >= 1 ? 'Ni al 100% se llega: subí los pesos altos del pool.' : 'Frecuencia ajustada ✓');
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Los números</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          Cada fila es un botón: su multiplicador base, cuántas <b>tajadas iguales</b> ocupa
+          en la rueda, y su color. RTP del nº = probabilidad × multiplicador (contando la sorpresa).
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '26px 66px 66px 1fr 26px', gap: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-dim)', padding: '0 2px 4px' }}>
+          <span /><span>Multip.</span><span>Tajadas</span><span>Prob · RTP</span><span />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {cfg.numeros.map((n, i) => {
+            const prob = (Math.max(0, Math.round(n.cant)) / total) * 100;
+            const rtpN = rtpNumeroB(cfg.numeros, i) * factor * 100;
+            return (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '26px 66px 66px 1fr 26px', gap: 8, alignItems: 'center', background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 8px' }}>
+                <input type="color" value={n.color}
+                  onChange={(e) => setNumeros(cfg.numeros.map((x, j) => j === i ? { ...x, color: e.target.value } : x))}
+                  style={{ width: 24, height: 22, padding: 0 }} />
+                <input type="number" min={1} step={1} value={n.mult}
+                  onChange={(e) => {
+                    const m = Math.max(1, Math.round(Number(e.target.value) || 1));
+                    setNumeros(cfg.numeros.map((x, j) => j === i ? { ...x, mult: m, et: '×' + m } : x));
+                  }} />
+                <input type="number" min={0} step={1} value={Math.max(0, Math.round(n.cant))}
+                  onChange={(e) => setNumeros(cfg.numeros.map((x, j) => j === i ? { ...x, cant: Math.max(0, Math.round(Number(e.target.value) || 0)) } : x))} />
+                <span className="hint" style={{ margin: 0, fontSize: 11, color: rtpN > 100 ? 'var(--danger)' : undefined }}>
+                  {prob.toFixed(1)}% · {rtpN.toFixed(0)}%
+                </span>
+                <button onClick={() => setNumeros(cfg.numeros.filter((_x, j) => j !== i))} style={{ padding: '4px 6px' }} disabled={cfg.numeros.length <= 3}>✕</button>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <button onClick={() => setNumeros([...cfg.numeros, { mult: 5, cant: 1, color: PALETA_RULETA[cfg.numeros.length % PALETA_RULETA.length], et: '×5' }])}>+ Agregar número</button>
+          <button onClick={emparejarTajadas}>Emparejar tajadas (∝ 1/multip.)</button>
+        </div>
+        <p className="hint" style={{ margin: '10px 0 0' }}>Rueda de <b>{total} tajadas</b>.</p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Multiplicador sorpresa</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          En cada giro puede aparecer sobre un número al azar. Es lo que levanta el RTP (bajo de base)
+          y da emoción. Cuanto menos seguido aparece, más grande puede ser.
+        </p>
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Aparece en <b>{Math.round(cfg.sorpresa.frecuencia * 100)}%</b> de las jugadas
+          {cfg.sorpresa.frecuencia > 0 && <span className="hint" style={{ margin: 0 }}> (≈ 1 de cada {(1 / cfg.sorpresa.frecuencia).toFixed(1)})</span>}
+        </label>
+        <input type="range" min={0} max={100} step={5} value={Math.round(cfg.sorpresa.frecuencia * 100)}
+          onChange={(e) => setSorpresa({ ...cfg.sorpresa, frecuencia: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 12px' }} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr', gap: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-dim)', padding: '0 2px 4px' }}>
+          <span>Multiplicador</span><span>Peso</span><span style={{ textAlign: 'right' }}>Prob</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {cfg.sorpresa.pool.map((p, i) => {
+            const tp = cfg.sorpresa.pool.reduce((a, x) => a + Math.max(0, x.peso), 0) || 1;
+            return (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr', gap: 8, alignItems: 'center', background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 8px' }}>
+                <span style={{ fontWeight: 700 }}>×{p.mult}</span>
+                <input type="number" min={0} step={0.05} value={p.peso}
+                  onChange={(e) => setSorpresa({ ...cfg.sorpresa, pool: cfg.sorpresa.pool.map((x, j) => j === i ? { ...x, peso: Math.max(0, Number(e.target.value) || 0) } : x) })} />
+                <span className="hint" style={{ margin: 0, fontSize: 11, textAlign: 'right' }}>{((Math.max(0, p.peso) / tp) * 100).toFixed(2)}%</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><span>RTP base (números)</span><span>{rtpBase.toFixed(1)}%</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><span>Sorpresa promedio</span><span>×{es.toFixed(1)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><span>Factor de la sorpresa</span><span>×{factor.toFixed(3)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', marginTop: 4, borderTop: '1px solid var(--border)', fontWeight: 800, fontSize: 15 }}>
+            <span>RTP total</span><span style={{ color: rtpTot > 100 ? 'var(--danger)' : undefined }}>{rtpTot.toFixed(1)}%</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+          <label style={{ fontSize: 12 }}>Objetivo
+            <input type="number" step={1} value={objetivo} onChange={(e) => setObjetivo(Number(e.target.value) || 92)} style={{ width: 56, marginLeft: 6 }} />%
+          </label>
+          <button onClick={calibrarFrecuencia}>Calibrar frecuencia</button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <label style={{ fontSize: 12 }}>Tope de premio por jugada
+            <input type="number" min={0} step={10000} value={cfg.sorpresa.tope}
+              onChange={(e) => setSorpresa({ ...cfg.sorpresa, tope: Math.max(0, Number(e.target.value) || 0) })}
+              style={{ width: 110, marginLeft: 6 }} />
+          </label>
+          <span className="hint" style={{ margin: 0 }}>0 = sin tope</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Valores de ficha</strong>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+          {cfg.fichas.map((v, i) => (
+            <input key={i} type="number" min={1} step={100} value={v}
+              onChange={(e) => guardar({ ...cfg, fichas: cfg.fichas.map((x, j) => j === i ? Math.max(1, Math.round(Number(e.target.value) || 1)) : x) })}
+              style={{ width: 84 }} />
+          ))}
+          <button onClick={() => guardar({ ...cfg, fichas: [...cfg.fichas, (cfg.fichas[cfg.fichas.length - 1] || 1000) * 2] })} style={{ padding: '4px 10px' }}>+</button>
+          {cfg.fichas.length > 1 && (
+            <button onClick={() => guardar({ ...cfg, fichas: cfg.fichas.slice(0, -1) })} style={{ padding: '4px 10px' }}>−</button>
+          )}
+        </div>
+        <p className="hint" style={{ margin: '10px 0 0' }}>{msg}</p>
+      </div>
+    </div>
+  );
+}
+
 // ---------------- Calibración de RTP + perfiles ("modos de pago") ----------------
 
 interface PerfilesProps {
@@ -1063,6 +1392,133 @@ function PerfilesYCalibrado({ juego, simbolos, columnasMotor, onAplicarSimbolos 
           <button style={{ color: 'var(--danger)' }} onClick={() => borrar(p)}>✕</button>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------- Rotación automática de perfiles de RTP ----------------
+
+function PanelRotacion({ juego }: { juego: Juego }) {
+  const [perfiles, setPerfiles] = useState<PerfilRtp[]>([]);
+  const [cfg, setCfg] = useState<RotacionRtp | null>(null);
+  const [estado, setEstado] = useState<RotacionEstado | null>(null);
+  const [historial, setHistorial] = useState<RotacionHistorialFila[]>([]);
+  const [msg, setMsg] = useState('');
+
+  const cargar = useCallback(async () => {
+    const [{ data: p }, { data: c }, { data: e }, { data: h }] = await Promise.all([
+      supabase.from('perfiles_rtp').select('*').eq('juego_id', juego.id).order('orden'),
+      supabase.from('rotacion_rtp').select('*').eq('juego_id', juego.id).maybeSingle(),
+      supabase.from('rotacion_estado').select('*').eq('juego_id', juego.id).maybeSingle(),
+      supabase.from('rotacion_historial').select('*').eq('juego_id', juego.id).order('desde_ts', { ascending: false }).limit(8),
+    ]);
+    setPerfiles((p as PerfilRtp[]) || []);
+    setCfg((c as RotacionRtp) || null);
+    setEstado((e as RotacionEstado) || null);
+    setHistorial((h as RotacionHistorialFila[]) || []);
+  }, [juego.id]);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const cfgActual: RotacionRtp = cfg || {
+    juego_id: juego.id, activa: false, noche_desde: 22, noche_hasta: 8,
+    pesos_dia: {}, pesos_noche: {}, segmento_min: 20, segmento_max: 90,
+  };
+
+  const guardar = async (patch: Partial<RotacionRtp>) => {
+    const next = { ...cfgActual, ...patch };
+    setCfg(next);
+    const { error } = await supabase.from('rotacion_rtp').upsert({
+      ...next, juego_id: juego.id, actualizado: new Date().toISOString(),
+    });
+    setMsg(error ? error.message : 'Guardado ✓');
+  };
+  const setPeso = (franja: 'pesos_dia' | 'pesos_noche', perfilId: string, v: number) =>
+    guardar({ [franja]: { ...cfgActual[franja], [perfilId]: v } } as Partial<RotacionRtp>);
+
+  if (perfiles.length < 2) {
+    return (
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Rotación automática de RTP</strong>
+        <p className="hint" style={{ margin: '8px 0 0' }}>
+          Guardá al menos 2 perfiles (Tacaño / Nivelado / Generoso…) arriba para poder rotarlos solos.
+        </p>
+      </div>
+    );
+  }
+
+  const activoAhora = estado?.perfil_id ? perfiles.find((p) => p.id === estado.perfil_id) : null;
+  const restanteMin = estado ? Math.max(0, Math.round((new Date(estado.hasta_ts).getTime() - Date.now()) / 60000)) : 0;
+
+  return (
+    <div className="card">
+      <strong style={{ fontSize: 15 }}>Rotación automática de RTP</strong>
+      <p className="hint" style={{ marginBottom: 12 }}>
+        El servidor va cambiando el perfil activo solo, con horas al azar. Es global: nunca mira
+        al jugador, solo el reloj.
+      </p>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 12 }}>
+        <input type="checkbox" checked={cfgActual.activa} onChange={(e) => guardar({ activa: e.target.checked })} style={{ width: 'auto' }} />
+        Rotación activada
+      </label>
+
+      <div style={{ opacity: cfgActual.activa ? 1 : 0.45, pointerEvents: cfgActual.activa ? 'auto' : 'none' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12, fontSize: 12 }}>
+          <span>Noche de</span>
+          <input type="number" min={0} max={23} value={cfgActual.noche_desde} onChange={(e) => guardar({ noche_desde: Math.max(0, Math.min(23, Number(e.target.value) || 0)) })} style={{ width: 54 }} />
+          <span>a</span>
+          <input type="number" min={0} max={23} value={cfgActual.noche_hasta} onChange={(e) => guardar({ noche_hasta: Math.max(0, Math.min(23, Number(e.target.value) || 0)) })} style={{ width: 54 }} />
+          <span className="hint" style={{ margin: 0 }}>hs · el resto es día</span>
+        </div>
+
+        {(['pesos_dia', 'pesos_noche'] as const).map((franja) => (
+          <div key={franja} style={{ marginBottom: 12 }}>
+            <p className="hint" style={{ margin: '0 0 4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+              {franja === 'pesos_dia' ? 'Día' : 'Noche'} — cuántas veces sale cada modo
+            </p>
+            {perfiles.map((p) => (
+              <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 12 }}>{p.nombre}{p.activo ? ' (activo)' : ''}</span>
+                <input type="number" min={0} step={1} value={cfgActual[franja][p.id] ?? 0}
+                  onChange={(e) => setPeso(franja, p.id, Math.max(0, Number(e.target.value) || 0))} style={{ width: 56 }} />
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
+          <span>Cada tramo dura entre</span>
+          <input type="number" min={5} step={5} value={cfgActual.segmento_min} onChange={(e) => guardar({ segmento_min: Math.max(5, Number(e.target.value) || 5) })} style={{ width: 58 }} />
+          <span>y</span>
+          <input type="number" min={10} step={5} value={cfgActual.segmento_max} onChange={(e) => guardar({ segmento_max: Math.max(10, Number(e.target.value) || 10) })} style={{ width: 58 }} />
+          <span className="hint" style={{ margin: 0 }}>minutos, al azar</span>
+        </div>
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <strong style={{ fontSize: 13, flex: 1 }}>Estado ahora</strong>
+          <button style={{ fontSize: 12 }} onClick={cargar}>Actualizar</button>
+        </div>
+        <p className="hint" style={{ margin: 0 }}>
+          {cfgActual.activa
+            ? activoAhora
+              ? `Modo ${activoAhora.nombre} · cambia en ~${restanteMin} min`
+              : 'Se define en el próximo giro.'
+            : 'Rotación desactivada — el perfil activo lo elegís vos arriba.'}
+        </p>
+        {historial.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>
+            {historial.map((h) => (
+              <div key={h.id}>
+                {new Date(h.desde_ts).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                {' · '}{h.perfil_nombre || '—'}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <p className="hint">{msg}</p>
     </div>
   );
 }

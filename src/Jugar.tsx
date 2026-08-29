@@ -5,6 +5,8 @@ import { fetchJson } from './juego/recursos.ts';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { JugarSlot } from './JugarSlot.tsx';
 import { JugarMines } from './JugarMines.tsx';
+import { JugarRuleta } from './JugarRuleta.tsx';
+import { JugarRuletaBotones } from './JugarRuletaBotones.tsx';
 import type { DatosJuego } from './types.ts';
 
 // Pantalla jugable real, sin login: la abre directo el jugador cuando
@@ -66,9 +68,11 @@ function Jugar() {
   }
 
   const props = { datos: estado.datos, saldoInicial: estado.saldo, slug: estado.slug, token: estado.token };
-  return estado.datos.juego.motor.startsWith('mines')
-    ? <JugarMines {...props} />
-    : <JugarSlot {...props} />;
+  const motor = estado.datos.juego.motor;
+  if (motor.startsWith('mines')) return <JugarMines {...props} />;
+  if (motor === 'ruleta') return <JugarRuleta {...props} />;
+  if (motor === 'ruleta-botones') return <JugarRuletaBotones {...props} />;
+  return <JugarSlot {...props} />;
 }
 
 createRoot(document.getElementById('app')!).render(<Jugar />);

@@ -42,6 +42,13 @@ export interface CrearEscenarioOpts {
    *  queda como una caja vacía y posicionable (el tablero se monta
    *  adentro por fuera). Todo lo de arte/luces/libres funciona igual. */
   esMines?: boolean;
+  /** Ruleta: como Mines, la grilla es una caja vacía y posicionable
+   *  (adentro se monta la rueda en canvas), PERO se conservan los
+   *  controles de slot (saldo, apuesta, girar, fichas, turbo). */
+  esRuleta?: boolean;
+  /** Ruleta de botones: caja vacía y SIN controles de slot (trae los
+   *  suyos: fichas, botones de multiplicador, girar). Como Mines. */
+  esRuletaBotones?: boolean;
 }
 
 const CLAVES_BOTON: { clave: Boton['clave']; etiqueta: string }[] = [
@@ -137,6 +144,13 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const { modo, juego, sonidos, efectos, premios, digitos, animaciones, motor } = opts;
   const { COLUMNAS, FILAS } = motor;
   const esMines = !!opts.esMines;
+  const esRuleta = !!opts.esRuleta;
+  const esRuletaBotones = !!opts.esRuletaBotones;
+  // Grilla como caja vacía y posicionable (Mines y las ruletas montan
+  // su propio contenido adentro por portal).
+  const cajaVacia = esMines || esRuleta || esRuletaBotones;
+  // Sin controles de slot (traen los suyos): Mines y ruleta de botones.
+  const sinControlesSlot = esMines || esRuletaBotones;
 
   const pos = conDefaults(juego);
   const ordenCapas = ordenPorDefecto(juego);
@@ -219,7 +233,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
       <button data-info aria-label="Ver información del juego" style="width:28px; height:28px; padding:0; border-radius:50%; flex-shrink:0">ℹ</button>
     </div>
 
-    ${esMines ? `
+    ${cajaVacia ? `
     <div data-grilla style="position:absolute; overflow:visible; transform:translate(-50%,-50%)"></div>
     ` : `
     <div data-grilla style="display:grid; grid-template-columns:repeat(${COLUMNAS},1fr); gap:6px; border-radius:12px; padding:8px; position:absolute; overflow:hidden; aspect-ratio:${COLUMNAS}/${FILAS}">
@@ -300,7 +314,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
   // En la pantalla del jugador el botón ℹ va en la esquina, no en la
   // fila del título (que puede estar oculta si mostrar_nombre es false).
-  if (modo === 'jugar' && !esMines) {
+  if (modo === 'jugar' && !cajaVacia) {
     Object.assign(q('[data-info]').style, {
       position: 'absolute', right: '22px', top: '22px', zIndex: '12', width: '30px', height: '30px',
     });
@@ -309,13 +323,20 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const tituloRowEl = q<HTMLElement>('[data-titulo-row]');
   const tituloEl = q<HTMLElement>('[data-titulo]');
 
-  // Mines: sin controles de slot ni cuadro de premio (el tablero trae
-  // los suyos). Se dejan en el DOM pero ocultos.
-  if (esMines) {
+  // Mines / ruleta de botones: sin controles de slot ni cuadro de
+  // premio (traen los suyos). Se dejan en el DOM pero ocultos.
+  if (sinControlesSlot) {
     [premioPopupEl, efectoPremio, grupoSaldoEl, grupoApuestaEl, grupoTurboEl, fichasEl, btnGirar, q('[data-info]')]
       .forEach((n) => { if (n) n.style.display = 'none'; });
     // En Mines la fila del título se colapsa entera al ocultar el nombre
     // (en los slots solo se hace invisible, para no correr el layout).
+    if (!(juego.mostrar_nombre ?? true) && tituloRowEl) tituloRowEl.style.display = 'none';
+  }
+
+  // Ruleta: conserva los controles de slot, pero no tiene tabla de
+  // pagos ni el efecto de premio sobre la línea.
+  if (esRuleta) {
+    [efectoPremio, q('[data-info]')].forEach((n) => { if (n) n.style.display = 'none'; });
     if (!(juego.mostrar_nombre ?? true) && tituloRowEl) tituloRowEl.style.display = 'none';
   }
 
@@ -403,7 +424,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
   const setMostrarNombre = (v: boolean) => {
     escenario.mostrarNombre = v;
-    if (esMines) {
+    if (cajaVacia) {
       if (tituloRowEl) tituloRowEl.style.display = v ? 'flex' : 'none';
     } else if (tituloEl) {
       tituloEl.style.visibility = v ? 'visible' : 'hidden';
@@ -592,7 +613,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     if (conFichas) pintarFichas();
   };
 
-  if (!esMines) {
+  if (!sinControlesSlot) {
     btnMas.addEventListener('click', () => {
       if (escenario.girando) return;
       escenario.apuesta = Math.min(apuestaMax, escenario.apuesta + pasoApuesta);
@@ -659,7 +680,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   aplicarOrden();
   aplicarFiltros();
   aplicarCapasLibres();
-  if (!esMines) {
+  if (!sinControlesSlot) {
     aplicarPosicionPremio('dos_iguales');
     aplicarGirar();
     aplicarGrupos();
