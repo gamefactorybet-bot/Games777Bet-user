@@ -95,12 +95,22 @@ export interface BotonMines {
   x: number; y: number; ancho: number; alto: number;
   imagen_url?: string | null;
 }
+/** El selector de cuántas minas poner (slider 1–24). */
+export interface SelectorMinasCfg {
+  x: number; y: number;
+  ancho: number;
+  /** Alto del carril en px (la perilla se agranda con él). */
+  grosor: number;
+  carril_url?: string | null;
+  thumb_url?: string | null;
+}
+
 /** Posición y aspecto de todos los controles del tablero de Mines. */
 export interface PosControlesMines {
   saldo: RecuadroMines;
   mult: RecuadroMines;
   apuesta: { x: number; y: number };
-  minas: { x: number; y: number };
+  minas: SelectorMinasCfg;
   boton: BotonMines;
 }
 

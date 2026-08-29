@@ -1,9 +1,76 @@
-import type { CSSProperties } from 'react';
+import { useRef } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { TOTAL } from './juego/mines.ts';
 import type { EstadoPartida } from './juego/mines.ts';
-import type { BotonMines, Juego, PosControlesMines, RecuadroMines } from './types.ts';
+import type { BotonMines, Juego, PosControlesMines, RecuadroMines, SelectorMinasCfg } from './types.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
+
+// Slider propio de "cuántas minas" (1–24), con arrastre por pointer y
+// carril/perilla personalizables con imagen.
+function SelectorMinas({ cfg, minas, onCambiar }: {
+  cfg: SelectorMinasCfg;
+  minas: number;
+  onCambiar: (n: number) => void;
+}) {
+  const carrilRef = useRef<HTMLDivElement>(null);
+  const MIN = 1, MAX = 24;
+  const pct = (m: number) => ((m - MIN) / (MAX - MIN)) * 100;
+
+  const desde = (clientX: number) => {
+    const r = carrilRef.current?.getBoundingClientRect();
+    if (!r || !r.width) return;
+    const p = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    onCambiar(Math.round(MIN + p * (MAX - MIN)));
+  };
+
+  const onPointerDown = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    desde(e.clientX);
+    const mover = (ev: PointerEvent) => desde(ev.clientX);
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', () => window.removeEventListener('pointermove', mover), { once: true });
+  };
+
+  const grosor = cfg.grosor ?? 8;
+  const tam = Math.max(grosor + 12, 24);
+
+  return (
+    <div style={{
+      position: 'absolute', left: `${cfg.x}%`, top: `${cfg.y}%`,
+      transform: 'translate(-50%,-50%)', width: cfg.ancho ?? 180,
+      zIndex: 12, pointerEvents: 'auto', color: '#fff', userSelect: 'none', touchAction: 'none',
+    }}>
+      <div style={{ fontSize: 11, textAlign: 'center', marginBottom: 5, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+        Minas: <strong style={{ color: '#fff' }}>{minas}</strong>
+      </div>
+      <div
+        ref={carrilRef}
+        onPointerDown={onPointerDown}
+        style={{
+          position: 'relative', height: grosor, borderRadius: 999, cursor: 'pointer',
+          background: cfg.carril_url ? `url('${cfg.carril_url}') center/100% 100% no-repeat` : 'var(--surface-alt)',
+          boxShadow: cfg.carril_url ? 'none' : 'inset 0 1px 3px rgba(0,0,0,.5)',
+        }}
+      >
+        {!cfg.carril_url && (
+          <div style={{
+            position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct(minas)}%`,
+            borderRadius: '999px 0 0 999px', background: 'linear-gradient(90deg, var(--accent), #8aa0ff)',
+            opacity: 0.55, pointerEvents: 'none',
+          }} />
+        )}
+        <div style={{
+          position: 'absolute', top: '50%', left: `${pct(minas)}%`, transform: 'translate(-50%,-50%)',
+          width: tam, height: tam, borderRadius: '50%', cursor: 'grab',
+          background: cfg.thumb_url ? `url('${cfg.thumb_url}') center/contain no-repeat` : 'linear-gradient(160deg, #414a5e, #262b38)',
+          border: cfg.thumb_url ? 'none' : '1px solid rgba(255,255,255,.16)',
+          boxShadow: cfg.thumb_url ? 'none' : '0 2px 6px rgba(0,0,0,.5)',
+        }} />
+      </div>
+    </div>
+  );
+}
 
 interface ControlesMinesProps {
   juego: Juego;
@@ -108,20 +175,7 @@ export function ControlesMines({
       )}
 
       {/* Selector de minas — solo antes de empezar */}
-      {inactiva && (
-        <div style={{
-          position: 'absolute', left: `${pos.minas.x}%`, top: `${pos.minas.y}%`,
-          transform: 'translate(-50%,-50%)', width: 200, maxWidth: '80%',
-          zIndex: 12, pointerEvents: 'auto', textAlign: 'center', color: '#fff',
-        }}>
-          <span className="hint" style={{ fontSize: 11, margin: 0 }}>Minas: <strong style={{ color: '#fff' }}>{minas}</strong></span>
-          <input
-            type="range" min={1} max={24} value={minas}
-            onChange={(e) => onCambiarMinas(Number(e.target.value))}
-            style={{ width: '100%', marginTop: 2, accentColor: 'var(--accent)' }}
-          />
-        </div>
-      )}
+      {inactiva && <SelectorMinas cfg={pos.minas} minas={minas} onCambiar={onCambiarMinas} />}
 
       {/* Botón de acción */}
       <button

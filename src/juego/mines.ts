@@ -91,7 +91,7 @@ export const CONTROLES_MINES_DEFAULT: PosControlesMines = {
   saldo: { x: 26, y: 8, ancho: 120, alto: 44, fondo_url: null },
   mult: { x: 74, y: 8, ancho: 152, alto: 44, fondo_url: null },
   apuesta: { x: 50, y: 79 },
-  minas: { x: 50, y: 70 },
+  minas: { x: 50, y: 70, ancho: 180, grosor: 8, carril_url: null, thumb_url: null },
   boton: { x: 50, y: 91, ancho: 168, alto: 52, imagen_url: null },
 };
 

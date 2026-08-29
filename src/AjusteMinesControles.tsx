@@ -14,11 +14,10 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
   { id: 'minas', etiqueta: 'Minas' },
 ];
 
-const CON_TAMANO: ElemId[] = ['saldo', 'mult', 'boton'];
+const CON_RECUADRO: ElemId[] = ['saldo', 'mult', 'boton'];
 
 // Panel de ajuste de los controles del tablero de Mines. Edita
-// `juego.mines_controles` — cada elemento con su posición, y los
-// recuadros/botón con su tamaño e imagen.
+// `juego.mines_controles`.
 export function AjusteMinesControles({ juego, pos, onChange }: {
   juego: Juego;
   pos: PosControlesMines;
@@ -33,12 +32,9 @@ export function AjusteMinesControles({ juego, pos, onChange }: {
     onChange({ ...pos, [elem]: { ...(pos[elem] as object), [prop]: valor } });
   };
 
-  const campoImagen = elem === 'boton' ? 'imagen_url' : 'fondo_url';
-  const urlImagen = (actual[campoImagen] as string) || null;
-
-  const subir = async (f: File) => {
+  const subirA = async (prop: string, f: File) => {
     const url = await subirArchivo(f, `mines/${juego.id}`);
-    if (url) set(campoImagen, url);
+    if (url) set(prop, url);
   };
 
   const guardar = async () => {
@@ -64,23 +60,53 @@ export function AjusteMinesControles({ juego, pos, onChange }: {
       <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
       <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
 
-      {CON_TAMANO.includes(elem) && (
+      {CON_RECUADRO.includes(elem) && (
         <>
           <Rango etiqueta="Ancho" min={40} max={300} unidad="px" valor={actual.ancho as number} onInput={(n) => set('ancho', n)} />
           <Rango etiqueta="Alto" min={24} max={140} unidad="px" valor={actual.alto as number} onInput={(n) => set('alto', n)} />
+          <CampoImagen
+            etiqueta={elem === 'boton' ? 'Imagen del botón' : 'Fondo del recuadro'}
+            url={(actual[elem === 'boton' ? 'imagen_url' : 'fondo_url'] as string) || null}
+            onSubir={(f) => subirA(elem === 'boton' ? 'imagen_url' : 'fondo_url', f)}
+            onQuitar={() => set(elem === 'boton' ? 'imagen_url' : 'fondo_url', null)}
+          />
+        </>
+      )}
 
-          <label style={{ display: 'block', height: 54, borderRadius: 8, border: '1px dashed var(--border)', background: 'var(--surface-alt)', cursor: 'pointer', overflow: 'hidden', position: 'relative', margin: '10px 0 6px' }}>
-            {urlImagen
-              ? <img src={urlImagen} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              : <span className="hint" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>{elem === 'boton' ? 'Imagen del botón' : 'Fondo del recuadro'}</span>}
-            <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && subir(e.target.files[0])} />
-          </label>
-          {urlImagen && <button style={{ fontSize: 12 }} onClick={() => set(campoImagen, null)}>Quitar imagen</button>}
+      {elem === 'minas' && (
+        <>
+          <Rango etiqueta="Ancho" min={80} max={280} unidad="px" valor={actual.ancho as number} onInput={(n) => set('ancho', n)} />
+          <Rango etiqueta="Grosor del carril" min={4} max={28} unidad="px" valor={actual.grosor as number} onInput={(n) => set('grosor', n)} />
+          <CampoImagen etiqueta="Imagen del carril" url={(actual.carril_url as string) || null}
+            onSubir={(f) => subirA('carril_url', f)} onQuitar={() => set('carril_url', null)} />
+          <CampoImagen etiqueta="Imagen de la perilla" redondo url={(actual.thumb_url as string) || null}
+            onSubir={(f) => subirA('thumb_url', f)} onQuitar={() => set('thumb_url', null)} />
         </>
       )}
 
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
+    </div>
+  );
+}
+
+function CampoImagen({ etiqueta, url, redondo, onSubir, onQuitar }: {
+  etiqueta: string;
+  url: string | null;
+  redondo?: boolean;
+  onSubir: (f: File) => void;
+  onQuitar: () => void;
+}) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <label style={{ display: 'block', height: 54, borderRadius: redondo ? '50%' : 8, border: '1px dashed var(--border)', background: 'var(--surface-alt)', cursor: 'pointer', overflow: 'hidden', position: 'relative', width: redondo ? 54 : '100%' }}>
+        {url
+          ? <img src={url} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          : <span className="hint" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, textAlign: 'center', padding: 4 }}>{etiqueta}</span>}
+        <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && onSubir(e.target.files[0])} />
+      </label>
+      {!redondo && <p className="hint" style={{ margin: '2px 0 0', fontSize: 10 }}>{etiqueta}</p>}
+      {url && <button style={{ fontSize: 12, marginTop: 4 }} onClick={onQuitar}>Quitar imagen</button>}
     </div>
   );
 }
