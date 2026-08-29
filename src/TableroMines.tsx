@@ -1,11 +1,16 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import { casillaCara, LADO, TOTAL } from './juego/mines.ts';
 import type { Cara, EstadoPartida } from './juego/mines.ts';
 import { montarLottieEn } from './lottie.ts';
-import type { Juego } from './types.ts';
+import { ControlesMines } from './ControlesMines.tsx';
+import type { Escenario } from './juego/escenario.ts';
+import type { Juego, PosControlesMines } from './types.ts';
 
 interface TableroMinesProps {
+  escenario: Escenario;
+  pos: PosControlesMines;
   juego: Juego;
   estado: EstadoPartida;
   minBet: number;
@@ -18,8 +23,6 @@ interface TableroMinesProps {
   onCambiarMinas: (n: number) => void;
   onNueva: () => void;
 }
-
-const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
 
 const BOTON_CELDA: CSSProperties = {
   position: 'relative', aspectRatio: '1', padding: 0, borderRadius: 10,
@@ -105,122 +108,71 @@ function Casilla({
   );
 }
 
-export function TableroMines({
-  juego, estado, minBet, maxBet, pasoApuesta,
-  onIniciar, onRevelar, onRetirar, onCambiarApuesta, onCambiarMinas, onNueva,
-}: TableroMinesProps) {
-  const { fase, minas, apuesta, reveladas, minasPos, clicMina, pendiente, multiplicador, puedeRetirar, saldo, ganancia, cargando, error } = estado;
+// La grilla 5×5, sin controles — se monta dentro de la caja "Tablero"
+// del escenario (posicionable desde el panel Capas).
+function GrillaMines({ juego, estado, onRevelar }: {
+  juego: Juego; estado: EstadoPartida; onRevelar: (i: number) => void;
+}) {
+  const { fase, minas, reveladas, minasPos, clicMina, pendiente, cargando } = estado;
   const jugando = fase === 'en_curso';
-  const terminada = fase === 'retirada' || fase === 'perdida';
-  const segurasRestantes = TOTAL - minas - reveladas.length;
-  const gananciaPotencial = apuesta * multiplicador;
-
-  // Al perder, 'todo' (por defecto) destapa el tablero entero: las
-  // seguras que el jugador no eligió también se muestran.
   const perdio = fase === 'perdida';
   const limpiarTablero = perdio && (juego.mines_revelado_al_perder ?? 'todo') !== 'minas';
   const distClic = (i: number) => (clicMina == null ? 0
     : Math.abs(Math.floor(i / LADO) - Math.floor(clicMina / LADO)) + Math.abs((i % LADO) - (clicMina % LADO)));
 
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <Caja etiqueta="Saldo" valor={fmt(saldo)} />
-        {jugando
-          ? <Caja etiqueta={`Multiplicador · ${segurasRestantes} seguras`} valor={`×${multiplicador.toFixed(2)}`} />
-          : <Caja etiqueta="Minas" valor={String(minas)} />}
-      </div>
+    <div style={{ width: '100%', display: 'grid', gridTemplateColumns: `repeat(${LADO}, 1fr)`, gap: 6 }}>
+      {Array.from({ length: TOTAL }, (_, i) => {
+        const esMina = !!minasPos?.includes(i);
+        const revelada = reveladas.includes(i) || (limpiarTablero && !esMina);
+        const cara: Cara = esMina ? 'mina' : revelada ? 'segura' : 'oculta';
 
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${LADO}, 1fr)`, gap: 6 }}>
-        {Array.from({ length: TOTAL }, (_, i) => {
-          const esMina = !!minasPos?.includes(i);
-          const revelada = reveladas.includes(i) || (limpiarTablero && !esMina);
-          const cara: Cara = esMina ? 'mina' : revelada ? 'segura' : 'oculta';
+        // Al perder: TODAS las minas explotan y (en modo 'todo') las
+        // seguras se destapan, en onda expansiva desde la que se pisó.
+        // La animación en loop de la tapada arranca escalonada, para que
+        // el tablero pinte al instante y las 25 instancias no salgan de golpe.
+        const explota = esMina && perdio;
+        const retardo = (explota || (limpiarTablero && !esMina)) ? distClic(i) * 55
+          : cara === 'oculta' ? 120 + i * 35
+          : 0;
 
-          // Al perder: TODAS las minas explotan y (en modo 'todo') las
-          // seguras se destapan, con un retraso en onda expansiva desde
-          // la casilla que se pisó. La animación en loop de la casilla
-          // tapada arranca escalonada, para que el tablero pinte al
-          // instante y las 25 instancias de Lottie no salgan de golpe.
-          const explota = esMina && perdio;
-          const retardo = (explota || (limpiarTablero && !esMina)) ? distClic(i) * 55
-            : cara === 'oculta' ? 120 + i * 35
-            : 0;
-
-          return (
-            <Casilla
-              key={i}
-              juego={juego}
-              cara={cara}
-              animar={explota || (cara === 'segura' && revelada)}
-              atenuada={esMina && fase === 'retirada'}
-              pendiente={pendiente === i}
-              retardoMs={retardo}
-              destapable={jugando && !cargando && pendiente == null && !revelada}
-              onClick={() => onRevelar(i)}
-            />
-          );
-        })}
-      </div>
-
-      {error && <p className="hint error" style={{ margin: 0 }}>{error}</p>}
-
-      {fase === 'inactiva' && (
-        <>
-          <label style={{ fontSize: 12 }}>
-            Minas: <strong>{minas}</strong>
-            <input
-              type="range" min={1} max={24} value={minas}
-              onChange={(e) => onCambiarMinas(Number(e.target.value))}
-              style={{ marginTop: 4 }}
-            />
-          </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="hint" style={{ flex: 1 }}>Apuesta</span>
-            <button onClick={() => onCambiarApuesta(Math.max(minBet, apuesta - pasoApuesta))}>−</button>
-            <strong style={{ minWidth: 80, textAlign: 'center' }}>{fmt(apuesta)}</strong>
-            <button onClick={() => onCambiarApuesta(Math.min(maxBet, apuesta + pasoApuesta))}>+</button>
-          </div>
-          <button className="primary" disabled={cargando || saldo < apuesta} onClick={onIniciar}>
-            {cargando ? 'Empezando…' : `Empezar (${fmt(apuesta)})`}
-          </button>
-          {saldo < apuesta && <p className="hint error" style={{ margin: 0 }}>Sin saldo para esa apuesta.</p>}
-        </>
-      )}
-
-      {jugando && (
-        <button
-          className="primary"
-          disabled={!puedeRetirar || cargando}
-          onClick={onRetirar}
-          style={{ opacity: puedeRetirar ? 1 : 0.5 }}
-        >
-          {puedeRetirar ? `Retirar ${fmt(gananciaPotencial)} (×${multiplicador.toFixed(2)})` : `Retiro cada 5 aciertos · ×${multiplicador.toFixed(2)}`}
-        </button>
-      )}
-
-      {terminada && (
-        <>
-          <p style={{
-            margin: 0, textAlign: 'center', fontWeight: 600,
-            color: fase === 'retirada' ? 'var(--ok)' : 'var(--danger)',
-          }}>
-            {fase === 'retirada'
-              ? `Retiraste ${fmt(ganancia ?? 0)} (×${multiplicador.toFixed(2)})`
-              : 'Pisaste una mina. Perdiste la apuesta.'}
-          </p>
-          <button className="primary" onClick={onNueva}>Jugar de nuevo</button>
-        </>
-      )}
+        return (
+          <Casilla
+            key={i}
+            juego={juego}
+            cara={cara}
+            animar={explota || (cara === 'segura' && revelada)}
+            atenuada={esMina && fase === 'retirada'}
+            pendiente={pendiente === i}
+            retardoMs={retardo}
+            destapable={jugando && !cargando && pendiente == null && !revelada}
+            onClick={() => onRevelar(i)}
+          />
+        );
+      })}
     </div>
   );
 }
 
-function Caja({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+// El tablero completo: la grilla va en la caja "Tablero" del escenario
+// y los controles (saldo, multiplicador, botón, apuesta, minas) en una
+// capa aparte, cada uno posicionable desde el panel de ajuste.
+export function TableroMines({
+  escenario, pos, juego, estado, minBet, maxBet, pasoApuesta,
+  onIniciar, onRevelar, onRetirar, onCambiarApuesta, onCambiarMinas, onNueva,
+}: TableroMinesProps) {
   return (
-    <div style={{ flex: 1, background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 10px' }}>
-      <p className="hint" style={{ margin: 0, fontSize: 10 }}>{etiqueta}</p>
-      <strong style={{ fontSize: 15 }}>{valor}</strong>
-    </div>
+    <>
+      {createPortal(<GrillaMines juego={juego} estado={estado} onRevelar={onRevelar} />, escenario.grillaEl)}
+      {createPortal(
+        <ControlesMines
+          juego={juego} pos={pos} estado={estado}
+          minBet={minBet} maxBet={maxBet} pasoApuesta={pasoApuesta}
+          onIniciar={onIniciar} onRetirar={onRetirar} onNueva={onNueva}
+          onCambiarApuesta={onCambiarApuesta} onCambiarMinas={onCambiarMinas}
+        />,
+        escenario.el,
+      )}
+    </>
   );
 }

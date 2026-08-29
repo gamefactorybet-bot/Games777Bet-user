@@ -69,7 +69,7 @@ const CLAVES_BOTON = [
 
 // ---------------- Slider genérico ----------------
 
-function Rango({ etiqueta, min, max, step = 1, valor, unidad = '%', onInput }: {
+export function Rango({ etiqueta, min, max, step = 1, valor, unidad = '%', onInput }: {
   etiqueta: string; min: number; max: number; step?: number; valor: number; unidad?: string;
   onInput: (n: number) => void;
 }) {

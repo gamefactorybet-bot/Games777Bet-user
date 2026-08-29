@@ -11,7 +11,7 @@ import {
   TOTAL_CASILLAS,
 } from '../../motor/mines-clasico.js';
 import type { CSSProperties } from 'react';
-import type { EstadoMines, Juego } from '../types.ts';
+import type { EstadoMines, Juego, PosControlesMines } from '../types.ts';
 
 export const TOTAL: number = TOTAL_CASILLAS; // 25
 export const LADO = 5; // grilla 5×5
@@ -83,6 +83,30 @@ export interface EstadoPartida {
   ganancia: number | null;
   cargando: boolean;
   error: string | null;
+}
+
+// ---------------- Controles del tablero (posición + aspecto) ----------------
+
+export const CONTROLES_MINES_DEFAULT: PosControlesMines = {
+  saldo: { x: 26, y: 8, ancho: 120, alto: 44, fondo_url: null },
+  mult: { x: 74, y: 8, ancho: 152, alto: 44, fondo_url: null },
+  apuesta: { x: 50, y: 79 },
+  minas: { x: 50, y: 70 },
+  boton: { x: 50, y: 91, ancho: 168, alto: 52, imagen_url: null },
+};
+
+/** Mezcla lo guardado en `juego.mines_controles` con los valores por
+ * defecto — lo que falte en el jsonb cae en el default. */
+export function posControlesDe(juego: Juego): PosControlesMines {
+  const g = (juego.mines_controles || {}) as Partial<PosControlesMines>;
+  const d = CONTROLES_MINES_DEFAULT;
+  return {
+    saldo: { ...d.saldo, ...g.saldo },
+    mult: { ...d.mult, ...g.mult },
+    apuesta: { ...d.apuesta, ...g.apuesta },
+    minas: { ...d.minas, ...g.minas },
+    boton: { ...d.boton, ...g.boton },
+  };
 }
 
 export function estadoInicial(minas: number, apuesta: number, saldo: number): EstadoPartida {

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { TableroMines } from './TableroMines.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { crearEscenario } from './juego/escenario.ts';
 import { precargarLottie } from './lottie.ts';
 import { fetchJson, correrIntro } from './juego/recursos.ts';
-import { estadoInicial, puedeRetirar as calcPuedeRetirar } from './juego/mines.ts';
+import { estadoInicial, puedeRetirar as calcPuedeRetirar, posControlesDe } from './juego/mines.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { EstadoPartida } from './juego/mines.ts';
 import type { DatosJuego, RondaMines, RevelarMines, RetirarMines } from './types.ts';
@@ -35,6 +34,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const roundIdRef = useRef<string | null>(null);
 
   const [estado, setEstado] = useState<EstadoPartida>(() => estadoInicial(3, minBet, saldoInicial));
+  const posCtl = useRef(posControlesDe(juego)).current;
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
@@ -197,8 +197,10 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
       `}</style>
 
       <div ref={hostRef} />
-      {listo && escRef.current && createPortal(
+      {listo && escRef.current && (
         <TableroMines
+          escenario={escRef.current}
+          pos={posCtl}
           juego={juego}
           estado={estado}
           minBet={minBet}
@@ -210,8 +212,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
           onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
           onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
           onNueva={nueva}
-        />,
-        escRef.current.grillaEl,
+        />
       )}
 
       {pantallaMontada && (

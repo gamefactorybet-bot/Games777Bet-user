@@ -51,6 +51,8 @@ export interface Juego {
   mines_casilla_mina_lottie_url?: string | null;
   /** 'minas' = solo las minas al perder; 'todo' = tablero entero. */
   mines_revelado_al_perder?: 'minas' | 'todo';
+  /** Posición/aspecto de los controles del tablero de Mines (jsonb). */
+  mines_controles?: Partial<PosControlesMines>;
 
   created_at?: string;
   updated_at?: string;
@@ -81,6 +83,25 @@ export interface RevelarMines {
   tableroCompleto?: boolean;
   /** Solo cuando se pisó una mina: dónde estaban todas. */
   posicionesMina?: number[];
+}
+
+/** Un recuadro posicionable de Mines (saldo / multiplicador). */
+export interface RecuadroMines {
+  x: number; y: number; ancho: number; alto: number;
+  fondo_url?: string | null;
+}
+/** El botón de acción de Mines (Empezar / Retirar / Jugar de nuevo). */
+export interface BotonMines {
+  x: number; y: number; ancho: number; alto: number;
+  imagen_url?: string | null;
+}
+/** Posición y aspecto de todos los controles del tablero de Mines. */
+export interface PosControlesMines {
+  saldo: RecuadroMines;
+  mult: RecuadroMines;
+  apuesta: { x: number; y: number };
+  minas: { x: number; y: number };
+  boton: BotonMines;
 }
 
 /** Respuesta de `POST /api/mines-retirar`. */
