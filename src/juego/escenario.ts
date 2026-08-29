@@ -129,6 +129,7 @@ export interface Escenario {
   ocultarPremio(): void;
   lanzarAnimaciones(evento: string): void;
   setMontoDemo(texto: string | null): void;
+  setMostrarNombre(v: boolean): void;
   destruir(): void;
 }
 
@@ -212,7 +213,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     ${juego.fondo_pantalla_url ? `<img data-capa-img="fondo_pantalla" src="${juego.fondo_pantalla_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
     ${juego.marco_url ? `<img data-capa-img="marco" src="${juego.marco_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
 
-    <div style="display:flex; align-items:center; gap:8px; position:relative; z-index:10">
+    <div data-titulo-row style="display:flex; align-items:center; gap:8px; position:relative; z-index:10">
       <div style="width:28px"></div>
       <p data-titulo style="flex:1; text-align:center; font-weight:600; margin:0; letter-spacing:.04em; ${(juego.mostrar_nombre ?? true) ? '' : 'visibility:hidden'}">${escapeHtml(juego.nombre).toUpperCase()}</p>
       <button data-info aria-label="Ver información del juego" style="width:28px; height:28px; padding:0; border-radius:50%; flex-shrink:0">ℹ</button>
@@ -305,11 +306,17 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     });
   }
 
+  const tituloRowEl = q<HTMLElement>('[data-titulo-row]');
+  const tituloEl = q<HTMLElement>('[data-titulo]');
+
   // Mines: sin controles de slot ni cuadro de premio (el tablero trae
   // los suyos). Se dejan en el DOM pero ocultos.
   if (esMines) {
     [premioPopupEl, efectoPremio, grupoSaldoEl, grupoApuestaEl, grupoTurboEl, fichasEl, btnGirar, q('[data-info]')]
       .forEach((n) => { if (n) n.style.display = 'none'; });
+    // En Mines la fila del título se colapsa entera al ocultar el nombre
+    // (en los slots solo se hace invisible, para no correr el layout).
+    if (!(juego.mostrar_nombre ?? true) && tituloRowEl) tituloRowEl.style.display = 'none';
   }
 
   // ---------------- Escala 420×860 ----------------
@@ -393,6 +400,15 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   // ---------------- Cuadro de premio ----------------
   let montoDemoTexto: string | null = null;
   const setMontoDemo = (t: string | null) => { montoDemoTexto = t; };
+
+  const setMostrarNombre = (v: boolean) => {
+    escenario.mostrarNombre = v;
+    if (esMines) {
+      if (tituloRowEl) tituloRowEl.style.display = v ? 'flex' : 'none';
+    } else if (tituloEl) {
+      tituloEl.style.visibility = v ? 'visible' : 'hidden';
+    }
+  };
 
   const aplicarPosicionPremio = (nivel: NivelPremio) => {
     const p = posPremio[nivel];
@@ -633,7 +649,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     escalar, aplicarPosiciones, aplicarOrden, aplicarFiltros, aplicarCapasLibres,
     aplicarGirar, aplicarGrupos, aplicarModo, aplicarBotonesApuesta, pintarTurbo, pintarFichas, pintarApuesta,
     rectMarco, reconstruirCadena, desactivarArrastreLuces,
-    aplicarPosicionPremio, mostrarPremio, ocultarPremio, lanzarAnimaciones, setMontoDemo,
+    aplicarPosicionPremio, mostrarPremio, ocultarPremio, lanzarAnimaciones, setMontoDemo, setMostrarNombre,
     destruir,
   };
 

@@ -787,11 +787,8 @@ function PanelControles({ escenario, juego }: { escenario: Escenario; juego: Jue
   return (
     <>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 12 }}>
-        <input type="checkbox" defaultChecked={escenario.mostrarNombre} onChange={(e) => {
-          escenario.mostrarNombre = e.target.checked;
-          const t = escenario.el.querySelector<HTMLElement>('[data-titulo]');
-          if (t) t.style.visibility = e.target.checked ? 'visible' : 'hidden';
-        }} /> Mostrar el nombre del juego arriba
+        <input type="checkbox" defaultChecked={escenario.mostrarNombre}
+          onChange={(e) => escenario.setMostrarNombre(e.target.checked)} /> Mostrar el nombre del juego arriba
       </label>
       <Rango etiqueta="Contador del premio" min={0} max={3000} step={100} unidad="ms"
         valor={escenario.contadorMs} onInput={(n) => { escenario.contadorMs = n; (juego as Record<string, unknown>).contador_ms = n; }} />

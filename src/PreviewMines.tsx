@@ -133,7 +133,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteMinesControles juego={juego} pos={posCtl} onChange={setPosCtl} />}
+            : <AjusteMinesControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
         </div>
       )}
     </div>

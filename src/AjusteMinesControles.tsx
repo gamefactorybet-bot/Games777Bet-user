@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
 import { Rango } from './AjustePanel.tsx';
+import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesMines } from './types.ts';
 
 type ElemId = 'saldo' | 'mult' | 'boton' | 'apuesta' | 'minas';
@@ -18,13 +19,22 @@ const CON_RECUADRO: ElemId[] = ['saldo', 'mult', 'boton'];
 
 // Panel de ajuste de los controles del tablero de Mines. Edita
 // `juego.mines_controles`.
-export function AjusteMinesControles({ juego, pos, onChange }: {
+export function AjusteMinesControles({ juego, escenario, pos, onChange }: {
   juego: Juego;
+  escenario: Escenario;
   pos: PosControlesMines;
   onChange: (pos: PosControlesMines) => void;
 }) {
   const [elem, setElem] = useState<ElemId>('saldo');
   const [msg, setMsg] = useState('');
+  const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
+
+  const toggleNombre = async (v: boolean) => {
+    setMostrarNombre(v);
+    escenario.setMostrarNombre(v);
+    await supabase.from('juegos').update({ mostrar_nombre: v }).eq('id', juego.id);
+    (juego as { mostrar_nombre?: boolean }).mostrar_nombre = v;
+  };
 
   const actual = pos[elem] as Record<string, number | string | null>;
 
@@ -48,6 +58,11 @@ export function AjusteMinesControles({ juego, pos, onChange }: {
     <div className="card" style={{ width: 260, maxHeight: 'min(860px, 92vh)', overflow: 'auto', position: 'relative', zIndex: 50 }}>
       <strong>Controles del tablero</strong>
       <p className="hint" style={{ margin: '4px 0 10px' }}>Se ve en vivo a la izquierda.</p>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 12 }}>
+        <input type="checkbox" checked={mostrarNombre} onChange={(e) => toggleNombre(e.target.checked)} />
+        Mostrar el nombre del juego arriba
+      </label>
 
       <div className="grupo-nav" style={{ marginBottom: 12 }}>
         {ELEMS.map((e) => (
