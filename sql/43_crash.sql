@@ -10,6 +10,12 @@
 -- débito y el crédito, reclamo condicional por `version`.
 -- =========================================================
 
+-- Toda la config del Crash (rtp, velocidad, formato, tema, imágenes,
+-- colores, controles) vive en este jsonb. El motor solo mira rtp,
+-- velocidad y tope; el resto es cosmético.
+alter table juegos
+  add column if not exists crash_cfg jsonb not null default '{}'::jsonb;
+
 create table if not exists crash_rondas (
   id             uuid primary key,
   juego_id       uuid not null references juegos(id) on delete cascade,

@@ -15,12 +15,16 @@ import { Preview } from './Preview.tsx';
 import { PreviewMines } from './PreviewMines.tsx';
 import { PreviewRuleta } from './PreviewRuleta.tsx';
 import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
+import { PreviewCrash } from './PreviewCrash.tsx';
 import { simularMines } from '../motor/mines-clasico.js';
 import {
   cfgDe as cfgBotonesDe, rtpPromedio as rtpBotonesPromedio, totalTajadas as totalTajadasBotones,
   rtpNumero as rtpNumeroB, factorSorpresa as factorSorpresaB, sorpresaEsperada as sorpresaEsperadaB,
 } from './juego/ruleta-botones.ts';
 import { TEMAS as TEMAS_RULETA } from './juego/ruleta-temas.ts';
+import { cfgDe as cfgCrashDe, rtpTeorico as rtpTeoricoCrash } from './juego/crash.ts';
+import { TEMAS as TEMAS_CRASH } from './juego/crash-temas.ts';
+import type { CrashCfg } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -74,7 +78,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esMines = juego.motor.startsWith('mines');
   const esRuleta = juego.motor === 'ruleta';
   const esRuletaBotones = juego.motor === 'ruleta-botones';
-  const sinSimbolos = esMines || esRuletaBotones;
+  const esCrash = juego.motor.startsWith('crash');
+  const sinSimbolos = esMines || esRuletaBotones || esCrash;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
   const [previewAbierto, setPreviewAbierto] = useState(false);
@@ -121,11 +126,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
   // Mines no es de rodillos, no hace falta.
   useEffect(() => {
-    if (esMines || esRuleta || esRuletaBotones) return;
+    if (esMines || esRuleta || esRuletaBotones || esCrash) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor, esMines, esRuleta, esRuletaBotones]);
+  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -199,6 +204,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     simbolos.length ? simbolos : [{ nombre: '-', peso: 1, pago_tres: 0, pago_dos: 0 } as unknown as Simbolo],
   );
   const rtpBotones = esRuletaBotones ? rtpBotonesPromedio(juego.ruleta_botones_cfg || {}) : 0;
+  const rtpCrash = esCrash ? rtpTeoricoCrash(juego.crash_cfg || {}) * 100 : 0;
   const rtpReal = esRuletaBotones
     ? rtpBotones
     : !simbolos.length
@@ -525,7 +531,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="ed-resumen-fila" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span className="ed-resumen-chip">RTP {esMines ? '--' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
+          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
           <span className="ed-resumen-chip">versión {juego.version || 1}</span>
           <span className="ed-resumen-chip">{juego.publicado ? 'publicado ✓' : 'sin publicar'}</span>
         </div>
@@ -584,7 +590,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : 'Fondo del rodillo'} onSet={setImagen} />
+            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
             <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />
@@ -606,7 +612,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionRuletaBotones juego={juego} onCampo={guardarCampoJuego} />
       )}
 
-      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && (
+      {grupo === 'jugabilidad' && esCrash && (
+        <SeccionCrash juego={juego} onCampo={guardarCampoJuego} />
+      )}
+
+      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -755,7 +765,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           ? <PreviewRuleta juego={juego} simbolos={simbolos} onClose={() => setPreviewAbierto(false)} />
           : esRuletaBotones
             ? <PreviewRuletaBotones juego={juego} onClose={() => setPreviewAbierto(false)} />
-            : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
+            : esCrash
+              ? <PreviewCrash juego={juego} onClose={() => setPreviewAbierto(false)} />
+              : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
       )}
     </>
   );
@@ -1375,6 +1387,226 @@ function SeccionRuletaBotones({ juego, onCampo }: {
           )}
         </div>
         <p className="hint" style={{ margin: '10px 0 0' }}>{msg}</p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Crash ----------------
+
+const FORMATOS_CRASH: { v: string; et: string }[] = [
+  { v: 'curva', et: 'Curva' },
+  { v: 'cohete', et: 'Vertical' },
+  { v: 'numero', et: 'Número' },
+  { v: 'medidor', et: 'Medidor' },
+  { v: 'odometro', et: 'Odómetro' },
+];
+const EFECTOS_NUM: { v: string; et: string }[] = [
+  { v: 'ninguno', et: 'Ninguno' },
+  { v: 'pulso', et: 'Pulso' },
+  { v: 'glow', et: 'Glow' },
+];
+
+function SeccionCrash({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<CrashCfg>(() => cfgCrashDe(juego));
+  useEffect(() => { setCfg(cfgCrashDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+
+  const guardar = (next: CrashCfg) => {
+    setCfg(next);
+    onCampo('crash_cfg', next);
+    setMsg('Guardado ✓');
+  };
+  const setObjeto = (p: Partial<CrashCfg['objeto']>) => guardar({ ...cfg, objeto: { ...cfg.objeto, ...p } });
+  const setCurva = (p: Partial<CrashCfg['curva']>) => guardar({ ...cfg, curva: { ...cfg.curva, ...p } });
+  const setNumero = (p: Partial<CrashCfg['numero']>) => guardar({ ...cfg, numero: { ...cfg.numero, ...p } });
+  const setAuto = (p: Partial<CrashCfg['auto']>) => guardar({ ...cfg, auto: { ...cfg.auto, ...p } });
+
+  const rtpPct = cfg.rtp * 100;
+  const seg2 = (n: number) => Math.round(Math.log(2) / (Math.LN2 / (5000 / cfg.velocidad)) / 100) / 10;
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          Lo único que mueve la plata. El punto de reventón sale de una fórmula con RTP exacto:
+          retire donde retire el jugador, el retorno promedio es el que fijes acá.
+        </p>
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          RTP <b>{rtpPct.toFixed(1)}%</b>
+          <span className="hint" style={{ margin: 0 }}> — el {(100 - rtpPct).toFixed(1)}% es la probabilidad de reventón instantáneo (margen de casa)</span>
+        </label>
+        <input type="range" min={85} max={99} step={0.5} value={rtpPct}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Velocidad <b>×{cfg.velocidad.toFixed(1)}</b>
+          <span className="hint" style={{ margin: 0 }}> — llega a ×2 en ~{seg2(cfg.velocidad).toFixed(1)}s</span>
+        </label>
+        <input type="range" min={0.4} max={3} step={0.1} value={cfg.velocidad}
+          onChange={(e) => guardar({ ...cfg, velocidad: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12 }}>Tope de multiplicador
+          <input type="number" min={2} step={10} value={cfg.tope}
+            onChange={(e) => guardar({ ...cfg, tope: Math.max(2, Math.round(Number(e.target.value) || 100)) })}
+            style={{ width: 90, marginLeft: 8 }} />
+        </label>
+
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 8 }}>
+            <input type="checkbox" checked={cfg.auto.permitir}
+              onChange={(e) => setAuto({ permitir: e.target.checked })} />
+            Permitir <b>auto-retiro</b>
+          </label>
+          {cfg.auto.permitir && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12 }}>
+              <label>Por defecto ×
+                <input type="number" min={1.01} step={0.1} value={cfg.auto.valorDefecto}
+                  onChange={(e) => setAuto({ valorDefecto: Math.max(1.01, Number(e.target.value) || 2) })}
+                  style={{ width: 70, marginLeft: 4 }} />
+              </label>
+              <label>Mín ×
+                <input type="number" min={1.01} step={0.1} value={cfg.auto.min}
+                  onChange={(e) => setAuto({ min: Math.max(1.01, Number(e.target.value) || 1.01) })}
+                  style={{ width: 70, marginLeft: 4 }} />
+              </label>
+              <label>Máx ×
+                <input type="number" min={1.01} step={1} value={cfg.auto.max}
+                  onChange={(e) => setAuto({ max: Math.max(1.01, Number(e.target.value) || 100) })}
+                  style={{ width: 70, marginLeft: 4 }} />
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Formato</strong>
+        <p className="hint" style={{ marginBottom: 10 }}>Cómo se presenta el multiplicador. El mismo motor, otra cara.</p>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {FORMATOS_CRASH.map((f) => (
+            <button key={f.v} onClick={() => guardar({ ...cfg, formato: f.v })}
+              className={cfg.formato === f.v ? 'primary' : undefined} style={{ fontSize: 12 }}>{f.et}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Tema visual</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Cambia fondo, colores y tipografía. <b>Clásico</b> = hereda del panel.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
+          {TEMAS_CRASH.map((t) => {
+            const on = (cfg.tema || 'clasico') === t.id;
+            return (
+              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
+                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
+              }}>
+                <span style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden' }}>
+                  <span style={{ flex: 2, background: t.trazo }} />
+                  <span style={{ flex: 1, background: t.objeto }} />
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>El objeto que vuela</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Una imagen (avión, cohete, gallo, moneda…). Si no hay, se usa el emoji.</p>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <label
+            title={cfg.objeto.imagen_url ? 'Cambiar · clic derecho para quitar' : 'Subir imagen'}
+            onContextMenu={(e) => { e.preventDefault(); if (cfg.objeto.imagen_url) setObjeto({ imagen_url: null }); }}
+            style={{
+              width: 56, height: 56, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+              border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 22, color: 'var(--text-dim)',
+              background: cfg.objeto.imagen_url ? `center/contain no-repeat var(--bg) url("${cfg.objeto.imagen_url}")` : 'var(--bg)',
+            }}>
+            {!cfg.objeto.imagen_url && '+'}
+            <input type="file" accept="image/*" hidden onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              const url = await subirArchivo(f, `crash/${juego.id}`);
+              if (url) setObjeto({ imagen_url: url });
+            }} />
+          </label>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+            <label>Emoji si no hay imagen
+              <input type="text" maxLength={4} value={cfg.objeto.emojiFallback}
+                onChange={(e) => setObjeto({ emojiFallback: e.target.value })}
+                style={{ width: 56, marginLeft: 6 }} />
+            </label>
+            <label>Tamaño <b>{cfg.objeto.tam}px</b>
+              <input type="range" min={24} max={160} step={2} value={cfg.objeto.tam}
+                onChange={(e) => setObjeto({ tam: Number(e.target.value) })}
+                style={{ width: '100%' }} />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={cfg.objeto.estela} onChange={(e) => setObjeto({ estela: e.target.checked })} />
+              Deja estela / humo
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Aspecto</strong>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 10, fontSize: 12 }}>
+          <label>Color de la curva / número
+            <input type="color" value={cfg.curva.color}
+              onChange={(e) => setCurva({ color: e.target.value })}
+              style={{ width: 34, height: 24, padding: 0, marginLeft: 6, verticalAlign: 'middle' }} />
+          </label>
+          <label>Grosor <b>{cfg.curva.grosor}</b>
+            <input type="range" min={1} max={10} step={1} value={cfg.curva.grosor}
+              onChange={(e) => setCurva({ grosor: Number(e.target.value) })}
+              style={{ width: 90, marginLeft: 6, verticalAlign: 'middle' }} />
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontSize: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={cfg.curva.relleno} onChange={(e) => setCurva({ relleno: e.target.checked })} />Relleno
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={cfg.curva.glow} onChange={(e) => setCurva({ glow: e.target.checked })} />Glow
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={cfg.curva.cuadricula} onChange={(e) => setCurva({ cuadricula: e.target.checked })} />Cuadrícula
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, fontSize: 12 }}>
+          <label>Tamaño del número <b>×{cfg.numero.tam.toFixed(1)}</b>
+            <input type="range" min={0.5} max={2.4} step={0.1} value={cfg.numero.tam}
+              onChange={(e) => setNumero({ tam: Number(e.target.value) })}
+              style={{ width: 90, marginLeft: 6, verticalAlign: 'middle' }} />
+          </label>
+          <label>Efecto
+            <select value={cfg.numero.efecto} onChange={(e) => setNumero({ efecto: e.target.value })} style={{ marginLeft: 6 }}>
+              {EFECTOS_NUM.map((x) => <option key={x.v} value={x.v}>{x.et}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={cfg.historial.mostrar}
+              onChange={(e) => guardar({ ...cfg, historial: { ...cfg.historial, mostrar: e.target.checked } })} />
+            Tira de historial
+          </label>
+        </div>
+        <p className="hint" style={{ margin: '12px 0 0' }}>
+          La posición y el tamaño de cada control se ajustan desde <b>⚙ Ajustar → Controles</b> en la Vista previa. {msg}
+        </p>
       </div>
     </div>
   );

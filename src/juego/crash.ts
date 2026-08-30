@@ -7,6 +7,8 @@ import {
   crecimiento as _crecimiento,
   tiempoHasta as _tiempoHasta,
   rtpTeorico as _rtp,
+  sortearReventon as _sortear,
+  resolverRetiro as _resolver,
   CFG_DEFAULT,
 } from '../../motor/crash.js';
 import type { CrashCfg, EstadoCrash, Juego, PosControlesCrash } from '../types.ts';
@@ -22,6 +24,19 @@ export const tiempoHasta = (mult: number, cfg: Partial<CrashCfg>): number =>
   _tiempoHasta(mult, cfg) as number;
 
 export const rtpTeorico = (cfg: Partial<CrashCfg>): number => _rtp(cfg) as number;
+
+export const sortearReventon = (cfg: Partial<CrashCfg>): number => _sortear(cfg) as number;
+
+export interface RetiroResuelto {
+  multiplicador: number;
+  gano: boolean;
+  premio: number;
+  reventadoEn: number;
+}
+export const resolverRetiro = (a: {
+  inicioTs: number; ahoraTs: number; puntoCrash: number; apuesta: number;
+  cfg: Partial<CrashCfg>; objetivoAuto?: number;
+}): RetiroResuelto => _resolver({ ...a, objetivoAuto: a.objetivoAuto ?? 0 }) as RetiroResuelto;
 
 // ---------------- Posición de los controles de la mesa ----------------
 
