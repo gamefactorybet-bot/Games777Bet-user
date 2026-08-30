@@ -223,11 +223,13 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     arte: !juego.portada_url,
     jugabilidad: esMines
       ? !margenMinesOk
-      : esRuletaBotones
-        ? (totalTajadasBotones(cfgBotonesDe(juego).numeros) < 2 || rtpBotones > 100)
-        : esRuleta
-          ? (!simbolos.length || rtpReal > 100)
-          : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
+      : esCrash
+        ? (rtpCrash <= 0 || rtpCrash > 100)
+        : esRuletaBotones
+          ? (totalTajadasBotones(cfgBotonesDe(juego).numeros) < 2 || rtpBotones > 100)
+          : esRuleta
+            ? (!simbolos.length || rtpReal > 100)
+            : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
     sonido: !sonidos.length,
     efectos: false,
   };
@@ -427,6 +429,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
       });
       if (numeroCaro) avisos.push('Algún número tiene RTP base > 100% (paga más de lo que recauda).');
       if (!c.sorpresa.tope) avisos.push('Sin tope de premio por jugada: un ×300 sobre una apuesta grande es un pago enorme de golpe.');
+    } else if (esCrash) {
+      if (rtpCrash > 100) errores.push(`El RTP es ${rtpCrash.toFixed(1)}% — la casa pierde plata en cada ronda.`);
+      else if (rtpCrash < 85 || rtpCrash > 99) avisos.push(`RTP de ${rtpCrash.toFixed(1)}%, fuera del rango habitual (85-99%).`);
     } else {
       if (!simbolos.length) errores.push('No tiene símbolos cargados.');
       const sinIcono = simbolos.filter((s) => !s.icono_url);
@@ -441,9 +446,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (!esMines && !sonidos.length) avisos.push('Sin sonidos cargados.');
+    if (!esMines && !esCrash && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
-    if (!esMines && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
+    if (!esMines && !esCrash && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
   };
 
