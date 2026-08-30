@@ -13,10 +13,38 @@ import {
 } from '../../motor/ruleta-botones.js';
 import { construirRueda } from '../../motor/ruleta-reparto.js';
 import type {
-  Juego, NumeroRuleta, ResueltoBotones, RuletaBotonesCfg, RuletaSlot, SorpresaCfg,
+  Juego, NumeroRuleta, PosControlesRuleta, ResueltoBotones, RuletaBotonesCfg, RuletaSlot, SorpresaCfg,
 } from '../types.ts';
 
 export { CFG_DEFAULT };
+
+// ---------------- Posición de los controles de la mesa ----------------
+
+export const CONTROLES_RULETA_DEFAULT: PosControlesRuleta = {
+  sorpresa: { x: 50, y: 5 },
+  resultado: { x: 50, y: 40 },
+  fichas: { x: 50, y: 48 },
+  botones: { x: 50, y: 69, ancho: 86 },
+  saldo: { x: 24, y: 87 },
+  apostado: { x: 58, y: 87 },
+  girar: { x: 50, y: 95, ancho: 340, alto: 48, imagen_url: null },
+};
+
+/** Mezcla `cfg.controles` con los valores por defecto — lo que falte
+ *  en el jsonb cae en el default. */
+export function posControlesRuletaDe(cfg: Partial<RuletaBotonesCfg>): PosControlesRuleta {
+  const g = (cfg.controles || {}) as Partial<PosControlesRuleta>;
+  const d = CONTROLES_RULETA_DEFAULT;
+  return {
+    sorpresa: { ...d.sorpresa, ...g.sorpresa },
+    resultado: { ...d.resultado, ...g.resultado },
+    fichas: { ...d.fichas, ...g.fichas },
+    botones: { ...d.botones, ...g.botones },
+    saldo: { ...d.saldo, ...g.saldo },
+    apostado: { ...d.apostado, ...g.apostado },
+    girar: { ...d.girar, ...g.girar },
+  };
+}
 
 export const cfgDe = (juego: Juego): RuletaBotonesCfg =>
   _cfg(juego.ruleta_botones_cfg) as RuletaBotonesCfg;

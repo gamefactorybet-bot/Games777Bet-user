@@ -4,10 +4,11 @@ import { supabase } from './supabase.ts';
 import { crearEscenario } from './juego/escenario.ts';
 import { RuletaBotones } from './RuletaBotones.tsx';
 import { AjustePanel } from './AjustePanel.tsx';
-import { cfgDe, girarBotonesLocal } from './juego/ruleta-botones.ts';
+import { AjusteRuletaControles } from './AjusteRuletaControles.tsx';
+import { cfgDe, girarBotonesLocal, posControlesRuletaDe } from './juego/ruleta-botones.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { GiroBotones } from './RuletaBotones.tsx';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, Juego } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, Juego, PosControlesRuleta } from './types.ts';
 
 const MOTOR_STUB = { COLUMNAS: 1, FILAS: 1, FILA_PAGO: 0 };
 
@@ -18,7 +19,9 @@ export function PreviewRuletaBotones({ juego, onClose }: { juego: Juego; onClose
   const escRef = useRef<Escenario | null>(null);
   const [listo, setListo] = useState(false);
   const [mostrarPanel, setMostrarPanel] = useState(false);
+  const [tab, setTab] = useState<'controles' | 'arte'>('controles');
   const cfg = cfgDe(juego);
+  const [posCtl, setPosCtl] = useState<PosControlesRuleta>(() => posControlesRuletaDe(cfg));
 
   useEffect(() => {
     let cancelado = false;
@@ -64,15 +67,18 @@ export function PreviewRuletaBotones({ juego, onClose }: { juego: Juego; onClose
       <div ref={hostRef} />
 
       {listo && escRef.current && (
-        <RuletaBotones escenario={escRef.current} cfg={cfg} saldoInicial={10000} resolver={resolver} />
+        <RuletaBotones escenario={escRef.current} cfg={cfg} pos={posCtl} saldoInicial={10000} resolver={resolver} />
       )}
 
       {listo && mostrarPanel && escRef.current && (
         <div style={{ position: 'relative', zIndex: 50 }}>
-          <AjustePanel
-            escenario={escRef.current} juego={juego} simbolos={[]}
-            onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines
-          />
+          <div className="grupo-nav" style={{ marginBottom: 8 }}>
+            <button className={`grupo-btn ${tab === 'controles' ? 'on' : ''}`} style={{ flex: 1, justifyContent: 'center', fontSize: 12 }} onClick={() => setTab('controles')}>Controles</button>
+            <button className={`grupo-btn ${tab === 'arte' ? 'on' : ''}`} style={{ flex: 1, justifyContent: 'center', fontSize: 12 }} onClick={() => setTab('arte')}>Arte / luces</button>
+          </div>
+          {tab === 'arte'
+            ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
+            : <AjusteRuletaControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
         </div>
       )}
     </div>

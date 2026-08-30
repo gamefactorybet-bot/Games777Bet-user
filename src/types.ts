@@ -440,6 +440,23 @@ export interface SorpresaCfg {
   /** Tope de premio por jugada. 0 = sin tope. */
   tope: number;
 }
+/** Un punto posicionable de la mesa de la ruleta de botones (% de la
+ *  pantalla 420×860, anclado al centro del elemento). */
+export interface PuntoRuleta { x: number; y: number; }
+
+/** Posición y tamaño de los controles visibles de la ruleta de botones. */
+export interface PosControlesRuleta {
+  sorpresa: PuntoRuleta;
+  resultado: PuntoRuleta;
+  fichas: PuntoRuleta;
+  /** La grilla de botones: posición + ancho en % de la pantalla. */
+  botones: { x: number; y: number; ancho: number };
+  saldo: PuntoRuleta;
+  apostado: PuntoRuleta;
+  /** El botón Girar: posición, tamaño en px e imagen opcional. */
+  girar: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };
+}
+
 export interface RuletaBotonesCfg {
   numeros: NumeroRuleta[];
   fichas: number[];
@@ -450,6 +467,8 @@ export interface RuletaBotonesCfg {
   bordeGrosor: number;
   /** Imagen de fondo compartida por los 9 botones. `null` = sin fondo. */
   botonFondo: string | null;
+  /** Posición/tamaño de los controles. Lo que falte cae en el default. */
+  controles: Partial<PosControlesRuleta>;
 }
 
 /** Estado resuelto de un giro de la ruleta de botones. */

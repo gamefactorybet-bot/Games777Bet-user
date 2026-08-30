@@ -3,7 +3,7 @@ import { crearEscenario } from './juego/escenario.ts';
 import { RuletaBotones } from './RuletaBotones.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
-import { cfgDe } from './juego/ruleta-botones.ts';
+import { cfgDe, posControlesRuletaDe } from './juego/ruleta-botones.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { GiroBotones } from './RuletaBotones.tsx';
 import type { DatosJuego, ResultadoRuletaBotones } from './types.ts';
@@ -31,6 +31,7 @@ export function JugarRuletaBotones({ datos, saldoInicial, slug, token }: JugarRu
   const [pantallaMontada, setPantallaMontada] = useState(true);
 
   const cfg = cfgDe(datos.juego);
+  const pos = posControlesRuletaDe(cfg);
 
   useEffect(() => {
     let cancelado = false;
@@ -82,7 +83,7 @@ export function JugarRuletaBotones({ datos, saldoInicial, slug, token }: JugarRu
       `}</style>
       <div ref={hostRef} />
       {listo && escRef.current && (
-        <RuletaBotones escenario={escRef.current} cfg={cfg} saldoInicial={Number(saldoInicial)} resolver={resolver} />
+        <RuletaBotones escenario={escRef.current} cfg={cfg} pos={pos} saldoInicial={Number(saldoInicial)} resolver={resolver} />
       )}
       {pantallaMontada && (
         <PantallaCarga

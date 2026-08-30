@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Ruleta } from './Ruleta.tsx';
 import { slotsDe } from './juego/ruleta-botones.ts';
 import { cargarFuenteTema, temaDe } from './juego/ruleta-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
-import type { ResueltoBotones, RuletaBotonesCfg, RuletaSlot } from './types.ts';
+import type { PosControlesRuleta, ResueltoBotones, RuletaBotonesCfg, RuletaSlot } from './types.ts';
 
 export interface GiroBotones {
   resultado: ResueltoBotones;
@@ -16,6 +17,8 @@ export interface GiroBotones {
 interface RuletaBotonesProps {
   escenario: Escenario;
   cfg: RuletaBotonesCfg;
+  /** Posición/tamaño de los controles (ya resuelta con defaults). */
+  pos: PosControlesRuleta;
   saldoInicial: number;
   /** Debita el total y devuelve el giro resuelto. `apuestas` = { idx: monto };
    *  `saldoActual` ya viene neto de lo apostado en esta ronda. */
@@ -24,11 +27,16 @@ interface RuletaBotonesProps {
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
 
+/** Ancla un elemento por su centro en (x%, y%) de la pantalla. */
+const centrado = (p: { x: number; y: number }): CSSProperties => ({
+  position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%,-50%)',
+});
+
 // La "mesa" de la ruleta de botones: la rueda va en la caja del
 // escenario, y todo lo demás (fichas, botones, girar, saldo) en una
 // capa aparte. Sirve para la vista previa (resolver local) y la
 // pantalla real (resolver contra /api/ruleta-botones-girar).
-export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: RuletaBotonesProps) {
+export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: RuletaBotonesProps) {
   const numeros = cfg.numeros;
   const slotsBase = useMemo(() => slotsDe(numeros), [numeros]);
 
@@ -160,8 +168,8 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
     <div style={{ position: 'absolute', inset: 0, zIndex: 11, pointerEvents: 'none', fontFamily: 'var(--rb-body, inherit)' }}>
       {/* Sorpresa */}
       <div style={{
-        position: 'absolute', left: '50%', top: '3%', transform: 'translateX(-50%)',
-        maxWidth: '86%', textAlign: 'center', fontSize: 12.5, fontWeight: 700, padding: '6px 12px',
+        ...centrado(pos.sorpresa),
+        maxWidth: '90%', textAlign: 'center', fontSize: 12.5, fontWeight: 700, padding: '6px 12px',
         borderRadius: 999, whiteSpace: 'nowrap',
         background: sorp ? 'var(--rb-gold-soft, rgba(240,192,64,.14))' : 'transparent',
         border: sorp ? '1px solid var(--rb-gold, #f0c040)' : '1px solid transparent',
@@ -174,7 +182,7 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
 
       {/* Fichas */}
       <div style={{
-        position: 'absolute', left: '50%', top: '46%', transform: 'translateX(-50%)',
+        ...centrado(pos.fichas), maxWidth: '92%',
         display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', pointerEvents: 'auto',
       }}>
         {cfg.fichas.map((v) => (
@@ -189,8 +197,8 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
 
       {/* Botones de multiplicador */}
       <div style={{
-        position: 'absolute', left: '50%', top: '54%', transform: 'translateX(-50%)',
-        width: '86%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, pointerEvents: 'auto',
+        position: 'absolute', left: `${pos.botones.x}%`, top: `${pos.botones.y}%`, transform: 'translate(-50%,-50%)',
+        width: `${pos.botones.ancho}%`, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, pointerEvents: 'auto',
       }}>
         {numeros.map((n, i) => {
           const monto = montoEn(i);
@@ -249,16 +257,18 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
         })}
       </div>
 
-      {/* Barra: saldo / apostado / limpiar */}
+      {/* Saldo */}
+      <div style={{ ...centrado(pos.saldo), textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        <span className="hint" style={{ margin: 0, fontSize: 9, textTransform: 'uppercase' }}>Saldo</span>
+        <strong style={{ display: 'block', fontSize: 14 }}>{fmt(saldo)}</strong>
+      </div>
+
+      {/* Apostado + Limpiar */}
       <div style={{
-        position: 'absolute', left: '50%', top: '85%', transform: 'translateX(-50%)',
-        width: '86%', display: 'flex', alignItems: 'center', gap: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'auto',
+        ...centrado(pos.apostado), display: 'flex', alignItems: 'center', gap: 8,
+        fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', pointerEvents: 'auto',
       }}>
-        <div style={{ flex: 1 }}>
-          <span className="hint" style={{ margin: 0, fontSize: 9, textTransform: 'uppercase' }}>Saldo</span>
-          <strong style={{ display: 'block', fontSize: 14 }}>{fmt(saldo)}</strong>
-        </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ textAlign: 'center' }}>
           <span className="hint" style={{ margin: 0, fontSize: 9, textTransform: 'uppercase' }}>Apostado</span>
           <strong style={{ display: 'block', fontSize: 14 }}>{fmt(total)}</strong>
         </div>
@@ -266,19 +276,23 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
       </div>
 
       {/* Girar */}
-      <button className="primary" onClick={girar} disabled={girando} style={{
-        position: 'absolute', left: '50%', top: '93%', transform: 'translateX(-50%)',
-        width: '86%', pointerEvents: 'auto',
+      <button className={pos.girar.imagen_url ? undefined : 'primary'} onClick={girar} disabled={girando} style={{
+        position: 'absolute', left: `${pos.girar.x}%`, top: `${pos.girar.y}%`, transform: 'translate(-50%,-50%)',
+        width: pos.girar.ancho, height: pos.girar.alto, pointerEvents: 'auto',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         border: 'none', borderRadius: 'var(--rb-radius, 8px)',
-        background: 'var(--rb-spin-bg, var(--accent))',
+        background: pos.girar.imagen_url
+          ? `center/100% 100% no-repeat url("${pos.girar.imagen_url}")`
+          : 'var(--rb-spin-bg, var(--accent))',
         color: 'var(--rb-spin-ink, var(--accent-text, #fff))',
-        boxShadow: 'var(--rb-spin-shadow, none)',
+        boxShadow: pos.girar.imagen_url ? 'none' : 'var(--rb-spin-shadow, none)',
+        textShadow: pos.girar.imagen_url ? '0 1px 3px rgba(0,0,0,.6)' : undefined,
         fontFamily: 'var(--rb-font-display, inherit)', fontWeight: 800, letterSpacing: 1,
       }}>Girar</button>
 
       {/* Resultado */}
       <p style={{
-        position: 'absolute', left: '50%', top: '40.5%', transform: 'translate(-50%,-50%)',
+        ...centrado(pos.resultado),
         margin: 0, textAlign: 'center', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap',
         color: resultado.includes('SORPRESA') ? 'var(--rb-gold, #f0c040)'
           : resultado.includes('cobrás') ? 'var(--ok)'

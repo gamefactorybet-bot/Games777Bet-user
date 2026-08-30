@@ -52,6 +52,8 @@ export const CFG_DEFAULT = {
   bordeGrosor: 3,
   // Imagen de fondo compartida por los 9 botones. null = sin fondo.
   botonFondo: null,
+  // Posición/tamaño de los controles visibles (ver src/juego/ruleta-botones.ts).
+  controles: {},
 };
 
 /** Une la config guardada (jsonb del juego) con los valores por
@@ -72,6 +74,7 @@ export function cfgConDefaults(cfg) {
       ? Math.max(0, Math.min(12, Math.round(Number(c.bordeGrosor))))
       : CFG_DEFAULT.bordeGrosor,
     botonFondo: typeof c.botonFondo === 'string' && c.botonFondo ? c.botonFondo : null,
+    controles: c.controles && typeof c.controles === 'object' && !Array.isArray(c.controles) ? c.controles : {},
   };
 }
 
