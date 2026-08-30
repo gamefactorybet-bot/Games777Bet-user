@@ -1113,6 +1113,8 @@ function SeccionRuletaBotones({ juego, onCampo }: {
     const suma = pesos.reduce((a, b) => a + b, 0);
     setNumeros(cfg.numeros.map((n, i) => ({ ...n, cant: Math.max(1, Math.round((pesos[i] / suma) * total)) })));
   };
+  const siempre = cfg.sorpresa.frecuencia >= 1;
+
   const calibrarFrecuencia = () => {
     const rb = rtpBase / 100;
     const n = cfg.numeros.length || 1;
@@ -1121,6 +1123,47 @@ function SeccionRuletaBotones({ juego, onCampo }: {
     f = Math.max(0, Math.min(1, f));
     setSorpresa({ ...cfg.sorpresa, frecuencia: Math.round(f * 20) / 20 });
     setMsg(f >= 1 ? 'Ni al 100% se llega: subí los pesos altos del pool.' : 'Frecuencia ajustada ✓');
+  };
+
+  // Con la sorpresa "en cada jugada" la frecuencia queda fija en 1, así
+  // que el RTP se calibra re-pesando el pool hacia multiplicadores más
+  // bajos (o más altos). w_i ← w_i · r^(mult_i), bisección sobre r.
+  const calibrarPool = () => {
+    const rb = rtpBase / 100;
+    const n = cfg.numeros.length || 1;
+    if (rb <= 0) return;
+    const esObjetivo = 1 + n * ((objetivo / 100) / rb - 1);
+    const pool = cfg.sorpresa.pool.map((p) => ({
+      mult: Math.max(0, Number(p.mult) || 0),
+      peso: Math.max(1e-4, Number(p.peso) || 0),
+    }));
+    const mults = pool.map((p) => p.mult);
+    const esMin = Math.min(...mults), esMax = Math.max(...mults);
+    if (esObjetivo <= esMin) {
+      setMsg('Para bajar más el RTP: agregá una sorpresa ×1 al pool o bajá los multiplicadores de los números.');
+      return;
+    }
+    if (esObjetivo >= esMax) {
+      setMsg('Ni con todo el peso arriba se llega: subí los multiplicadores del pool.');
+      return;
+    }
+    const esCon = (r: number) => {
+      let W = 0, S = 0;
+      for (const p of pool) { const w = p.peso * Math.pow(r, p.mult); W += w; S += w * p.mult; }
+      return W > 0 ? S / W : 0;
+    };
+    let lo = 1e-6, hi = 1e6;
+    for (let it = 0; it < 80; it++) {
+      const mid = Math.sqrt(lo * hi);
+      if (esCon(mid) < esObjetivo) lo = mid; else hi = mid;
+    }
+    const r = Math.sqrt(lo * hi);
+    const nuevos = pool.map((p) => ({
+      mult: p.mult,
+      peso: Math.round(p.peso * Math.pow(r, p.mult) * 1000) / 1000,
+    }));
+    setSorpresa({ ...cfg.sorpresa, pool: nuevos });
+    setMsg('Pesos de la sorpresa ajustados ✓');
   };
 
   return (
@@ -1253,13 +1296,25 @@ function SeccionRuletaBotones({ juego, onCampo }: {
           En cada giro puede aparecer sobre un número al azar. Es lo que levanta el RTP (bajo de base)
           y da emoción. Cuanto menos seguido aparece, más grande puede ser.
         </p>
-        <label style={{ fontSize: 12, display: 'block' }}>
-          Aparece en <b>{Math.round(cfg.sorpresa.frecuencia * 100)}%</b> de las jugadas
-          {cfg.sorpresa.frecuencia > 0 && <span className="hint" style={{ margin: 0 }}> (≈ 1 de cada {(1 / cfg.sorpresa.frecuencia).toFixed(1)})</span>}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 8 }}>
+          <input type="checkbox" checked={siempre}
+            onChange={(e) => setSorpresa({ ...cfg.sorpresa, frecuencia: e.target.checked ? 1 : 0.35 })} />
+          La sorpresa aparece <b>en cada jugada</b>
         </label>
-        <input type="range" min={0} max={100} step={5} value={Math.round(cfg.sorpresa.frecuencia * 100)}
+        <label style={{ fontSize: 12, display: 'block', opacity: siempre ? 0.4 : 1 }}>
+          Aparece en <b>{Math.round(cfg.sorpresa.frecuencia * 100)}%</b> de las jugadas
+          {cfg.sorpresa.frecuencia > 0 && !siempre && <span className="hint" style={{ margin: 0 }}> (≈ 1 de cada {(1 / cfg.sorpresa.frecuencia).toFixed(1)})</span>}
+        </label>
+        <input type="range" min={0} max={100} step={5} disabled={siempre}
+          value={Math.round(cfg.sorpresa.frecuencia * 100)}
           onChange={(e) => setSorpresa({ ...cfg.sorpresa, frecuencia: Number(e.target.value) / 100 })}
-          style={{ width: '100%', margin: '4px 0 12px' }} />
+          style={{ width: '100%', margin: '4px 0 12px', opacity: siempre ? 0.4 : 1 }} />
+        {siempre && (
+          <p className="hint" style={{ margin: '0 0 12px' }}>
+            Con la sorpresa siempre activa el RTP sube bastante: bajá los pesos de los multiplicadores
+            altos del pool (o usá <b>Calibrar pool</b>).
+          </p>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr', gap: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-dim)', padding: '0 2px 4px' }}>
           <span>Multiplicador</span><span>Peso</span><span style={{ textAlign: 'right' }}>Prob</span>
@@ -1291,7 +1346,9 @@ function SeccionRuletaBotones({ juego, onCampo }: {
           <label style={{ fontSize: 12 }}>Objetivo
             <input type="number" step={1} value={objetivo} onChange={(e) => setObjetivo(Number(e.target.value) || 92)} style={{ width: 56, marginLeft: 6 }} />%
           </label>
-          <button onClick={calibrarFrecuencia}>Calibrar frecuencia</button>
+          <button onClick={siempre ? calibrarPool : calibrarFrecuencia}>
+            {siempre ? 'Calibrar pool' : 'Calibrar frecuencia'}
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
