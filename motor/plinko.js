@@ -24,6 +24,9 @@ export const CFG_DEFAULT = {
 
   // ---- cosmético ----
   tema: 'clasico',
+  // Proporción del tablero: alto = ancho × esto. >1 = más alto que
+  // ancho (recomendado para que los clavos se abran y la caída dure).
+  tablero: { proporcion: 1.45 },
   bola: { tipo: 'auto', lottie_url: null, imagen_url: null, emojiFallback: '⚪', tam: 22 },
   clavos: { color: null },
   fondoUrl: null,
@@ -65,6 +68,7 @@ export function cfgConDefaults(cfg) {
     riesgoPermitido: riesgos,
     riesgoDefecto: riesgos.includes(str(c.riesgoDefecto, D.riesgoDefecto)) ? str(c.riesgoDefecto, D.riesgoDefecto) : riesgos[0],
     tema: str(c.tema, D.tema),
+    tablero: { proporcion: clamp(num(obj(c.tablero).proporcion, D.tablero.proporcion), 0.8, 2.4) },
     bola: {
       tipo: ['auto', 'lottie', 'imagen', 'emoji'].includes(b.tipo) ? b.tipo : 'auto',
       lottie_url: str(b.lottie_url, null),

@@ -610,6 +610,8 @@ export interface PlinkoCfg {
   riesgoPermitido: string[];
   riesgoDefecto: string;
   tema: string;
+  /** Proporción del tablero: alto = ancho × proporcion. */
+  tablero: { proporcion: number };
   bola: {
     tipo: 'auto' | 'lottie' | 'imagen' | 'emoji';
     lottie_url: string | null;

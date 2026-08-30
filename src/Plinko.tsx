@@ -115,8 +115,11 @@ export function Plinko({ escenario, cfg, tema, filas, riesgo, tirada, onLand }: 
       const cv = canvasRef.current;
       const host = escenario.grillaEl;
       if (!cv || !host) return;
+      const prop = cfgRef.current.tablero?.proporcion || 1.45;
       const w = host.clientWidth || 320;
-      const h = host.clientHeight || w;
+      // el tablero es más alto que ancho; la altura sale de la
+      // proporción (el `aspect-ratio` del canvas ya la fija en el CSS).
+      const h = host.clientHeight || Math.round(w * prop);
       const dpr = Math.min(2.5, window.devicePixelRatio || 1);
       cv.width = Math.round(w * dpr);
       cv.height = Math.round(h * dpr);
@@ -130,7 +133,7 @@ export function Plinko({ escenario, cfg, tema, filas, riesgo, tirada, onLand }: 
     if (ro && escenario.grillaEl) ro.observe(escenario.grillaEl);
     return () => { window.removeEventListener('resize', ajustar); ro?.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [escenario]);
+  }, [escenario, cfg.tablero.proporcion]);
 
   // ---- soltar una bolita cuando llega la tirada ----
   useEffect(() => {
@@ -161,9 +164,10 @@ export function Plinko({ escenario, cfg, tema, filas, riesgo, tirada, onLand }: 
     const w = cv.width / dpr, h = cv.height / dpr;
     const b = bolaRef.current;
     const n = b ? b.filas : filasRef.current;
-    const topPad = 16, botPad = 40;
+    const topPad = Math.max(14, h * 0.03);
+    const botPad = Math.max(38, h * 0.08);
     const rowGap = (h - topPad - botPad) / n;
-    const spacing = Math.min(w / (n + 2.2), rowGap * 1.25);
+    const spacing = Math.min(w / (n + 2.2), rowGap * 1.4);
     return { w, h, n, topPad, botPad, rowGap, spacing, cx: w / 2 };
   }
   const xAt = (g: ReturnType<typeof geo>, colUnit: number) => g.cx + colUnit * g.spacing / 2;
@@ -337,7 +341,13 @@ export function Plinko({ escenario, cfg, tema, filas, riesgo, tirada, onLand }: 
 
   return (
     <>
-      {createPortal(<canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />, escenario.grillaEl)}
+      {createPortal(
+        <canvas ref={canvasRef} style={{
+          width: '100%', display: 'block',
+          aspectRatio: `1 / ${Math.max(0.8, Math.min(2.4, cfg.tablero?.proporcion || 1.45))}`,
+        }} />,
+        escenario.grillaEl,
+      )}
       {createPortal(<>{estilos}{deco}</>, escenario.el)}
     </>
   );

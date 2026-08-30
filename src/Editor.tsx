@@ -1740,6 +1740,14 @@ function SeccionPlinko({ juego, onCampo }: {
           onChange={(e) => guardar({ ...cfg, velocidad: Number(e.target.value) })}
           style={{ width: '100%', margin: '4px 0 14px' }} />
 
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Alto del tablero <b>×{cfg.tablero.proporcion.toFixed(2)}</b>
+          <span className="hint" style={{ margin: 0 }}> — más alto = clavos más separados y caída más larga</span>
+        </label>
+        <input type="range" min={0.9} max={2.2} step={0.05} value={cfg.tablero.proporcion}
+          onChange={(e) => guardar({ ...cfg, tablero: { proporcion: Number(e.target.value) } })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
         <div style={{ fontSize: 12, marginBottom: 4 }}>Filas que puede elegir el jugador</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {FILAS_PLINKO.map((n) => (
