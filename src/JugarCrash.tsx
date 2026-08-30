@@ -146,7 +146,7 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
   const nueva = () => {
     roundRef.current = null;
     cerrandoRef.current = false;
-    setEstado((e) => (e.fase === 'en_curso' ? e : { ...e, fase: 'inactiva', multiplicador: 1, inicioTs: null, reventadoEn: null, ganancia: null, error: null }));
+    setEstado((e) => (e.fase === 'en_curso' ? e : { ...e, fase: 'inactiva', roundId: null, multiplicador: 1, inicioTs: null, reventadoEn: null, ganancia: null, error: null }));
   };
 
   const imagenCarga = (juego.carga_url as string) || (juego.portada_url as string) || null;
