@@ -1,5 +1,5 @@
 -- ================================================
--- COMBINADO: sql/40 → sql/43 (ruletas + rotación RTP + crash)
+-- COMBINADO: sql/40 → sql/44 (ruletas + rotación RTP + crash + plinko)
 -- Seguro de correr varias veces (todo es IF NOT EXISTS / OR REPLACE).
 -- ================================================
 
@@ -168,3 +168,19 @@ create unique index if not exists crash_una_viva
 -- Para la tira de "últimos reventones" del historial.
 create index if not exists crash_rondas_juego
   on crash_rondas (juego_id, inicio_ts desc);
+
+-- ===================== sql/44_plinko.sql =====================
+-- =========================================================
+-- PLINKO — la bolita cae entre clavos a una cubeta.
+--
+-- Motor de una sola tirada: lo resuelve api/plinko-tirar.js con
+-- volados justos y devuelve el camino de la bolita. La idempotencia
+-- reusa `rondas_jugadas` (client_id por tirada, resultado en `grilla`)
+-- igual que la ruleta de botones — no hace falta tabla nueva.
+--
+-- Toda la config (rtp, filas y riesgo permitidos, tema, imágenes,
+-- colores, controles) vive en este jsonb.
+-- =========================================================
+
+alter table juegos
+  add column if not exists plinko_cfg jsonb not null default '{}'::jsonb;

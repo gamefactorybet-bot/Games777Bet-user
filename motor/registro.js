@@ -33,6 +33,7 @@ export const MOTORES_DISPONIBLES = [
   { valor: 'ruleta', etiqueta: 'Ruleta de multiplicadores' },
   { valor: 'ruleta-botones', etiqueta: 'Ruleta de botones (con sorpresa)' },
   { valor: 'crash-clasico', etiqueta: 'Crash — multiplicador que sube' },
+  { valor: 'plinko-clasico', etiqueta: 'Plinko — la bolita que cae' },
 ];
 
 /**

@@ -8,6 +8,7 @@ import { JugarMines } from './JugarMines.tsx';
 import { JugarRuleta } from './JugarRuleta.tsx';
 import { JugarRuletaBotones } from './JugarRuletaBotones.tsx';
 import { JugarCrash } from './JugarCrash.tsx';
+import { JugarPlinko } from './JugarPlinko.tsx';
 import type { DatosJuego } from './types.ts';
 
 // Pantalla jugable real, sin login: la abre directo el jugador cuando
@@ -74,6 +75,7 @@ function Jugar() {
   if (motor === 'ruleta') return <JugarRuleta {...props} />;
   if (motor === 'ruleta-botones') return <JugarRuletaBotones {...props} />;
   if (motor.startsWith('crash')) return <JugarCrash {...props} />;
+  if (motor.startsWith('plinko')) return <JugarPlinko {...props} />;
   return <JugarSlot {...props} />;
 }
 

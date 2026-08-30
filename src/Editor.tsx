@@ -16,6 +16,7 @@ import { PreviewMines } from './PreviewMines.tsx';
 import { PreviewRuleta } from './PreviewRuleta.tsx';
 import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
 import { PreviewCrash } from './PreviewCrash.tsx';
+import { PreviewPlinko } from './PreviewPlinko.tsx';
 import { simularMines } from '../motor/mines-clasico.js';
 import {
   cfgDe as cfgBotonesDe, rtpPromedio as rtpBotonesPromedio, totalTajadas as totalTajadasBotones,
@@ -23,8 +24,13 @@ import {
 } from './juego/ruleta-botones.ts';
 import { TEMAS as TEMAS_RULETA } from './juego/ruleta-temas.ts';
 import { cfgDe as cfgCrashDe, rtpTeorico as rtpTeoricoCrash } from './juego/crash.ts';
+import {
+  cfgDe as cfgPlinkoDe, rtpPromedio as rtpPlinkoPromedio,
+  tablaMultiplicadores as tablaMultPlinko, probsCubetas as probsPlinko,
+} from './juego/plinko.ts';
 import { TEMAS as TEMAS_CRASH } from './juego/crash-temas.ts';
-import type { CrashCfg } from './types.ts';
+import { TEMAS as TEMAS_PLINKO } from './juego/plinko-temas.ts';
+import type { CrashCfg, PlinkoCfg } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -79,7 +85,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esRuleta = juego.motor === 'ruleta';
   const esRuletaBotones = juego.motor === 'ruleta-botones';
   const esCrash = juego.motor.startsWith('crash');
-  const sinSimbolos = esMines || esRuletaBotones || esCrash;
+  const esPlinko = juego.motor.startsWith('plinko');
+  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
   const [previewAbierto, setPreviewAbierto] = useState(false);
@@ -126,11 +133,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
   // Mines no es de rodillos, no hace falta.
   useEffect(() => {
-    if (esMines || esRuleta || esRuletaBotones || esCrash) return;
+    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash]);
+  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -205,6 +212,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   );
   const rtpBotones = esRuletaBotones ? rtpBotonesPromedio(juego.ruleta_botones_cfg || {}) : 0;
   const rtpCrash = esCrash ? rtpTeoricoCrash(juego.crash_cfg || {}) * 100 : 0;
+  const rtpPlinko = esPlinko ? rtpPlinkoPromedio(juego.plinko_cfg || {}) * 100 : 0;
   const rtpReal = esRuletaBotones
     ? rtpBotones
     : !simbolos.length
@@ -225,6 +233,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
       ? !margenMinesOk
       : esCrash
         ? (rtpCrash <= 0 || rtpCrash > 100)
+      : esPlinko
+        ? (rtpPlinko <= 0 || rtpPlinko > 100)
         : esRuletaBotones
           ? (totalTajadasBotones(cfgBotonesDe(juego).numeros) < 2 || rtpBotones > 100)
           : esRuleta
@@ -432,6 +442,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     } else if (esCrash) {
       if (rtpCrash > 100) errores.push(`El RTP es ${rtpCrash.toFixed(1)}% — la casa pierde plata en cada ronda.`);
       else if (rtpCrash < 85 || rtpCrash > 99) avisos.push(`RTP de ${rtpCrash.toFixed(1)}%, fuera del rango habitual (85-99%).`);
+    } else if (esPlinko) {
+      if (rtpPlinko > 100) errores.push(`El RTP promedio es ${rtpPlinko.toFixed(1)}% — la casa pierde plata.`);
+      else if (rtpPlinko < 85 || rtpPlinko > 99) avisos.push(`RTP promedio de ${rtpPlinko.toFixed(1)}%, fuera del rango habitual (85-99%).`);
     } else {
       if (!simbolos.length) errores.push('No tiene símbolos cargados.');
       const sinIcono = simbolos.filter((s) => !s.icono_url);
@@ -446,9 +459,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (!esMines && !esCrash && !sonidos.length) avisos.push('Sin sonidos cargados.');
+    if (!esMines && !esCrash && !esPlinko && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
-    if (!esMines && !esCrash && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
+    if (!esMines && !esCrash && !esPlinko && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
   };
 
@@ -536,7 +549,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="ed-resumen-fila" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
+          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
           <span className="ed-resumen-chip">versión {juego.version || 1}</span>
           <span className="ed-resumen-chip">{juego.publicado ? 'publicado ✓' : 'sin publicar'}</span>
         </div>
@@ -595,7 +608,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
+            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : 'Fondo del rodillo'} onSet={setImagen} />
             <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />
@@ -621,7 +634,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionCrash juego={juego} onCampo={guardarCampoJuego} />
       )}
 
-      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && (
+      {grupo === 'jugabilidad' && esPlinko && (
+        <SeccionPlinko juego={juego} onCampo={guardarCampoJuego} />
+      )}
+
+      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -772,7 +789,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
             ? <PreviewRuletaBotones juego={juego} onClose={() => setPreviewAbierto(false)} />
             : esCrash
               ? <PreviewCrash juego={juego} onClose={() => setPreviewAbierto(false)} />
-              : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
+              : esPlinko
+                ? <PreviewPlinko juego={juego} onClose={() => setPreviewAbierto(false)} />
+                : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
       )}
     </>
   );
@@ -1655,6 +1674,200 @@ function SeccionCrash({ juego, onCampo }: {
         </div>
         <p className="hint" style={{ margin: '12px 0 0' }}>
           La posición y el tamaño de cada control se ajustan desde <b>⚙ Ajustar → Controles</b> en la Vista previa. {msg}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Plinko ----------------
+
+const FILAS_PLINKO = [8, 10, 12, 14, 16];
+const RIESGOS_PLINKO: { v: string; et: string }[] = [
+  { v: 'bajo', et: 'Bajo' }, { v: 'medio', et: 'Medio' }, { v: 'alto', et: 'Alto' },
+];
+
+function SeccionPlinko({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<PlinkoCfg>(() => cfgPlinkoDe(juego));
+  useEffect(() => { setCfg(cfgPlinkoDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+
+  const guardar = (next: PlinkoCfg) => { setCfg(next); onCampo('plinko_cfg', next); setMsg('Guardado ✓'); };
+  const setBola = (p: Partial<PlinkoCfg['bola']>) => guardar({ ...cfg, bola: { ...cfg.bola, ...p } });
+
+  const toggleFila = (n: number) => {
+    const has = cfg.filasPermitidas.includes(n);
+    let next = has ? cfg.filasPermitidas.filter((x) => x !== n) : [...cfg.filasPermitidas, n].sort((a, b) => a - b);
+    if (!next.length) next = [n];
+    const def = next.includes(cfg.filasDefecto) ? cfg.filasDefecto : next[Math.floor(next.length / 2)];
+    guardar({ ...cfg, filasPermitidas: next, filasDefecto: def });
+  };
+  const toggleRiesgo = (r: string) => {
+    const has = cfg.riesgoPermitido.includes(r);
+    let next = has ? cfg.riesgoPermitido.filter((x) => x !== r) : [...cfg.riesgoPermitido, r];
+    if (!next.length) next = [r];
+    guardar({ ...cfg, riesgoPermitido: next, riesgoDefecto: next.includes(cfg.riesgoDefecto) ? cfg.riesgoDefecto : next[0] });
+  };
+
+  const previa = tablaMultPlinko(cfg.filasDefecto, cfg.riesgoDefecto, cfg.rtp);
+  const rtpDef = previa.reduce((a, m, k) => a + probsPlinko(cfg.filasDefecto)[k] * m, 0) * 100;
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          El pago de cada cubeta se calcula solo y se escala para dar el RTP que fijes. La bolita cae por
+          volados justos: el <b>servidor</b> decide a qué cubeta y por qué camino.
+        </p>
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          RTP objetivo <b>{(cfg.rtp * 100).toFixed(1)}%</b>
+          <span className="hint" style={{ margin: 0 }}> — real de la config por defecto: {rtpDef.toFixed(1)}%</span>
+        </label>
+        <input type="range" min={85} max={99} step={0.5} value={cfg.rtp * 100}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Velocidad de caída <b>×{cfg.velocidad.toFixed(2)}</b>
+          <span className="hint" style={{ margin: 0 }}> — menos = más lento y con más suspenso</span>
+        </label>
+        <input type="range" min={0.25} max={1.6} step={0.05} value={cfg.velocidad}
+          onChange={(e) => guardar({ ...cfg, velocidad: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <div style={{ fontSize: 12, marginBottom: 4 }}>Filas que puede elegir el jugador</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {FILAS_PLINKO.map((n) => (
+            <button key={n} onClick={() => toggleFila(n)}
+              className={cfg.filasPermitidas.includes(n) ? 'primary' : undefined} style={{ fontSize: 12, minWidth: 40 }}>{n}</button>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12, margin: '12px 0 4px' }}>Nivel de riesgo que puede elegir</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {RIESGOS_PLINKO.map((r) => (
+            <button key={r.v} onClick={() => toggleRiesgo(r.v)}
+              className={cfg.riesgoPermitido.includes(r.v) ? 'primary' : undefined} style={{ fontSize: 12 }}>{r.et}</button>
+          ))}
+        </div>
+        <p className="hint" style={{ margin: '10px 0 0' }}>
+          Si dejás una sola opción de cada uno, el jugador no ve el selector — así hacés varios juegos
+          distintos del mismo motor (uno "8 bajo", otro "16 alto"…).
+        </p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Cubetas por defecto</strong>
+        <p className="hint" style={{ marginBottom: 10 }}>
+          {cfg.filasDefecto} filas · riesgo {cfg.riesgoDefecto} — así se ven los multiplicadores:
+        </p>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
+          {previa.map((m, k) => (
+            <span key={k} style={{
+              fontSize: 10.5, fontWeight: 700, padding: '2px 5px', borderRadius: 5,
+              background: m >= 2 ? 'var(--accent-soft)' : 'var(--surface-alt)',
+              color: m >= 10 ? '#ff8a3d' : m >= 2 ? 'var(--accent)' : m >= 1 ? 'var(--ok)' : 'var(--text-dim)',
+            }}>{m >= 100 ? Math.round(m) : m >= 10 ? m.toFixed(1) : m.toFixed(2)}×</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Tema visual</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
+          {TEMAS_PLINKO.map((t) => {
+            const on = (cfg.tema || 'clasico') === t.id;
+            return (
+              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
+                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
+              }}>
+                <span style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden' }}>
+                  <span style={{ flex: 2, background: t.bola }} />
+                  <span style={{ flex: 1, background: t.clavo }} />
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>La bolita</strong>
+        <p className="hint" style={{ marginBottom: 10 }}>Imagen, animación Lottie o emoji. No hace falta cargar ningún "símbolo".</p>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          {([['auto', 'Automático'], ['lottie', 'Solo Lottie'], ['imagen', 'Solo imagen'], ['emoji', 'Solo emoji']] as const).map(([v, et]) => (
+            <button key={v} onClick={() => setBola({ tipo: v })}
+              className={cfg.bola.tipo === v ? 'primary' : undefined} style={{ fontSize: 12 }}>{et}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <label
+            title={cfg.bola.lottie_url ? 'Cambiar · clic derecho para quitar' : 'Subir .json / .lottie'}
+            onContextMenu={(e) => { e.preventDefault(); if (cfg.bola.lottie_url) setBola({ lottie_url: null }); }}
+            style={{
+              width: 52, height: 52, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+              border: `1px dashed ${cfg.bola.lottie_url ? 'var(--accent)' : 'var(--border)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+              color: cfg.bola.lottie_url ? 'var(--accent)' : 'var(--text-dim)', background: 'var(--bg)',
+            }}>
+            {cfg.bola.lottie_url ? '✦ anim' : 'Lottie'}
+            <input type="file" accept=".json,.lottie" hidden onChange={async (e) => {
+              const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+              const url = await subirArchivo(f, `plinko/${juego.id}`);
+              if (url) setBola({ lottie_url: url });
+            }} />
+          </label>
+          <label
+            title={cfg.bola.imagen_url ? 'Cambiar · clic derecho para quitar' : 'Subir imagen'}
+            onContextMenu={(e) => { e.preventDefault(); if (cfg.bola.imagen_url) setBola({ imagen_url: null }); }}
+            style={{
+              width: 52, height: 52, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+              border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20, color: 'var(--text-dim)',
+              background: cfg.bola.imagen_url ? `center/contain no-repeat var(--bg) url("${cfg.bola.imagen_url}")` : 'var(--bg)',
+            }}>
+            {!cfg.bola.imagen_url && '+'}
+            <input type="file" accept="image/*" hidden onChange={async (e) => {
+              const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+              const url = await subirArchivo(f, `plinko/${juego.id}`);
+              if (url) setBola({ imagen_url: url });
+            }} />
+          </label>
+          <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+            <label>Emoji si no hay nada
+              <input type="text" maxLength={4} value={cfg.bola.emojiFallback}
+                onChange={(e) => setBola({ emojiFallback: e.target.value })} style={{ width: 56, marginLeft: 6 }} />
+            </label>
+            <label>Tamaño <b>{cfg.bola.tam}px</b>
+              <input type="range" min={10} max={48} step={1} value={cfg.bola.tam}
+                onChange={(e) => setBola({ tam: Number(e.target.value) })} style={{ width: '100%' }} />
+            </label>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, fontSize: 12 }}>
+          <label>Color de los clavos
+            <input type="color" value={cfg.clavos.color || '#8b95a6'}
+              onChange={(e) => guardar({ ...cfg, clavos: { color: e.target.value } })}
+              style={{ width: 34, height: 24, padding: 0, marginLeft: 6, verticalAlign: 'middle' }} />
+          </label>
+          {cfg.clavos.color && <button style={{ fontSize: 11 }} onClick={() => guardar({ ...cfg, clavos: { color: null } })}>usar el del tema</button>}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={cfg.historial.mostrar}
+              onChange={(e) => guardar({ ...cfg, historial: { ...cfg.historial, mostrar: e.target.checked } })} />
+            Tira de historial
+          </label>
+        </div>
+        <p className="hint" style={{ margin: '12px 0 0' }}>
+          Posición de los controles en <b>⚙ Ajustar → Controles</b>; el tablero de clavos en <b>Arte / luces</b>. {msg}
         </p>
       </div>
     </div>

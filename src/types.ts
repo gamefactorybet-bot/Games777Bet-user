@@ -60,6 +60,9 @@ export interface Juego {
   /** Crash: toda su config (rtp, velocidad, formato, tema, imágenes…). */
   crash_cfg?: Partial<CrashCfg>;
 
+  /** Plinko: toda su config (rtp, filas/riesgo, tema, bola, colores…). */
+  plinko_cfg?: Partial<PlinkoCfg>;
+
   created_at?: string;
   updated_at?: string;
 
@@ -582,6 +585,70 @@ export interface RetiroCrash {
   ganancia: number;
   reventadoEn: number;
   saldo: number | null;
+  repetido?: boolean;
+}
+
+// ---------------- Plinko ----------------
+
+export interface PuntoPlinko { x: number; y: number; }
+
+export interface PosControlesPlinko {
+  saldo: PuntoPlinko;
+  historial: PuntoPlinko;
+  /** Selector de filas + riesgo. */
+  opciones: PuntoPlinko;
+  apuesta: PuntoPlinko;
+  boton: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };
+}
+
+export interface PlinkoCfg {
+  rtp: number;
+  /** Velocidad de caída (1 = normal, menos = más lento). Solo visual. */
+  velocidad: number;
+  filasPermitidas: number[];
+  filasDefecto: number;
+  riesgoPermitido: string[];
+  riesgoDefecto: string;
+  tema: string;
+  bola: {
+    tipo: 'auto' | 'lottie' | 'imagen' | 'emoji';
+    lottie_url: string | null;
+    imagen_url: string | null;
+    emojiFallback: string;
+    tam: number;
+  };
+  clavos: { color: string | null };
+  fondoUrl: string | null;
+  historial: { mostrar: boolean; cantidad: number };
+  controles: Partial<PosControlesPlinko>;
+}
+
+export interface EstadoPlinko {
+  saldo: number;
+  apuesta: number;
+  filas: number;
+  riesgo: string;
+  cargando: boolean;
+  error: string | null;
+  /** Últimos multiplicadores, más nuevo primero. */
+  historial: number[];
+}
+
+/** Estado resuelto de una tirada (lo decide el servidor). */
+export interface TiradaResuelta {
+  k: number;
+  path: number[];
+  mult: number;
+  filas: number;
+  riesgo: string;
+  tabla: number[];
+}
+
+/** Respuesta de `POST /api/plinko-tirar`. */
+export interface ResultadoPlinko {
+  resultado: TiradaResuelta;
+  premio: number;
+  saldo: number;
   repetido?: boolean;
 }
 

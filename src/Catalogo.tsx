@@ -5,6 +5,7 @@ import { PreviewMines } from './PreviewMines.tsx';
 import { PreviewRuleta } from './PreviewRuleta.tsx';
 import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
 import { PreviewCrash } from './PreviewCrash.tsx';
+import { PreviewPlinko } from './PreviewPlinko.tsx';
 import type { Juego, Simbolo, Sonido, Efecto } from './types.ts';
 
 /**
@@ -21,6 +22,7 @@ export function Catalogo() {
   const [previewRuleta, setPreviewRuleta] = useState<null | { juego: Juego; simbolos: Simbolo[] }>(null);
   const [previewBotones, setPreviewBotones] = useState<Juego | null>(null);
   const [previewCrash, setPreviewCrash] = useState<Juego | null>(null);
+  const [previewPlinko, setPreviewPlinko] = useState<Juego | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +42,7 @@ export function Catalogo() {
     if (juego.motor.startsWith('mines')) { setPreviewMines(juego); return; }
     if (juego.motor === 'ruleta-botones') { setPreviewBotones(juego); return; }
     if (juego.motor.startsWith('crash')) { setPreviewCrash(juego); return; }
+    if (juego.motor.startsWith('plinko')) { setPreviewPlinko(juego); return; }
     if (juego.motor === 'ruleta') {
       const { data } = await supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden');
       setPreviewRuleta({ juego, simbolos: (data as Simbolo[]) || [] });
@@ -100,6 +103,7 @@ export function Catalogo() {
       {previewRuleta && <PreviewRuleta {...previewRuleta} onClose={() => setPreviewRuleta(null)} />}
       {previewBotones && <PreviewRuletaBotones juego={previewBotones} onClose={() => setPreviewBotones(null)} />}
       {previewCrash && <PreviewCrash juego={previewCrash} onClose={() => setPreviewCrash(null)} />}
+      {previewPlinko && <PreviewPlinko juego={previewPlinko} onClose={() => setPreviewPlinko(null)} />}
     </div>
   );
 }
