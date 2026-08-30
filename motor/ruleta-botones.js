@@ -47,6 +47,7 @@ export const CFG_DEFAULT = {
     ],
     tope: 0, // 0 = sin tope de premio por jugada
   },
+  tema: 'clasico', // solo cosmético (ver src/juego/ruleta-temas.ts)
 };
 
 /** Une la config guardada (jsonb del juego) con los valores por
@@ -62,6 +63,7 @@ export function cfgConDefaults(cfg) {
       pool: Array.isArray(s.pool) && s.pool.length ? s.pool : CFG_DEFAULT.sorpresa.pool,
       tope: Math.max(0, Number(s.tope) || 0),
     },
+    tema: typeof c.tema === 'string' && c.tema ? c.tema : CFG_DEFAULT.tema,
   };
 }
 

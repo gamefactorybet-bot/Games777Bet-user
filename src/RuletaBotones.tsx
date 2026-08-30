@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ruleta } from './Ruleta.tsx';
 import { slotsDe } from './juego/ruleta-botones.ts';
+import { cargarFuenteTema, temaDe } from './juego/ruleta-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { ResueltoBotones, RuletaBotonesCfg, RuletaSlot } from './types.ts';
 
@@ -31,6 +32,26 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
   const numeros = cfg.numeros;
   const slotsBase = useMemo(() => slotsDe(numeros), [numeros]);
 
+  const tema = useMemo(() => temaDe(cfg.tema), [cfg.tema]);
+
+  // El tema pinta el escenario: fondo, variables CSS y fuente. Se
+  // setea sobre `escenario.el` (la rueda es descendiente y la capa se
+  // portalea ahí), y se revierte solo lo que se tocó.
+  useEffect(() => {
+    cargarFuenteTema(tema);
+    const el = escenario.el;
+    const prevBg = el.style.background;
+    if (tema.stageBg) el.style.background = tema.stageBg;
+    const claves = Object.keys(tema.vars);
+    for (const k of claves) el.style.setProperty(k, tema.vars[k]);
+    if (tema.font) el.style.setProperty('--rb-body', tema.font.family);
+    return () => {
+      el.style.background = prevBg;
+      for (const k of claves) el.style.removeProperty(k);
+      el.style.removeProperty('--rb-body');
+    };
+  }, [tema, escenario]);
+
   const [slots, setSlots] = useState<RuletaSlot[]>(slotsBase);
   const [objetivo, setObjetivo] = useState<number | null>(null);
   const [saldo, setSaldo] = useState(saldoInicial);
@@ -45,6 +66,18 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
 
   useEffect(() => { if (objetivo == null) setSlots(slotsDe(numeros)); }, [numeros, objetivo]);
   useEffect(() => { if (!cfg.fichas.includes(fichaActiva)) setFichaActiva(cfg.fichas[0] ?? 1000); }, [cfg.fichas, fichaActiva]);
+
+  // El tema puede repintar las tajadas: cada `et` toma el color de su
+  // posición en la paleta del tema (si no hay, queda el color propio).
+  const colorNum = (i: number) => (tema.seg && tema.seg[i]) || numeros[i]?.color || 'var(--border)';
+  const slotsPintados = useMemo(() => {
+    const seg = tema.seg;
+    if (!seg) return slots;
+    return slots.map((s) => {
+      const i = numeros.findIndex((n) => n.et === s.et);
+      return i >= 0 && seg[i] ? { ...s, color: seg[i] } : s;
+    });
+  }, [slots, tema, numeros]);
 
   const montoEn = (i: number) => (apuestas[i] || []).reduce((a, v) => a + v, 0);
   const total = numeros.reduce((a, _n, i) => a + montoEn(i), 0);
@@ -122,15 +155,15 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
 
   // ---------------- Render ----------------
   const capa = (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 11, pointerEvents: 'none' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 11, pointerEvents: 'none', fontFamily: 'var(--rb-body, inherit)' }}>
       {/* Sorpresa */}
       <div style={{
         position: 'absolute', left: '50%', top: '3%', transform: 'translateX(-50%)',
         maxWidth: '86%', textAlign: 'center', fontSize: 12.5, fontWeight: 700, padding: '6px 12px',
         borderRadius: 999, whiteSpace: 'nowrap',
-        background: sorp ? 'rgba(240,192,64,.14)' : 'transparent',
-        border: sorp ? '1px solid rgba(240,192,64,.4)' : '1px solid transparent',
-        color: sorp ? '#f0c040' : 'var(--text-dim)',
+        background: sorp ? 'var(--rb-gold-soft, rgba(240,192,64,.14))' : 'transparent',
+        border: sorp ? '1px solid var(--rb-gold, #f0c040)' : '1px solid transparent',
+        color: sorp ? 'var(--rb-gold, #f0c040)' : 'var(--text-dim)',
       }}>
         {sorp
           ? <>✨ Sorpresa: el <b>{numeros[sorp.num]?.et}</b> puede pagar <b>×{sorp.mult}</b></>
@@ -146,8 +179,8 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
           <button key={v} onClick={() => setFichaActiva(v)} style={{
             minWidth: 46, padding: '5px 9px', borderRadius: 999, fontWeight: 700, fontSize: 11.5,
             border: `2px solid ${v === fichaActiva ? 'var(--accent)' : 'var(--border)'}`,
-            background: v === fichaActiva ? 'var(--accent-soft)' : 'var(--surface-alt)',
-            color: v === fichaActiva ? '#fff' : 'var(--text)',
+            background: v === fichaActiva ? 'var(--accent-soft)' : 'var(--rb-btn-bg, var(--surface-alt))',
+            color: v === fichaActiva ? 'var(--accent-text, #fff)' : 'var(--text)',
           }}>{fmt(v)}</button>
         ))}
       </div>
@@ -167,23 +200,23 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
               onClick={() => poner(i)}
               onContextMenu={(e) => { e.preventDefault(); sacar(i); }}
               style={{
-                position: 'relative', aspectRatio: '1.4', borderRadius: 8, cursor: 'pointer', overflow: 'hidden',
-                border: `1px solid ${esSorp ? '#f0c040' : 'var(--border)'}`,
-                background: esSorp ? 'rgba(240,192,64,.14)' : 'var(--surface-alt)',
+                position: 'relative', aspectRatio: '1.4', borderRadius: 'var(--rb-radius, 8px)', cursor: 'pointer', overflow: 'hidden',
+                border: `1px solid ${esSorp ? 'var(--rb-gold, #f0c040)' : 'var(--border)'}`,
+                background: esSorp ? 'var(--rb-gold-soft, rgba(240,192,64,.14))' : 'var(--rb-btn-bg, var(--surface-alt))',
                 outline: gana ? '2px solid var(--ok)' : 'none', outlineOffset: -2,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
               }}>
-              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: n.color }} />
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: colorNum(i) }} />
               {esSorp && (
                 <span style={{
                   position: 'absolute', top: 3, right: 3, fontSize: 9, fontWeight: 800,
-                  color: '#1a1400', background: '#f0c040', borderRadius: 999, padding: '1px 5px',
+                  color: '#1a1400', background: 'var(--rb-gold, #f0c040)', borderRadius: 999, padding: '1px 5px',
                 }}>×{sorp!.mult}</span>
               )}
-              <span style={{ fontSize: 18, fontWeight: 800 }}>{n.et}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--rb-font-display, inherit)' }}>{n.et}</span>
               {monto > 0
                 ? <>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '0 6px' }}>{cnt} · {fmt(monto)}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-text, #fff)', background: 'var(--accent)', borderRadius: 999, padding: '0 6px' }}>{cnt} · {fmt(monto)}</span>
                     <span style={{ fontSize: 9.5, color: 'var(--ok)' }}>→ {fmt(monto * n.mult * (esSorp ? sorp!.mult : 1))}</span>
                   </>
                 : <span className="hint" style={{ margin: 0, fontSize: 9 }}>tocá</span>}
@@ -212,13 +245,18 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
       <button className="primary" onClick={girar} disabled={girando} style={{
         position: 'absolute', left: '50%', top: '93%', transform: 'translateX(-50%)',
         width: '86%', pointerEvents: 'auto',
+        border: 'none', borderRadius: 'var(--rb-radius, 8px)',
+        background: 'var(--rb-spin-bg, var(--accent))',
+        color: 'var(--rb-spin-ink, var(--accent-text, #fff))',
+        boxShadow: 'var(--rb-spin-shadow, none)',
+        fontFamily: 'var(--rb-font-display, inherit)', fontWeight: 800, letterSpacing: 1,
       }}>Girar</button>
 
       {/* Resultado */}
       <p style={{
         position: 'absolute', left: '50%', top: '40.5%', transform: 'translate(-50%,-50%)',
         margin: 0, textAlign: 'center', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap',
-        color: resultado.includes('SORPRESA') ? '#f0c040'
+        color: resultado.includes('SORPRESA') ? 'var(--rb-gold, #f0c040)'
           : resultado.includes('cobrás') ? 'var(--ok)'
           : resultado.includes('no le pusiste') ? 'var(--danger)' : 'var(--text)',
         textShadow: '0 1px 4px rgba(0,0,0,.6)',
@@ -228,7 +266,18 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
 
   return (
     <>
-      {createPortal(<Ruleta slots={slots} objetivo={objetivo} onLlegada={alLlegar} />, escenario.grillaEl)}
+      {tema.deco && createPortal(
+        <div aria-hidden style={{
+          position: 'absolute', inset: '-22px', borderRadius: 20, overflow: 'hidden',
+          pointerEvents: 'none', zIndex: -1,
+        }} dangerouslySetInnerHTML={{ __html: tema.deco }} />,
+        escenario.el,
+      )}
+      {createPortal(
+        <Ruleta slots={slotsPintados} objetivo={objetivo} onLlegada={alLlegar}
+          tema={tema.id === 'clasico' ? undefined : tema.wheel} />,
+        escenario.grillaEl,
+      )}
       {createPortal(capa, escenario.el)}
     </>
   );

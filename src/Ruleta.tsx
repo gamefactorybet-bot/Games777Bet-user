@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { RuletaSlot } from './types.ts';
+import type { TemaRuletaWheel } from './juego/ruleta-temas.ts';
 
 const TAU = Math.PI * 2;
 
@@ -7,10 +8,12 @@ const TAU = Math.PI * 2;
 // `objetivo` pasa de null a un índice, gira hasta dejar esa tajada bajo
 // el puntero y avisa por `onLlegada`. El resultado lo decide siempre
 // quien pasa el `objetivo` (servidor o motor local), nunca la animación.
-export function Ruleta({ slots, objetivo, onLlegada }: {
+export function Ruleta({ slots, objetivo, onLlegada, tema }: {
   slots: RuletaSlot[];
   objetivo: number | null;
   onLlegada?: () => void;
+  /** Estética de la rueda (colores del puntero, aro, cubo, glow). */
+  tema?: TemaRuletaWheel;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rotRef = useRef(0);
@@ -18,6 +21,8 @@ export function Ruleta({ slots, objetivo, onLlegada }: {
   const ganadoraRef = useRef<number | null>(null);
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
+  const temaRef = useRef(tema);
+  temaRef.current = tema;
 
   const reduce = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -48,7 +53,7 @@ export function Ruleta({ slots, objetivo, onLlegada }: {
       ctx.fillStyle = s.color || '#2a2f38';
       ctx.fill();
       if (i === ganadoraRef.current) {
-        ctx.fillStyle = 'rgba(255,255,255,.28)';
+        ctx.fillStyle = temaRef.current?.winner || 'rgba(255,255,255,.28)';
         ctx.fill();
       }
       ctx.strokeStyle = 'rgba(12,14,18,.5)';
@@ -70,18 +75,18 @@ export function Ruleta({ slots, objetivo, onLlegada }: {
 
     ctx.beginPath();
     ctx.arc(0, 0, R - 5, 0, TAU);
-    ctx.strokeStyle = 'rgba(255,255,255,.10)';
+    ctx.strokeStyle = temaRef.current?.ring || 'rgba(255,255,255,.10)';
     ctx.lineWidth = 6;
     ctx.stroke();
     ctx.restore();
   };
 
-  // Redibujar cuando cambian las tajadas (editor en vivo).
+  // Redibujar cuando cambian las tajadas (editor en vivo) o el tema.
   useEffect(() => {
     ganadoraRef.current = null;
     dibujar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots]);
+  }, [slots, tema]);
 
   // Girar hasta el objetivo.
   useEffect(() => {
@@ -117,14 +122,36 @@ export function Ruleta({ slots, objetivo, onLlegada }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objetivo]);
 
+  const conHub = !!tema && tema.hub !== 'transparent';
+
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <div style={{
         position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)',
         width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent',
-        borderTop: '16px solid #e7eaef', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))', zIndex: 2,
+        borderTop: `16px solid ${tema?.pointer || '#e7eaef'}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))', zIndex: 3,
       }} />
-      <canvas ref={canvasRef} width={600} height={600} style={{ width: '100%', display: 'block' }} />
+      <div style={{
+        borderRadius: '50%', boxSizing: 'border-box',
+        border: tema ? `5px solid ${tema.border}` : undefined,
+        boxShadow: tema?.glow && tema.glow !== 'none' ? tema.glow : undefined,
+      }}>
+        <canvas ref={canvasRef} width={600} height={600} style={{ width: '100%', display: 'block', borderRadius: '50%' }} />
+      </div>
+      {conHub && (
+        <div style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+          width: '25%', height: '25%', borderRadius: '50%', background: tema!.hub,
+          border: `2px solid ${tema!.hubBorder}`, pointerEvents: 'none', zIndex: 2,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: 'inset 0 2px 10px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.4)',
+        }}>
+          <span style={{
+            fontFamily: 'var(--rb-font-display, inherit)', fontSize: 'clamp(6px, 2.3vw, 11px)',
+            letterSpacing: 2, fontWeight: 800, color: tema!.hubInk,
+          }}>SORPRESA</span>
+        </div>
+      )}
     </div>
   );
 }

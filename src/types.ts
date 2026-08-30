@@ -441,6 +441,8 @@ export interface RuletaBotonesCfg {
   numeros: NumeroRuleta[];
   fichas: number[];
   sorpresa: SorpresaCfg;
+  /** Id del tema visual (ver `src/juego/ruleta-temas.ts`). */
+  tema: string;
 }
 
 /** Estado resuelto de un giro de la ruleta de botones. */

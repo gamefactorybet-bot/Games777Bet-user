@@ -20,6 +20,7 @@ import {
   cfgDe as cfgBotonesDe, rtpPromedio as rtpBotonesPromedio, totalTajadas as totalTajadasBotones,
   rtpNumero as rtpNumeroB, factorSorpresa as factorSorpresaB, sorpresaEsperada as sorpresaEsperadaB,
 } from './juego/ruleta-botones.ts';
+import { TEMAS as TEMAS_RULETA } from './juego/ruleta-temas.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -1124,6 +1125,33 @@ function SeccionRuletaBotones({ juego, onCampo }: {
 
   return (
     <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Tema visual</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          Cambia el aspecto de la rueda y la mesa en la pantalla del jugador (fondo, colores,
+          tipografía). No toca la matemática ni el RTP. <b>Clásico</b> = como estaba.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
+          {TEMAS_RULETA.map((t) => {
+            const activo = (cfg.tema || 'clasico') === t.id;
+            const muestra = t.seg || cfg.numeros.map((n) => n.color);
+            return (
+              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
+                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left',
+                borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
+                background: activo ? 'var(--accent-soft)' : 'var(--surface-alt)',
+              }}>
+                <span style={{ display: 'flex', height: 20, borderRadius: 5, overflow: 'hidden' }}>
+                  {muestra.slice(0, 9).map((c, j) => <span key={j} style={{ flex: 1, background: c }} />)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="card" style={{ marginBottom: 16 }}>
         <strong style={{ fontSize: 15 }}>Los números</strong>
         <p className="hint" style={{ marginBottom: 12 }}>
