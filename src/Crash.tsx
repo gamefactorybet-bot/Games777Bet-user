@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { crecimiento } from './juego/crash.ts';
+import { montarLottieEn } from './lottie.ts';
 import { cargarFuenteCrash } from './juego/crash-temas.ts';
 import type { TemaCrash } from './juego/crash-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -32,11 +33,16 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const numRef = useRef<HTMLDivElement>(null);
   const msgRef = useRef<HTMLDivElement>(null);
+  const objRef = useRef<HTMLDivElement>(null);
+  const lottieMountRef = useRef<HTMLDivElement>(null);
+  const lottieOffRef = useRef<(() => void) | null>(null);
   const rafRef = useRef(0);
-  const imgRef = useRef<HTMLImageElement | null>(null);
   const trailRef = useRef<number[][]>([]);
   const dispRef = useRef({ auto: false, tope: false, round: '' });
   const shakeRef = useRef(0);
+  // Objetivo del objeto que vuela: lo calcula cada renderizador y lo
+  // aplica `dibujar()` como transform en el overlay (no en el canvas).
+  const objInfoRef = useRef({ x: 0, y: 0, rot: 0, visible: false });
 
   const estadoRef = useRef(estado);
   estadoRef.current = estado;
@@ -65,14 +71,19 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
   }, [tema, escenario]);
 
   // ---- imagen del objeto que vuela ----
+  // ---- animación Lottie del objeto (gana sobre la imagen) ----
   useEffect(() => {
-    if (!cfg.objeto.imagen_url) { imgRef.current = null; return; }
-    const im = new Image();
-    im.onload = () => { imgRef.current = im; };
-    im.onerror = () => { imgRef.current = null; };
-    im.src = cfg.objeto.imagen_url;
-    imgRef.current = im;
-  }, [cfg.objeto.imagen_url]);
+    lottieOffRef.current?.();
+    lottieOffRef.current = null;
+    const cont = lottieMountRef.current;
+    if (!cfg.objeto.lottie_url || !cont) return;
+    let vivo = true;
+    montarLottieEn(cont, cfg.objeto.lottie_url, { loop: true }).then((off) => {
+      if (vivo) lottieOffRef.current = off;
+      else off();
+    });
+    return () => { vivo = false; lottieOffRef.current?.(); lottieOffRef.current = null; };
+  }, [cfg.objeto.lottie_url, cfg.formato]);
 
   // ---- tamaño del canvas ----
   useEffect(() => {
@@ -195,9 +206,6 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
   function trazo(): string {
     return cfg.curva.color || col('--cr-num') || temaRef.current.trazo;
   }
-  function objColor(): string {
-    return cfg.objeto.imagen_url ? '#fff' : (col('--cr-num') || temaRef.current.objeto);
-  }
   function faseColor(): string {
     const f = estadoRef.current.fase;
     return f === 'reventada' ? (col('--danger') || '#e0574f')
@@ -205,20 +213,25 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
       : trazo();
   }
 
-  function drawObjeto(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ang: number) {
-    ctx.save();
-    ctx.translate(x, y);
-    if (ang) ctx.rotate(ang);
-    const im = imgRef.current;
-    if (im && im.complete && im.naturalWidth) {
-      ctx.drawImage(im, -size / 2, -size / 2, size, size);
-    } else {
-      ctx.font = `${size}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(cfg.objeto.emojiFallback || '🚀', 0, size * 0.06);
-    }
-    ctx.restore();
+  // Base de rotación según cómo apunta el arte del objeto.
+  function noseBase(): number {
+    return cfgRef.current.objeto.apunta === 'derecha' ? 0 : -Math.PI / 2;
+  }
+  function giroExtra(): number {
+    return (cfgRef.current.objeto.giro || 0) * Math.PI / 180;
+  }
+
+  // Aplica la posición/rotación del objeto que vuela al overlay del
+  // DOM (imagen, emoji o Lottie) — así puede seguir la curva y no se
+  // ve estático.
+  function aplicarObjeto() {
+    const el = objRef.current;
+    if (!el) return;
+    const info = objInfoRef.current;
+    el.style.opacity = info.visible ? '1' : '0';
+    if (!info.visible) return;
+    const tam = cfgRef.current.objeto.tam;
+    el.style.transform = `translate3d(${(info.x - tam / 2).toFixed(1)}px, ${(info.y - tam / 2).toFixed(1)}px, 0) rotate(${info.rot.toFixed(3)}rad)`;
   }
 
   function dibujar() {
@@ -236,13 +249,16 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
       : (st.multiplicador || 1);
     const activo = st.fase !== 'inactiva';
 
+    objInfoRef.current.visible = false;
     if (c.curva.cuadricula && c.formato !== 'numero') drawGrid(ctx, w, h);
 
-    if (c.formato === 'cohete') return dibujarCohete(ctx, w, h, m, activo, st);
-    if (c.formato === 'numero') return dibujarNumero(ctx, w, h, m, st);
-    if (c.formato === 'medidor') return dibujarMedidor(ctx, w, h, m, st);
-    if (c.formato === 'odometro') return dibujarOdometro(ctx, w, h, m, st);
-    return dibujarCurva(ctx, w, h, m, activo, st);
+    if (c.formato === 'cohete') dibujarCohete(ctx, w, h, m, activo, st);
+    else if (c.formato === 'numero') dibujarNumero(ctx, w, h, m, st);
+    else if (c.formato === 'medidor') dibujarMedidor(ctx, w, h, m, st);
+    else if (c.formato === 'odometro') dibujarOdometro(ctx, w, h, m, st);
+    else dibujarCurva(ctx, w, h, m, activo, st);
+
+    aplicarObjeto();
   }
 
   function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -299,13 +315,15 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
     ctx.shadowBlur = 0;
 
     const tang = Math.atan2(tip[1] - prev[1], tip[0] - prev[0]);
-    const sz = c.objeto.tam * 0.5;
+    const seguir = c.objeto.seguir;
+    let ox = tip[0], oy = tip[1];
+    let rot = (seguir ? tang - noseBase() : 0) + giroExtra();
     if (st.fase === 'reventada') {
       const p = Math.min(1, (performance.now() - shakeRef.current) / 750);
-      drawObjeto(ctx, tip[0] + p * 110, tip[1] - p * 60 + p * p * 140, sz, p * 1.3);
-    } else {
-      drawObjeto(ctx, tip[0], tip[1], sz, cfg.objeto.imagen_url ? 0 : tang * 0.4);
+      ox += p * 120; oy += -p * 60 + p * p * 150;
+      rot += p * 1.4;
     }
+    objInfoRef.current = { x: ox, y: oy, rot, visible: true };
   }
 
   function dibujarCohete(ctx: CanvasRenderingContext2D, w: number, h: number, m: number, activo: boolean, st: EstadoCrash) {
@@ -328,13 +346,18 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
       ctx.fill();
     }
     if (!activo) return;
-    const sz = c.objeto.tam * 0.7;
+    const seguir = c.objeto.seguir;
+    // sube derecho: se lo deja "mirando arriba" con un vaivén suave
+    const base = seguir ? (-Math.PI / 2 - noseBase()) : 0;
+    const sway = seguir && st.fase === 'en_curso' && !reduce ? Math.sin(performance.now() / 380) * 0.07 : 0;
+    let ox = cx, oy = y;
+    let rot = base + sway + giroExtra();
     if (st.fase === 'reventada') {
       const p = Math.min(1, (performance.now() - shakeRef.current) / 750);
-      drawObjeto(ctx, cx + p * 90, y - p * 110, sz, p * 1.5);
-    } else {
-      drawObjeto(ctx, cx, y, sz, 0);
+      ox += p * 100; oy += -p * 120;
+      rot += p * 1.6;
     }
+    objInfoRef.current = { x: ox, y: oy, rot, visible: true };
   }
 
   function dibujarNumero(ctx: CanvasRenderingContext2D, w: number, h: number, _m: number, st: EstadoCrash) {
@@ -443,7 +466,24 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
 
   // ---------------- render ----------------
   const cohete = cfg.formato === 'cohete';
+  const conObjeto = cfg.formato === 'curva' || cfg.formato === 'cohete';
   const numTop = cohete ? Math.max(pos.multiplicador.y, 74) : pos.multiplicador.y;
+  const oTam = cfg.objeto.tam;
+  const objeto = conObjeto ? (
+    <div ref={objRef} aria-hidden style={{
+      position: 'absolute', left: 0, top: 0, width: oTam, height: oTam,
+      transformOrigin: 'center', willChange: 'transform', pointerEvents: 'none',
+      opacity: 0, transition: 'opacity .2s', zIndex: 5,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: oTam * 0.82, lineHeight: 1,
+    }}>
+      {cfg.objeto.lottie_url
+        ? <div ref={lottieMountRef} style={{ width: '100%', height: '100%' }} />
+        : cfg.objeto.imagen_url
+          ? <img src={cfg.objeto.imagen_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          : <span>{cfg.objeto.emojiFallback || '🚀'}</span>}
+    </div>
+  ) : null;
   const numeroBox = (
     <div className="cr-numwrap" data-fmt={cfg.formato} style={{
       position: 'absolute', left: `${pos.multiplicador.x}%`, top: `${numTop}%`,
@@ -495,7 +535,7 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
 
   return (
     <>
-      {createPortal(<canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />, escenario.grillaEl)}
+      {createPortal(<><canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />{objeto}</>, escenario.grillaEl)}
       {createPortal(<>{estilos}{deco}{numeroBox}</>, escenario.el)}
     </>
   );

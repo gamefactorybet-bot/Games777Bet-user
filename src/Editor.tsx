@@ -1523,8 +1523,28 @@ function SeccionCrash({ juego, onCampo }: {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <strong style={{ fontSize: 15 }}>El objeto que vuela</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Una imagen (avión, cohete, gallo, moneda…). Si no hay, se usa el emoji.</p>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          Prioridad: <b>animación Lottie</b> → imagen → emoji. Sigue la curva al subir (no queda estático).
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <label
+            title={cfg.objeto.lottie_url ? 'Cambiar · clic derecho para quitar' : 'Subir .json / .lottie'}
+            onContextMenu={(e) => { e.preventDefault(); if (cfg.objeto.lottie_url) setObjeto({ lottie_url: null }); }}
+            style={{
+              width: 56, height: 56, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+              border: `1px dashed ${cfg.objeto.lottie_url ? 'var(--accent)' : 'var(--border)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+              fontSize: 10, color: cfg.objeto.lottie_url ? 'var(--accent)' : 'var(--text-dim)', background: 'var(--bg)',
+            }}>
+            {cfg.objeto.lottie_url ? '✦ anim' : 'Lottie'}
+            <input type="file" accept=".json,.lottie" hidden onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              const url = await subirArchivo(f, `crash/${juego.id}`);
+              if (url) setObjeto({ lottie_url: url });
+            }} />
+          </label>
           <label
             title={cfg.objeto.imagen_url ? 'Cambiar · clic derecho para quitar' : 'Subir imagen'}
             onContextMenu={(e) => { e.preventDefault(); if (cfg.objeto.imagen_url) setObjeto({ imagen_url: null }); }}
@@ -1543,14 +1563,14 @@ function SeccionCrash({ juego, onCampo }: {
               if (url) setObjeto({ imagen_url: url });
             }} />
           </label>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-            <label>Emoji si no hay imagen
+          <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+            <label>Emoji si no hay nada
               <input type="text" maxLength={4} value={cfg.objeto.emojiFallback}
                 onChange={(e) => setObjeto({ emojiFallback: e.target.value })}
                 style={{ width: 56, marginLeft: 6 }} />
             </label>
             <label>Tamaño <b>{cfg.objeto.tam}px</b>
-              <input type="range" min={24} max={160} step={2} value={cfg.objeto.tam}
+              <input type="range" min={24} max={200} step={2} value={cfg.objeto.tam}
                 onChange={(e) => setObjeto({ tam: Number(e.target.value) })}
                 style={{ width: '100%' }} />
             </label>
@@ -1559,6 +1579,24 @@ function SeccionCrash({ juego, onCampo }: {
               Deja estela / humo
             </label>
           </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, fontSize: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={cfg.objeto.seguir} onChange={(e) => setObjeto({ seguir: e.target.checked })} />
+            <b>Rota para seguir la curva</b>
+          </label>
+          <label>El arte apunta hacia
+            <select value={cfg.objeto.apunta} onChange={(e) => setObjeto({ apunta: e.target.value === 'derecha' ? 'derecha' : 'arriba' })} style={{ marginLeft: 6 }}>
+              <option value="arriba">Arriba</option>
+              <option value="derecha">Derecha</option>
+            </select>
+          </label>
+          <label>Ajuste de giro <b>{cfg.objeto.giro}°</b>
+            <input type="range" min={-180} max={180} step={5} value={cfg.objeto.giro}
+              onChange={(e) => setObjeto({ giro: Number(e.target.value) })}
+              style={{ width: 100, marginLeft: 6, verticalAlign: 'middle' }} />
+          </label>
         </div>
       </div>
 

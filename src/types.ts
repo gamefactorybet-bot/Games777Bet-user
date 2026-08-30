@@ -520,7 +520,19 @@ export interface CrashCfg {
   formato: string;
   /** Id del tema visual (ver `src/juego/crash-temas.ts`). */
   tema: string;
-  objeto: { imagen_url: string | null; emojiFallback: string; tam: number; estela: boolean };
+  objeto: {
+    lottie_url: string | null;
+    imagen_url: string | null;
+    emojiFallback: string;
+    tam: number;
+    estela: boolean;
+    /** Rota para seguir la curva / la subida. */
+    seguir: boolean;
+    /** Orientación natural del arte. */
+    apunta: 'arriba' | 'derecha';
+    /** Ajuste fino de rotación, en grados. */
+    giro: number;
+  };
   curva: { color: string; grosor: number; relleno: boolean; glow: boolean; cuadricula: boolean };
   numero: { fuente: string; color: string | null; tam: number; efecto: string };
   fondoUrl: string | null;

@@ -21,7 +21,16 @@ export const CFG_DEFAULT = {
   // ---- cosmético ----
   formato: 'curva',   // curva | cohete | numero | medidor | odometro
   tema: 'clasico',
-  objeto: { imagen_url: null, emojiFallback: '🚀', tam: 64, estela: true },
+  objeto: {
+    lottie_url: null,       // animación Lottie (.json / .lottie) — gana sobre la imagen
+    imagen_url: null,       // imagen fija
+    emojiFallback: '🚀',    // si no hay ni animación ni imagen
+    tam: 64,
+    estela: true,
+    seguir: true,           // rota para seguir la curva / la subida
+    apunta: 'arriba',       // orientación natural del arte: 'arriba' | 'derecha'
+    giro: 0,                // ajuste fino de rotación, en grados
+  },
   curva: { color: '#e8b13d', grosor: 3, relleno: true, glow: true, cuadricula: true },
   numero: { fuente: 'display', color: null, tam: 1.0, efecto: 'pulso' },
   fondoUrl: null,
@@ -53,10 +62,14 @@ export function cfgConDefaults(cfg) {
     formato: str(c.formato, D.formato),
     tema: str(c.tema, D.tema),
     objeto: {
+      lottie_url: str(o.lottie_url, null),
       imagen_url: str(o.imagen_url, null),
       emojiFallback: str(o.emojiFallback, D.objeto.emojiFallback),
       tam: clamp(Math.round(num(o.tam, D.objeto.tam)), 16, 240),
       estela: o.estela !== false,
+      seguir: o.seguir !== false,
+      apunta: o.apunta === 'derecha' ? 'derecha' : 'arriba',
+      giro: clamp(num(o.giro, 0), -180, 180),
     },
     curva: {
       color: str(cu.color, D.curva.color),
