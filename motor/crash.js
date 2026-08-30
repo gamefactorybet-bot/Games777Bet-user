@@ -22,9 +22,10 @@ export const CFG_DEFAULT = {
   formato: 'curva',   // curva | cohete | numero | medidor | odometro
   tema: 'clasico',
   objeto: {
-    lottie_url: null,       // animación Lottie (.json / .lottie) — gana sobre la imagen
+    tipo: 'auto',          // auto | lottie | imagen | emoji — qué mostrar
+    lottie_url: null,       // animación Lottie (.json / .lottie)
     imagen_url: null,       // imagen fija
-    emojiFallback: '🚀',    // si no hay ni animación ni imagen
+    emojiFallback: '🚀',    // emoji
     tam: 64,
     estela: true,
     seguir: true,           // rota para seguir la curva / la subida
@@ -62,6 +63,7 @@ export function cfgConDefaults(cfg) {
     formato: str(c.formato, D.formato),
     tema: str(c.tema, D.tema),
     objeto: {
+      tipo: ['auto', 'lottie', 'imagen', 'emoji'].includes(o.tipo) ? o.tipo : 'auto',
       lottie_url: str(o.lottie_url, null),
       imagen_url: str(o.imagen_url, null),
       emojiFallback: str(o.emojiFallback, D.objeto.emojiFallback),

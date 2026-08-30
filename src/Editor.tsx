@@ -1528,9 +1528,15 @@ function SeccionCrash({ juego, onCampo }: {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <strong style={{ fontSize: 15 }}>El objeto que vuela</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>
-          Prioridad: <b>animación Lottie</b> → imagen → emoji. Sigue la curva al subir (no queda estático).
+        <p className="hint" style={{ marginBottom: 10 }}>
+          No hace falta ningún "símbolo": sube lo que quieras acá. Sigue la curva al subir.
         </p>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          {([['auto', 'Automático'], ['lottie', 'Solo Lottie'], ['imagen', 'Solo imagen'], ['emoji', 'Solo emoji']] as const).map(([v, et]) => (
+            <button key={v} onClick={() => setObjeto({ tipo: v })}
+              className={cfg.objeto.tipo === v ? 'primary' : undefined} style={{ fontSize: 12 }}>{et}</button>
+          ))}
+        </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <label
             title={cfg.objeto.lottie_url ? 'Cambiar · clic derecho para quitar' : 'Subir .json / .lottie'}

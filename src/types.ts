@@ -521,6 +521,8 @@ export interface CrashCfg {
   /** Id del tema visual (ver `src/juego/crash-temas.ts`). */
   tema: string;
   objeto: {
+    /** Qué se muestra: 'auto' = lottie → imagen → emoji. */
+    tipo: 'auto' | 'lottie' | 'imagen' | 'emoji';
     lottie_url: string | null;
     imagen_url: string | null;
     emojiFallback: string;

@@ -71,19 +71,24 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
   }, [tema, escenario]);
 
   // ---- imagen del objeto que vuela ----
-  // ---- animación Lottie del objeto (gana sobre la imagen) ----
+  // Qué contenido usa el objeto: 'auto' resuelve lottie → imagen → emoji.
+  const objModo = cfg.objeto.tipo === 'auto'
+    ? (cfg.objeto.lottie_url ? 'lottie' : cfg.objeto.imagen_url ? 'imagen' : 'emoji')
+    : cfg.objeto.tipo;
+
+  // ---- animación Lottie del objeto ----
   useEffect(() => {
     lottieOffRef.current?.();
     lottieOffRef.current = null;
     const cont = lottieMountRef.current;
-    if (!cfg.objeto.lottie_url || !cont) return;
+    if (objModo !== 'lottie' || !cfg.objeto.lottie_url || !cont) return;
     let vivo = true;
     montarLottieEn(cont, cfg.objeto.lottie_url, { loop: true }).then((off) => {
       if (vivo) lottieOffRef.current = off;
       else off();
     });
     return () => { vivo = false; lottieOffRef.current?.(); lottieOffRef.current = null; };
-  }, [cfg.objeto.lottie_url, cfg.formato]);
+  }, [cfg.objeto.lottie_url, cfg.formato, objModo]);
 
   // ---- tamaño del canvas ----
   useEffect(() => {
@@ -477,9 +482,9 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: oTam * 0.82, lineHeight: 1,
     }}>
-      {cfg.objeto.lottie_url
+      {objModo === 'lottie' && cfg.objeto.lottie_url
         ? <div ref={lottieMountRef} style={{ width: '100%', height: '100%' }} />
-        : cfg.objeto.imagen_url
+        : objModo === 'imagen' && cfg.objeto.imagen_url
           ? <img src={cfg.objeto.imagen_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           : <span>{cfg.objeto.emojiFallback || '🚀'}</span>}
     </div>
