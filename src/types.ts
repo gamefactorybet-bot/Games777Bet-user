@@ -448,6 +448,8 @@ export interface RuletaBotonesCfg {
   tema: string;
   /** Grosor (px) del borde de color de cada botón. 0 = sin borde. */
   bordeGrosor: number;
+  /** Imagen de fondo compartida por los 9 botones. `null` = sin fondo. */
+  botonFondo: string | null;
 }
 
 /** Estado resuelto de un giro de la ruleta de botones. */

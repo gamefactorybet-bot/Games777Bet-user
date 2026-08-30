@@ -1218,6 +1218,33 @@ function SeccionRuletaBotones({ juego, onCampo }: {
             onChange={(e) => guardar({ ...cfg, bordeGrosor: Number(e.target.value) })}
             style={{ width: '100%' }} />
         </div>
+
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <label
+            title={cfg.botonFondo ? 'Cambiar fondo · clic derecho para quitar' : 'Subir imagen de fondo para los botones'}
+            onContextMenu={(e) => { e.preventDefault(); if (cfg.botonFondo) guardar({ ...cfg, botonFondo: null }); }}
+            style={{
+              width: 60, height: 44, flexShrink: 0, borderRadius: 8, cursor: 'pointer', overflow: 'hidden',
+              border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: 'var(--text-dim)',
+              background: cfg.botonFondo ? `center/cover no-repeat var(--bg) url("${cfg.botonFondo}")` : 'var(--bg)',
+            }}>
+            {!cfg.botonFondo && '+'}
+            <input type="file" accept="image/*" hidden onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              const url = await subirArchivo(f, `ruleta/${juego.id}`);
+              if (url) guardar({ ...cfg, botonFondo: url });
+            }} />
+          </label>
+          <div>
+            <label style={{ fontSize: 12, display: 'block', fontWeight: 600 }}>Imagen de fondo de los botones</label>
+            <span className="hint" style={{ margin: 0 }}>
+              Una sola para los 9 botones. Encima quedan el borde de color, la imagen del número y el ×N (se les agrega sombra para que se lean).
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

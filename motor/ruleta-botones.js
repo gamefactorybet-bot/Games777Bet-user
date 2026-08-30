@@ -50,6 +50,8 @@ export const CFG_DEFAULT = {
   tema: 'clasico', // solo cosmético (ver src/juego/ruleta-temas.ts)
   // Grosor (px) del borde de color que rodea cada botón. 0 = sin borde.
   bordeGrosor: 3,
+  // Imagen de fondo compartida por los 9 botones. null = sin fondo.
+  botonFondo: null,
 };
 
 /** Une la config guardada (jsonb del juego) con los valores por
@@ -69,6 +71,7 @@ export function cfgConDefaults(cfg) {
     bordeGrosor: Number.isFinite(Number(c.bordeGrosor))
       ? Math.max(0, Math.min(12, Math.round(Number(c.bordeGrosor))))
       : CFG_DEFAULT.bordeGrosor,
+    botonFondo: typeof c.botonFondo === 'string' && c.botonFondo ? c.botonFondo : null,
   };
 }
 

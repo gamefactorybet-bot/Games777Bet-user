@@ -71,6 +71,7 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
   // posición en la paleta del tema (si no hay, queda el color propio).
   const colorNum = (i: number) => (tema.seg && tema.seg[i]) || numeros[i]?.color || 'var(--border)';
   const grosor = Math.max(0, Math.round(Number(cfg.bordeGrosor ?? 3)));
+  const skin = cfg.botonFondo || null;
   const slotsPintados = useMemo(() => {
     const seg = tema.seg;
     if (!seg) return slots;
@@ -206,30 +207,43 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
                 borderWidth: esSorp ? Math.max(grosor, 2) : grosor,
                 borderColor: esSorp ? 'var(--rb-gold, #f0c040)' : colorNum(i),
                 boxShadow: 'inset 0 0 0 1px var(--border)',
-                background: esSorp ? 'var(--rb-gold-soft, rgba(240,192,64,.14))' : 'var(--rb-btn-bg, var(--surface-alt))',
+                background: skin
+                  ? `center/cover no-repeat url("${skin}")`
+                  : (esSorp ? 'var(--rb-gold-soft, rgba(240,192,64,.14))' : 'var(--rb-btn-bg, var(--surface-alt))'),
                 outline: gana ? '2px solid var(--ok)' : 'none', outlineOffset: -2,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
               }}>
+              {skin && (
+                <span style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none',
+                  background: esSorp ? 'rgba(240,192,64,.22)' : 'linear-gradient(rgba(0,0,0,.06), rgba(0,0,0,.38))',
+                }} />
+              )}
               {esSorp && (
                 <span style={{
-                  position: 'absolute', top: 3, right: 3, fontSize: 9, fontWeight: 800,
+                  position: 'absolute', top: 3, right: 3, zIndex: 2, fontSize: 9, fontWeight: 800,
                   color: '#1a1400', background: 'var(--rb-gold, #f0c040)', borderRadius: 999, padding: '1px 5px',
                 }}>×{sorp!.mult}</span>
               )}
-              {n.img && (
-                <span style={{
-                  width: 20, height: 20, flexShrink: 0, borderRadius: 5,
-                  backgroundImage: `url("${n.img}")`, backgroundSize: 'contain',
-                  backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
-                }} />
-              )}
-              <span style={{ fontSize: n.img ? 15 : 18, fontWeight: 800, fontFamily: 'var(--rb-font-display, inherit)', lineHeight: 1 }}>{n.et}</span>
-              {monto > 0
-                ? <>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-text, #fff)', background: 'var(--accent)', borderRadius: 999, padding: '0 6px' }}>{cnt} · {fmt(monto)}</span>
-                    <span style={{ fontSize: 9.5, color: 'var(--ok)' }}>→ {fmt(monto * n.mult * (esSorp ? sorp!.mult : 1))}</span>
-                  </>
-                : <span className="hint" style={{ margin: 0, fontSize: 9 }}>tocá</span>}
+              <span style={{
+                position: 'absolute', inset: 0, zIndex: 1, padding: 4,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                textShadow: skin ? '0 1px 3px rgba(0,0,0,.65)' : 'none',
+              }}>
+                {n.img && (
+                  <span style={{
+                    width: 20, height: 20, flexShrink: 0, borderRadius: 5,
+                    backgroundImage: `url("${n.img}")`, backgroundSize: 'contain',
+                    backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                  }} />
+                )}
+                <span style={{ fontSize: n.img ? 15 : 18, fontWeight: 800, fontFamily: 'var(--rb-font-display, inherit)', lineHeight: 1 }}>{n.et}</span>
+                {monto > 0
+                  ? <>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-text, #fff)', background: 'var(--accent)', borderRadius: 999, padding: '0 6px' }}>{cnt} · {fmt(monto)}</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: skin ? '#8affc8' : 'var(--ok)' }}>→ {fmt(monto * n.mult * (esSorp ? sorp!.mult : 1))}</span>
+                    </>
+                  : <span className="hint" style={{ margin: 0, fontSize: 9, color: skin ? 'rgba(255,255,255,.82)' : undefined }}>tocá</span>}
+              </span>
             </div>
           );
         })}
