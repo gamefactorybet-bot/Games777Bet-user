@@ -3,11 +3,17 @@ import type { RuletaSlot } from './types.ts';
 import type { TemaRuletaWheel } from './juego/ruleta-temas.ts';
 
 const TAU = Math.PI * 2;
+const SIZE = 600;        // resolución del bitmap
+const R = SIZE / 2;
 
 // La rueda en canvas. Tajadas iguales; el puntero apunta arriba. Cuando
 // `objetivo` pasa de null a un índice, gira hasta dejar esa tajada bajo
 // el puntero y avisa por `onLlegada`. El resultado lo decide siempre
 // quien pasa el `objetivo` (servidor o motor local), nunca la animación.
+//
+// La rueda estática (tajadas + texto + imágenes) se dibuja una sola vez
+// en un canvas fuera de pantalla; cada cuadro de la animación es un
+// único `drawImage` rotado, así el giro va fluido también en el celular.
 export function Ruleta({ slots, objetivo, onLlegada, tema }: {
   slots: RuletaSlot[];
   objetivo: number | null;
@@ -16,6 +22,7 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
   tema?: TemaRuletaWheel;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const offRef = useRef<HTMLCanvasElement | null>(null);
   const rotRef = useRef(0);
   const rafRef = useRef(0);
   const ganadoraRef = useRef<number | null>(null);
@@ -28,21 +35,54 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
   const reduce = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const dibujar = () => {
+  // Compone el bitmap ya dibujado sobre el canvas visible, con la
+  // rotación actual y (al final) el resaltado de la tajada ganadora.
+  const pintar = () => {
     const cv = canvasRef.current;
+    const off = offRef.current;
     const ctx = cv?.getContext('2d');
-    if (!cv || !ctx) return;
-    const W = cv.width;
-    const R = W / 2;
-    ctx.clearRect(0, 0, W, W);
+    if (!cv || !ctx || !off) return;
+    ctx.clearRect(0, 0, SIZE, SIZE);
     ctx.save();
     ctx.translate(R, R);
     ctx.rotate(rotRef.current);
+    ctx.drawImage(off, -R, -R);
+    const g = ganadoraRef.current;
+    if (g != null) {
+      const n = slotsRef.current.length || 1;
+      const slice = TAU / n;
+      const a0 = -Math.PI / 2 - slice / 2 + g * slice;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, R - 6, a0, a0 + slice);
+      ctx.closePath();
+      ctx.fillStyle = temaRef.current?.winner || 'rgba(255,255,255,.28)';
+      ctx.fill();
+    }
+    ctx.restore();
+  };
+
+  // Redibuja la rueda estática en el canvas fuera de pantalla. Es lo
+  // caro: solo corre al cambiar tajadas/tema o al cargar una imagen.
+  const rehacerRueda = () => {
+    let off = offRef.current;
+    if (!off) {
+      off = document.createElement('canvas');
+      off.width = SIZE;
+      off.height = SIZE;
+      offRef.current = off;
+    }
+    const ctx = off.getContext('2d');
+    if (!ctx) return;
 
     const arr = slotsRef.current;
     const n = arr.length || 1;
     const slice = TAU / n;
     const ang0 = -Math.PI / 2 - slice / 2;
+
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.save();
+    ctx.translate(R, R);
 
     for (let i = 0; i < arr.length; i++) {
       const s = arr[i];
@@ -53,10 +93,6 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
       ctx.closePath();
       ctx.fillStyle = s.color || '#2a2f38';
       ctx.fill();
-      if (i === ganadoraRef.current) {
-        ctx.fillStyle = temaRef.current?.winner || 'rgba(255,255,255,.28)';
-        ctx.fill();
-      }
       ctx.strokeStyle = 'rgba(12,14,18,.5)';
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -64,16 +100,12 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
       ctx.save();
       ctx.rotate(a0 + slice / 2 + Math.PI / 2);
 
-      // Imagen del multiplicador (si hay y ya cargó), hacia el borde.
       const im = s.img ? imgRef.current.get(s.img) : null;
       if (im && im.complete && im.naturalWidth) {
         const sz = n > 44 ? 13 : n > 26 ? 18 : 26;
-        ctx.shadowBlur = 0;
         ctx.drawImage(im, -sz / 2, -(R * 0.68) - sz / 2, sz, sz);
       }
 
-      // Con imagen el número se corre casi al borde (la parte más ancha
-      // de la tajada); sin imagen queda donde estaba siempre.
       ctx.translate(0, -(R * (im ? 0.88 : 0.72)));
       ctx.fillStyle = '#fff';
       ctx.font = im
@@ -93,16 +125,18 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
     ctx.lineWidth = 6;
     ctx.stroke();
     ctx.restore();
+
+    pintar();
   };
 
-  // Precargar las imágenes de las tajadas; redibujar a medida que caen.
+  // Precargar las imágenes de las tajadas; rehacer la rueda al caer.
   useEffect(() => {
     const cache = imgRef.current;
     let vivo = true;
     for (const s of slots) {
       if (!s.img || cache.has(s.img)) continue;
       const im = new Image();
-      im.onload = () => { if (vivo) dibujar(); };
+      im.onload = () => { if (vivo) rehacerRueda(); };
       im.onerror = () => {};
       im.src = s.img;
       cache.set(s.img, im);
@@ -111,10 +145,10 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots]);
 
-  // Redibujar cuando cambian las tajadas (editor en vivo) o el tema.
+  // Rehacer la rueda cuando cambian las tajadas (editor en vivo) o el tema.
   useEffect(() => {
     ganadoraRef.current = null;
-    dibujar();
+    rehacerRueda();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots, tema]);
 
@@ -124,26 +158,28 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
     const n = slots.length;
     const slice = TAU / n;
     const mid = objetivo * slice;
-    const jitter = (Math.random() - 0.5) * slice * 0.6;
+    const jitter = (Math.random() - 0.5) * slice * 0.45;
     const vueltas = reduce ? 1 : 6;
     let target = rotRef.current - (((rotRef.current % TAU) + TAU) % TAU) - mid - jitter + TAU * vueltas;
     while (target <= rotRef.current + TAU * (vueltas - 1)) target += TAU;
 
     const desde = rotRef.current;
-    const dur = reduce ? 320 : 4200;
+    const dur = reduce ? 340 : 4800;
     const ini = performance.now();
     ganadoraRef.current = null;
 
     const paso = (now: number) => {
       const p = Math.min(1, (now - ini) / dur);
-      const e = 1 - Math.pow(1 - p, 3);
+      // Ease-out suave: arranca rápido y la última porción se arrastra
+      // despacio (sin llegar a congelarse) para dar suspenso.
+      const e = 1 - Math.pow(1 - p, 2.6);
       rotRef.current = desde + (target - desde) * e;
-      dibujar();
+      pintar();
       if (p < 1) {
         rafRef.current = requestAnimationFrame(paso);
       } else {
         ganadoraRef.current = objetivo;
-        dibujar();
+        pintar();
         onLlegada?.();
       }
     };
@@ -166,7 +202,7 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
         border: tema ? `5px solid ${tema.border}` : undefined,
         boxShadow: tema?.glow && tema.glow !== 'none' ? tema.glow : undefined,
       }}>
-        <canvas ref={canvasRef} width={600} height={600} style={{ width: '100%', display: 'block', borderRadius: '50%' }} />
+        <canvas ref={canvasRef} width={SIZE} height={SIZE} style={{ width: '100%', display: 'block', borderRadius: '50%' }} />
       </div>
       {conHub && (
         <div style={{
