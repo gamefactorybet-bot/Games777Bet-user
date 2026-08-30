@@ -57,6 +57,9 @@ export interface Juego {
   /** Ruleta de botones: toda su config (números, fichas, sorpresa). */
   ruleta_botones_cfg?: Partial<RuletaBotonesCfg>;
 
+  /** Crash: toda su config (rtp, velocidad, formato, tema, imágenes…). */
+  crash_cfg?: Partial<CrashCfg>;
+
   created_at?: string;
   updated_at?: string;
 
@@ -487,6 +490,84 @@ export interface ResultadoRuletaBotones {
   resultado: ResueltoBotones;
   premio: number;
   saldo: number;
+  repetido?: boolean;
+}
+
+// ---------------- Crash ----------------
+
+/** Un punto posicionable de la mesa del Crash (% de la pantalla). */
+export interface PuntoCrash { x: number; y: number; }
+
+/** Posición y tamaño de los controles visibles del Crash. */
+export interface PosControlesCrash {
+  multiplicador: PuntoCrash;
+  historial: PuntoCrash;
+  saldo: PuntoCrash;
+  auto: PuntoCrash;
+  apuesta: PuntoCrash;
+  boton: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };
+}
+
+export interface CrashCfg {
+  /** 0.5–0.999. Única perilla de retorno; 1-rtp = prob. de reventón instantáneo. */
+  rtp: number;
+  /** Qué tan rápido sube el multiplicador (×2 a los ~5s con 1.0). */
+  velocidad: number;
+  /** Multiplicador máximo; llegar ahí termina la ronda. */
+  tope: number;
+  auto: { permitir: boolean; valorDefecto: number; min: number; max: number };
+  /** curva | cohete | numero | medidor | odometro */
+  formato: string;
+  /** Id del tema visual (ver `src/juego/crash-temas.ts`). */
+  tema: string;
+  objeto: { imagen_url: string | null; emojiFallback: string; tam: number; estela: boolean };
+  curva: { color: string; grosor: number; relleno: boolean; glow: boolean; cuadricula: boolean };
+  numero: { fuente: string; color: string | null; tam: number; efecto: string };
+  fondoUrl: string | null;
+  historial: { mostrar: boolean; cantidad: number };
+  controles: Partial<PosControlesCrash>;
+}
+
+export type FaseCrash = 'inactiva' | 'en_curso' | 'retirada' | 'reventada';
+
+/** Estado visible de una ronda de Crash, común a preview y pantalla real. */
+export interface EstadoCrash {
+  fase: FaseCrash;
+  apuesta: number;
+  saldo: number;
+  /** El multiplicador que se muestra ahora. */
+  multiplicador: number;
+  roundId: string | null;
+  /** ms epoch del arranque, en el reloj del servidor (+ offset local). */
+  inicioTs: number | null;
+  /** Dónde reventó (se conoce recién al terminar la ronda). */
+  reventadoEn: number | null;
+  ganancia: number | null;
+  autoActivo: boolean;
+  autoObjetivo: number;
+  cargando: boolean;
+  error: string | null;
+  /** Últimos reventones, más nuevo primero. */
+  historial: number[];
+}
+
+/** Respuesta de `POST /api/crash-iniciar`. */
+export interface RondaCrash {
+  roundId: string;
+  /** ms epoch del servidor al responder (para calcular el offset de reloj). */
+  servidorTs: number;
+  /** ms epoch del arranque de la ronda (reloj del servidor). */
+  inicioTs: number;
+  saldo: number;
+  yaExistia?: boolean;
+}
+
+/** Respuesta de `POST /api/crash-retirar` y `/api/crash-cerrar`. */
+export interface RetiroCrash {
+  multiplicador: number;
+  ganancia: number;
+  reventadoEn: number;
+  saldo: number | null;
   repetido?: boolean;
 }
 
