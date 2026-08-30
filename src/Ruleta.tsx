@@ -6,20 +6,34 @@ const TAU = Math.PI * 2;
 const SIZE = 600;        // resolución del bitmap
 const R = SIZE / 2;
 
-// La rueda en canvas. Tajadas iguales; el puntero apunta arriba. Cuando
-// `objetivo` pasa de null a un índice, gira hasta dejar esa tajada bajo
-// el puntero y avisa por `onLlegada`. El resultado lo decide siempre
-// quien pasa el `objetivo` (servidor o motor local), nunca la animación.
+// Giro libre (rad/ms) mientras se espera el resultado, y curva de frenado.
+const OMEGA = 0.0113;     // ≈ 1.8 vueltas/seg
+const OMEGA_RED = 0.006;
+const MIN_LIBRE = 1400;   // ms mínimos de giro rápido antes de frenar
+const K_FRENO = 2.8;      // ease-out del frenado (más alto = cola más lenta)
+const VUELTAS_FRENO = 2.1; // vueltas mínimas durante el frenado
+
+type Fase = 'idle' | 'libre' | 'frenando' | 'abortando';
+
+// La rueda en canvas. El puntero apunta arriba.
 //
-// La rueda estática (tajadas + texto + imágenes) se dibuja una sola vez
-// en un canvas fuera de pantalla; cada cuadro de la animación es un
-// único `drawImage` rotado, así el giro va fluido también en el celular.
-export function Ruleta({ slots, objetivo, onLlegada, tema }: {
+// - `girando` pasa a true al tocar "Girar": la rueda arranca YA a girar
+//   libre y rápido, sin esperar la respuesta del servidor.
+// - cuando llega `objetivo` (el índice ganador que decide el servidor o
+//   el motor local), engancha un frenado suave que la deja bajo el
+//   puntero y avisa por `onLlegada`.
+//
+// La rueda estática (tajadas + texto + imágenes) se rasteriza una sola
+// vez en un canvas fuera de pantalla; cada cuadro es un `drawImage`
+// rotado, así el giro va fluido también en el celular.
+export function Ruleta({ slots, objetivo, onLlegada, tema, girando = false }: {
   slots: RuletaSlot[];
   objetivo: number | null;
   onLlegada?: () => void;
   /** Estética de la rueda (colores del puntero, aro, cubo, glow). */
   tema?: TemaRuletaWheel;
+  /** true desde que se toca "Girar" hasta que termina la ronda. */
+  girando?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offRef = useRef<HTMLCanvasElement | null>(null);
@@ -30,13 +44,26 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
   slotsRef.current = slots;
   const temaRef = useRef(tema);
   temaRef.current = tema;
+  const objetivoRef = useRef(objetivo);
+  objetivoRef.current = objetivo;
+  const onLlegadaRef = useRef(onLlegada);
+  onLlegadaRef.current = onLlegada;
   const imgRef = useRef<Map<string, HTMLImageElement>>(new Map());
+
+  const faseRef = useRef<Fase>('idle');
+  const corriendoRef = useRef(false);
+  const lastRef = useRef(0);
+  const tLibreRef = useRef(0);
+  const jitterRef = useRef(0);
+  const frenoRef = useRef({ r0: 0, target: 0, t0: 0, dur: 1, k: K_FRENO });
+  const abortRef = useRef(0);
 
   const reduce = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const omega = reduce ? OMEGA_RED : OMEGA;
 
-  // Compone el bitmap ya dibujado sobre el canvas visible, con la
-  // rotación actual y (al final) el resaltado de la tajada ganadora.
+  // Compone el bitmap sobre el canvas visible con la rotación actual y
+  // (al terminar) el resaltado de la tajada ganadora.
   const pintar = () => {
     const cv = canvasRef.current;
     const off = offRef.current;
@@ -129,6 +156,125 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
     pintar();
   };
 
+  // Calcula el frenado: engancha con la velocidad del giro libre (sin
+  // tirón) y decelera hasta dejar `obj` bajo el puntero.
+  const arrancarFreno = (obj: number, now: number) => {
+    const n = slotsRef.current.length || 1;
+    const slice = TAU / n;
+    const r0 = rotRef.current;
+    const modR = ((r0 % TAU) + TAU) % TAU;
+    const k = reduce ? 1.6 : K_FRENO;
+    const minV = reduce ? 0.12 : VUELTAS_FRENO;
+    let target = r0 - modR - obj * slice - jitterRef.current;
+    while (target < r0 + TAU * minV) target += TAU;
+    const dur = Math.max(200, ((target - r0) * k) / omega);
+    frenoRef.current = { r0, target, t0: now, dur, k };
+    faseRef.current = 'frenando';
+  };
+
+  const bucle = (now: number) => {
+    const dt = Math.min(48, now - (lastRef.current || now));
+    lastRef.current = now;
+    const f = faseRef.current;
+
+    if (f === 'libre') {
+      rotRef.current += omega * dt;
+      const obj = objetivoRef.current;
+      if (obj != null && now - tLibreRef.current >= MIN_LIBRE) arrancarFreno(obj, now);
+    } else if (f === 'frenando') {
+      const { r0, target, t0, dur, k } = frenoRef.current;
+      const p = Math.min(1, (now - t0) / dur);
+      rotRef.current = r0 + (target - r0) * (1 - Math.pow(1 - p, k));
+      if (p >= 1) {
+        faseRef.current = 'idle';
+        corriendoRef.current = false;
+        ganadoraRef.current = objetivoRef.current;
+        pintar();
+        onLlegadaRef.current?.();
+        return;
+      }
+    } else if (f === 'abortando') {
+      const p = Math.min(1, (now - abortRef.current) / 600);
+      rotRef.current += omega * (1 - p) * dt;
+      if (p >= 1) {
+        faseRef.current = 'idle';
+        corriendoRef.current = false;
+        pintar();
+        return;
+      }
+    } else {
+      corriendoRef.current = false;
+      return;
+    }
+
+    pintar();
+    rafRef.current = requestAnimationFrame(bucle);
+  };
+
+  const asegurarBucle = () => {
+    if (corriendoRef.current) return;
+    corriendoRef.current = true;
+    lastRef.current = 0;
+    rafRef.current = requestAnimationFrame(bucle);
+  };
+
+  // Cancelar todo al desmontar.
+  useEffect(() => () => {
+    cancelAnimationFrame(rafRef.current);
+    faseRef.current = 'idle';
+    corriendoRef.current = false;
+  }, []);
+
+  // Arranque instantáneo del giro libre al tocar "Girar"; aborto si la
+  // ronda se cae antes de tener resultado.
+  useEffect(() => {
+    if (girando && !reduce && faseRef.current === 'idle') {
+      const n = slotsRef.current.length || 1;
+      jitterRef.current = (Math.random() - 0.5) * (TAU / n) * 0.4;
+      ganadoraRef.current = null;
+      tLibreRef.current = performance.now();
+      faseRef.current = 'libre';
+      asegurarBucle();
+    } else if (!girando && faseRef.current === 'libre' && objetivoRef.current == null) {
+      abortRef.current = performance.now();
+      faseRef.current = 'abortando';
+      asegurarBucle();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [girando]);
+
+  // Fallback: si el llamador no pasa `girando`, girar desde parado al
+  // llegar el objetivo (o el camino de movimiento reducido).
+  useEffect(() => {
+    if (objetivo == null || !slotsRef.current.length || faseRef.current !== 'idle') return;
+    const n = slotsRef.current.length;
+    const slice = TAU / n;
+    const r0 = rotRef.current;
+    const jitter = (Math.random() - 0.5) * slice * 0.4;
+    const vueltas = reduce ? 1 : 6;
+    let target = r0 - (((r0 % TAU) + TAU) % TAU) - objetivo * slice - jitter + TAU * vueltas;
+    while (target <= r0 + TAU * (vueltas - 1)) target += TAU;
+    const dur = reduce ? 340 : 4800;
+    const ini = performance.now();
+    ganadoraRef.current = null;
+    let id = 0;
+    const paso = (now: number) => {
+      const p = Math.min(1, (now - ini) / dur);
+      rotRef.current = r0 + (target - r0) * (1 - Math.pow(1 - p, 2.6));
+      pintar();
+      if (p < 1) {
+        id = requestAnimationFrame(paso);
+      } else {
+        ganadoraRef.current = objetivo;
+        pintar();
+        onLlegadaRef.current?.();
+      }
+    };
+    id = requestAnimationFrame(paso);
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objetivo]);
+
   // Precargar las imágenes de las tajadas; rehacer la rueda al caer.
   useEffect(() => {
     const cache = imgRef.current;
@@ -147,46 +293,10 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
 
   // Rehacer la rueda cuando cambian las tajadas (editor en vivo) o el tema.
   useEffect(() => {
-    ganadoraRef.current = null;
+    if (faseRef.current === 'idle') ganadoraRef.current = null;
     rehacerRueda();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots, tema]);
-
-  // Girar hasta el objetivo.
-  useEffect(() => {
-    if (objetivo == null || !slots.length) return;
-    const n = slots.length;
-    const slice = TAU / n;
-    const mid = objetivo * slice;
-    const jitter = (Math.random() - 0.5) * slice * 0.45;
-    const vueltas = reduce ? 1 : 6;
-    let target = rotRef.current - (((rotRef.current % TAU) + TAU) % TAU) - mid - jitter + TAU * vueltas;
-    while (target <= rotRef.current + TAU * (vueltas - 1)) target += TAU;
-
-    const desde = rotRef.current;
-    const dur = reduce ? 340 : 4800;
-    const ini = performance.now();
-    ganadoraRef.current = null;
-
-    const paso = (now: number) => {
-      const p = Math.min(1, (now - ini) / dur);
-      // Ease-out suave: arranca rápido y la última porción se arrastra
-      // despacio (sin llegar a congelarse) para dar suspenso.
-      const e = 1 - Math.pow(1 - p, 2.6);
-      rotRef.current = desde + (target - desde) * e;
-      pintar();
-      if (p < 1) {
-        rafRef.current = requestAnimationFrame(paso);
-      } else {
-        ganadoraRef.current = objetivo;
-        pintar();
-        onLlegada?.();
-      }
-    };
-    rafRef.current = requestAnimationFrame(paso);
-    return () => cancelAnimationFrame(rafRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objetivo]);
 
   const conHub = !!tema && tema.hub !== 'transparent';
 

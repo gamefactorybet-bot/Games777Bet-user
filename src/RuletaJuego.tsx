@@ -29,6 +29,7 @@ interface RuletaJuegoProps {
 export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps) {
   const [slots, setSlots] = useState<RuletaSlot[]>(() => slotsDe(simbolos));
   const [objetivo, setObjetivo] = useState<number | null>(null);
+  const [spinning, setSpinning] = useState(false);
   const [resultado, setResultado] = useState('');
   const pendiente = useRef<ResueltoRuleta | null>(null);
   const resolverRef = useRef(resolver);
@@ -48,6 +49,7 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
       esc.girando = true;
       esc.btnGirar.disabled = true;
       esc.ocultarPremio();
+      setSpinning(true);
       setResultado('');
       if (esc.audios.giro) { esc.audios.giro.currentTime = 0; esc.audios.giro.play().catch(() => {}); }
       if (esc.audios.musica_fondo?.paused) esc.audios.musica_fondo.play().catch(() => {});
@@ -60,6 +62,7 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
       } catch (err) {
         esc.girando = false;
         esc.btnGirar.disabled = false;
+        setSpinning(false);
         setResultado((err as Error).message || 'No se pudo resolver el giro.');
       }
     };
@@ -70,6 +73,7 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
   const alLlegar = () => {
     const r = pendiente.current;
     setObjetivo(null);
+    setSpinning(false);
     if (!r) return;
     const apuesta = escenario.apuesta;
     escenario.saldo = r.saldo;
@@ -90,7 +94,7 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
 
   return (
     <>
-      {createPortal(<Ruleta slots={slots} objetivo={objetivo} onLlegada={alLlegar} />, escenario.grillaEl)}
+      {createPortal(<Ruleta slots={slots} objetivo={objetivo} onLlegada={alLlegar} girando={spinning} />, escenario.grillaEl)}
       {createPortal(
         <p style={{
           position: 'absolute', left: '50%', bottom: '13%', transform: 'translateX(-50%)',

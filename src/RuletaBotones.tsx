@@ -312,7 +312,7 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
         escenario.el,
       )}
       {createPortal(
-        <Ruleta slots={slotsPintados} objetivo={objetivo} onLlegada={alLlegar}
+        <Ruleta slots={slotsPintados} objetivo={objetivo} onLlegada={alLlegar} girando={girando}
           tema={tema.id === 'clasico' ? undefined : tema.wheel} />,
         escenario.grillaEl,
       )}
