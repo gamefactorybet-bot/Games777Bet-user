@@ -407,6 +407,7 @@ export interface RuletaSlot {
   et: string;
   mult: number;
   color: string | null;
+  img?: string | null;
 }
 
 /** Respuesta de `/api/jugar-girar` cuando el motor es `ruleta`. La
@@ -428,6 +429,8 @@ export interface NumeroRuleta {
   cant: number;
   color: string;
   et: string;
+  /** Imagen del multiplicador (botón + tajada). Opcional. */
+  img?: string | null;
 }
 export interface SorpresaPoolItem { mult: number; peso: number; }
 export interface SorpresaCfg {
@@ -443,6 +446,8 @@ export interface RuletaBotonesCfg {
   sorpresa: SorpresaCfg;
   /** Id del tema visual (ver `src/juego/ruleta-temas.ts`). */
   tema: string;
+  /** Grosor (px) del borde de color de cada botón. 0 = sin borde. */
+  bordeGrosor: number;
 }
 
 /** Estado resuelto de un giro de la ruleta de botones. */

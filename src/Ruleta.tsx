@@ -23,6 +23,7 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
   slotsRef.current = slots;
   const temaRef = useRef(tema);
   temaRef.current = tema;
+  const imgRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   const reduce = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -62,9 +63,22 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
 
       ctx.save();
       ctx.rotate(a0 + slice / 2 + Math.PI / 2);
-      ctx.translate(0, -(R * 0.72));
+
+      // Imagen del multiplicador (si hay y ya cargó), hacia el borde.
+      const im = s.img ? imgRef.current.get(s.img) : null;
+      if (im && im.complete && im.naturalWidth) {
+        const sz = n > 44 ? 13 : n > 26 ? 18 : 26;
+        ctx.shadowBlur = 0;
+        ctx.drawImage(im, -sz / 2, -(R * 0.68) - sz / 2, sz, sz);
+      }
+
+      // Con imagen el número se corre casi al borde (la parte más ancha
+      // de la tajada); sin imagen queda donde estaba siempre.
+      ctx.translate(0, -(R * (im ? 0.88 : 0.72)));
       ctx.fillStyle = '#fff';
-      ctx.font = `700 ${n > 44 ? 13 : n > 26 ? 17 : 22}px Inter, system-ui, sans-serif`;
+      ctx.font = im
+        ? `700 ${n > 44 ? 12 : n > 26 ? 16 : 21}px Inter, system-ui, sans-serif`
+        : `700 ${n > 44 ? 13 : n > 26 ? 17 : 22}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowColor = 'rgba(0,0,0,.55)';
@@ -80,6 +94,22 @@ export function Ruleta({ slots, objetivo, onLlegada, tema }: {
     ctx.stroke();
     ctx.restore();
   };
+
+  // Precargar las imágenes de las tajadas; redibujar a medida que caen.
+  useEffect(() => {
+    const cache = imgRef.current;
+    let vivo = true;
+    for (const s of slots) {
+      if (!s.img || cache.has(s.img)) continue;
+      const im = new Image();
+      im.onload = () => { if (vivo) dibujar(); };
+      im.onerror = () => {};
+      im.src = s.img;
+      cache.set(s.img, im);
+    }
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots]);
 
   // Redibujar cuando cambian las tajadas (editor en vivo) o el tema.
   useEffect(() => {

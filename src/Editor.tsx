@@ -1156,20 +1156,38 @@ function SeccionRuletaBotones({ juego, onCampo }: {
         <strong style={{ fontSize: 15 }}>Los números</strong>
         <p className="hint" style={{ marginBottom: 12 }}>
           Cada fila es un botón: su multiplicador base, cuántas <b>tajadas iguales</b> ocupa
-          en la rueda, y su color. RTP del nº = probabilidad × multiplicador (contando la sorpresa).
+          en la rueda, su color y una <b>imagen</b> opcional. RTP del nº = probabilidad × multiplicador (contando la sorpresa).
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '26px 66px 66px 1fr 26px', gap: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-dim)', padding: '0 2px 4px' }}>
-          <span /><span>Multip.</span><span>Tajadas</span><span>Prob · RTP</span><span />
+        <div style={{ display: 'grid', gridTemplateColumns: '26px 26px 58px 58px 1fr 26px', gap: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-dim)', padding: '0 2px 4px' }}>
+          <span /><span>Img</span><span>Multip.</span><span>Tajadas</span><span>Prob · RTP</span><span />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {cfg.numeros.map((n, i) => {
             const prob = (Math.max(0, Math.round(n.cant)) / total) * 100;
             const rtpN = rtpNumeroB(cfg.numeros, i) * factor * 100;
             return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '26px 66px 66px 1fr 26px', gap: 8, alignItems: 'center', background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 8px' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '26px 26px 58px 58px 1fr 26px', gap: 8, alignItems: 'center', background: 'var(--surface-alt)', borderRadius: 8, padding: '6px 8px' }}>
                 <input type="color" value={n.color}
                   onChange={(e) => setNumeros(cfg.numeros.map((x, j) => j === i ? { ...x, color: e.target.value } : x))}
                   style={{ width: 24, height: 22, padding: 0 }} />
+                <label
+                  title={n.img ? 'Cambiar imagen · clic derecho para quitar' : 'Subir imagen del multiplicador'}
+                  onContextMenu={(e) => { e.preventDefault(); if (n.img) setNumeros(cfg.numeros.map((x, j) => j === i ? { ...x, img: null } : x)); }}
+                  style={{
+                    width: 24, height: 24, borderRadius: 5, cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
+                    border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, color: 'var(--text-dim)',
+                    background: n.img ? `center/contain no-repeat var(--bg) url("${n.img}")` : 'var(--bg)',
+                  }}>
+                  {!n.img && '+'}
+                  <input type="file" accept="image/*" hidden onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!f) return;
+                    const url = await subirArchivo(f, `ruleta/${juego.id}`);
+                    if (url) setNumeros(cfg.numeros.map((x, j) => j === i ? { ...x, img: url } : x));
+                  }} />
+                </label>
                 <input type="number" min={1} step={1} value={n.mult}
                   onChange={(e) => {
                     const m = Math.max(1, Math.round(Number(e.target.value) || 1));
@@ -1190,6 +1208,16 @@ function SeccionRuletaBotones({ juego, onCampo }: {
           <button onClick={emparejarTajadas}>Emparejar tajadas (∝ 1/multip.)</button>
         </div>
         <p className="hint" style={{ margin: '10px 0 0' }}>Rueda de <b>{total} tajadas</b>.</p>
+
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <label style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            Grosor del borde de color en los botones: <b>{cfg.bordeGrosor ?? 3} px</b>
+            <span className="hint" style={{ margin: 0 }}> — rodea todo el botón; 0 = sin borde.</span>
+          </label>
+          <input type="range" min={0} max={10} step={1} value={cfg.bordeGrosor ?? 3}
+            onChange={(e) => guardar({ ...cfg, bordeGrosor: Number(e.target.value) })}
+            style={{ width: '100%' }} />
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

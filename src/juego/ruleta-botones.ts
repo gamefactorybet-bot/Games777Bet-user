@@ -47,6 +47,7 @@ export function slotsDe(numeros: NumeroRuleta[]): RuletaSlot[] {
     et: n.et || ('×' + multDe(n)),
     mult: multDe(n),
     color: n.color || null,
+    img: n.img || null,
   }));
 }
 

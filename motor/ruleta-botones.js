@@ -48,6 +48,8 @@ export const CFG_DEFAULT = {
     tope: 0, // 0 = sin tope de premio por jugada
   },
   tema: 'clasico', // solo cosmético (ver src/juego/ruleta-temas.ts)
+  // Grosor (px) del borde de color que rodea cada botón. 0 = sin borde.
+  bordeGrosor: 3,
 };
 
 /** Une la config guardada (jsonb del juego) con los valores por
@@ -64,6 +66,9 @@ export function cfgConDefaults(cfg) {
       tope: Math.max(0, Number(s.tope) || 0),
     },
     tema: typeof c.tema === 'string' && c.tema ? c.tema : CFG_DEFAULT.tema,
+    bordeGrosor: Number.isFinite(Number(c.bordeGrosor))
+      ? Math.max(0, Math.min(12, Math.round(Number(c.bordeGrosor))))
+      : CFG_DEFAULT.bordeGrosor,
   };
 }
 
@@ -137,7 +142,7 @@ export function girarBotones(cfg, apuestas) {
 
   return {
     // para dibujar / animar
-    slots: slots.map((n) => ({ et: n.et || ('×' + multDe(n)), mult: multDe(n), color: n.color || null })),
+    slots: slots.map((n) => ({ et: n.et || ('×' + multDe(n)), mult: multDe(n), color: n.color || null, img: n.img || null })),
     ganadora: destinoSlot,
     ganadorIdx,
     sorpresa: haySorpresa ? { num: sorpNum, mult: sorpMult } : null,

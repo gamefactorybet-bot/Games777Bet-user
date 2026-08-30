@@ -70,6 +70,7 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
   // El tema puede repintar las tajadas: cada `et` toma el color de su
   // posición en la paleta del tema (si no hay, queda el color propio).
   const colorNum = (i: number) => (tema.seg && tema.seg[i]) || numeros[i]?.color || 'var(--border)';
+  const grosor = Math.max(0, Math.round(Number(cfg.bordeGrosor ?? 3)));
   const slotsPintados = useMemo(() => {
     const seg = tema.seg;
     if (!seg) return slots;
@@ -201,19 +202,28 @@ export function RuletaBotones({ escenario, cfg, saldoInicial, resolver }: Ruleta
               onContextMenu={(e) => { e.preventDefault(); sacar(i); }}
               style={{
                 position: 'relative', aspectRatio: '1.4', borderRadius: 'var(--rb-radius, 8px)', cursor: 'pointer', overflow: 'hidden',
-                border: `1px solid ${esSorp ? 'var(--rb-gold, #f0c040)' : 'var(--border)'}`,
+                borderStyle: 'solid',
+                borderWidth: esSorp ? Math.max(grosor, 2) : grosor,
+                borderColor: esSorp ? 'var(--rb-gold, #f0c040)' : colorNum(i),
+                boxShadow: 'inset 0 0 0 1px var(--border)',
                 background: esSorp ? 'var(--rb-gold-soft, rgba(240,192,64,.14))' : 'var(--rb-btn-bg, var(--surface-alt))',
                 outline: gana ? '2px solid var(--ok)' : 'none', outlineOffset: -2,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
               }}>
-              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: colorNum(i) }} />
               {esSorp && (
                 <span style={{
                   position: 'absolute', top: 3, right: 3, fontSize: 9, fontWeight: 800,
                   color: '#1a1400', background: 'var(--rb-gold, #f0c040)', borderRadius: 999, padding: '1px 5px',
                 }}>×{sorp!.mult}</span>
               )}
-              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--rb-font-display, inherit)' }}>{n.et}</span>
+              {n.img && (
+                <span style={{
+                  width: 20, height: 20, flexShrink: 0, borderRadius: 5,
+                  backgroundImage: `url("${n.img}")`, backgroundSize: 'contain',
+                  backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                }} />
+              )}
+              <span style={{ fontSize: n.img ? 15 : 18, fontWeight: 800, fontFamily: 'var(--rb-font-display, inherit)', lineHeight: 1 }}>{n.et}</span>
               {monto > 0
                 ? <>
                     <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-text, #fff)', background: 'var(--accent)', borderRadius: 999, padding: '0 6px' }}>{cnt} · {fmt(monto)}</span>
