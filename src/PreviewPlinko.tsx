@@ -34,10 +34,12 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
   const [posCtl, setPosCtl] = useState<PosControlesPlinko>(() => posControlesPlinkoDe(cfg));
   const [ajusteElem, setAjusteElem] = useState('boton');
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
-    supabase.from('juegos').update({ fichas_cfg: { fichas: fs } }).eq('id', juego.id).then(() => {});
-    (juego as { fichas_cfg?: unknown }).fichas_cfg = { fichas: fs };
+    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja };
+    supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
   const [estado, setEstado] = useState<EstadoPlinko>(() => estadoInicial(minBet, SALDO_DEMO, cfg));
   const [tirada, setTirada] = useState<TiradaResuelta | null>(null);
@@ -106,6 +108,7 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada}
             ocultarApuesta={fichas.length > 0}
+            ocultarCaja={sinCaja}
             onSoltar={soltar}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
             onCambiarFilas={(n) => setEstado((e) => ({ ...e, filas: n }))}

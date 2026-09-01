@@ -225,6 +225,10 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const fichasRicas = fichasDe(juego) as {
     valor: number; imagen_url: string | null; tam: number; imgTam: number;
   }[];
+  // Con fichas ricas + "dejar solo las fichas": se esconde todo el
+  // grupo de apuesta (−/+ y el recuadro "Apuesta: 5000").
+  const fichasSinCaja = fichasRicas.length > 0
+    && !!(juego.fichas_cfg && (juego.fichas_cfg as { sinCaja?: boolean }).sinCaja);
 
   const cssEfectos = (efectos || []).map((ef) => ef.css || '').join('\n');
   const audios: Partial<Record<string, HTMLAudioElement>> = {};
@@ -677,6 +681,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     fichasEl.style.display = conFichas ? 'flex' : 'none';
     btnMenos.style.display = conMasMenos ? 'flex' : 'none';
     btnMas.style.display = conMasMenos ? 'flex' : 'none';
+    grupoApuestaEl.style.display = fichasSinCaja ? 'none' : '';
     if (conFichas) pintarFichas();
   };
 

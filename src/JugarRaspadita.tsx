@@ -3,7 +3,7 @@ import { crearEscenario } from './juego/escenario.ts';
 import { Raspadita } from './Raspadita.tsx';
 import { RaspaditaMesa } from './RaspaditaMesa.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasDe } from '../motor/fichas.js';
+import { fichasDe, fichasSinCajaDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesRaspaDe } from './juego/raspadita.ts';
@@ -27,6 +27,7 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
   const juego = datos.juego;
   const cfg = useMemo(() => cfgDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
+  const sinCaja = useMemo(() => fichasSinCajaDe(juego), [juego]);
   const tema = useMemo(() => temaRaspaDe(cfg.tema), [cfg.tema]);
   const pos = useRef(posControlesRaspaDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
@@ -141,6 +142,7 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
             escenario={escRef.current} cfg={cfg} pos={pos} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso} raspando={!!tirada && !revelado}
             ocultarApuesta={fichas.length > 0}
+            ocultarCaja={sinCaja}
             onComprar={comprar}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
           />

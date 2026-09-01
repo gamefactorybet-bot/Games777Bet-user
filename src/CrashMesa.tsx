@@ -20,6 +20,8 @@ interface CrashMesaProps {
   pasoApuesta: number;
   /** El juego usa fichas: se ocultan los −/+. */
   ocultarApuesta?: boolean;
+  /** Además de los −/+, ocultar del todo el recuadro de apuesta. */
+  ocultarCaja?: boolean;
   onApostar: () => void;
   onRetirar: () => void;
   onNueva: () => void;
@@ -30,7 +32,7 @@ interface CrashMesaProps {
 // La "mesa" del Crash: controles sobre una capa aparte (portal en el
 // escenario). El número grande y la curva los pone <Crash>.
 export function CrashMesa({
-  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, ocultarApuesta,
+  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, ocultarApuesta, ocultarCaja,
   onApostar, onRetirar, onNueva, onCambiarApuesta, onCambiarAuto,
 }: CrashMesaProps) {
   const { fase } = estado;
@@ -108,7 +110,7 @@ export function CrashMesa({
       )}
 
       {/* Apuesta */}
-      {ocultarApuesta ? (
+      {ocultarCaja ? null : ocultarApuesta ? (
         <div style={{ ...centrado(pos.apuesta), textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
           <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
           <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>

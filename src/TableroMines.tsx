@@ -18,6 +18,8 @@ interface TableroMinesProps {
   pasoApuesta: number;
   /** El juego usa fichas: se ocultan los −/+. */
   ocultarApuesta?: boolean;
+  /** Además de los −/+, ocultar del todo el recuadro de apuesta. */
+  ocultarCaja?: boolean;
   onIniciar: () => void;
   onRevelar: (casilla: number) => void;
   onRetirar: () => void;
@@ -160,7 +162,7 @@ function GrillaMines({ juego, estado, onRevelar }: {
 // y los controles (saldo, multiplicador, botón, apuesta, minas) en una
 // capa aparte, cada uno posicionable desde el panel de ajuste.
 export function TableroMines({
-  escenario, pos, juego, estado, minBet, maxBet, pasoApuesta, ocultarApuesta,
+  escenario, pos, juego, estado, minBet, maxBet, pasoApuesta, ocultarApuesta, ocultarCaja,
   onIniciar, onRevelar, onRetirar, onCambiarApuesta, onCambiarMinas, onNueva,
 }: TableroMinesProps) {
   return (
@@ -169,7 +171,7 @@ export function TableroMines({
       {createPortal(
         <ControlesMines
           juego={juego} pos={pos} estado={estado}
-          minBet={minBet} maxBet={maxBet} pasoApuesta={pasoApuesta} ocultarApuesta={ocultarApuesta}
+          minBet={minBet} maxBet={maxBet} pasoApuesta={pasoApuesta} ocultarApuesta={ocultarApuesta} ocultarCaja={ocultarCaja}
           onIniciar={onIniciar} onRetirar={onRetirar} onNueva={onNueva}
           onCambiarApuesta={onCambiarApuesta} onCambiarMinas={onCambiarMinas}
         />,

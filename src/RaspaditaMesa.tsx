@@ -22,12 +22,14 @@ interface RaspaditaMesaProps {
   raspando: boolean;
   /** El juego usa fichas: se ocultan los −/+. */
   ocultarApuesta?: boolean;
+  /** Además de los −/+, ocultar del todo el recuadro de apuesta. */
+  ocultarCaja?: boolean;
   onComprar: () => void;
   onCambiarApuesta: (n: number) => void;
 }
 
 export function RaspaditaMesa({
-  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, raspando, ocultarApuesta, onComprar, onCambiarApuesta,
+  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, raspando, ocultarApuesta, ocultarCaja, onComprar, onCambiarApuesta,
 }: RaspaditaMesaProps) {
   const ocupado = raspando || estado.cargando;
   const btnDisabled = ocupado || estado.saldo < estado.apuesta;
@@ -57,7 +59,7 @@ export function RaspaditaMesa({
         <strong style={{ display: 'block', fontSize: 14 }}>{fmt(estado.saldo)}</strong>
       </div>
 
-      {ocultarApuesta ? (
+      {ocultarCaja ? null : ocultarApuesta ? (
         <div style={{ ...centrado(pos.apuesta), textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
           <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
           <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>

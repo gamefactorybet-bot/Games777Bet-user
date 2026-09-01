@@ -21,8 +21,8 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
   useEffect(() => { setCfg(fichasConDefaults(juego.fichas_cfg) as FichasCfg); }, [juego.id]);
   const [msg, setMsg] = useState('');
 
-  const guardar = (fichas: Ficha[]) => {
-    const next = { fichas };
+  const guardar = (fichas: Ficha[], sinCaja = cfg.sinCaja) => {
+    const next: FichasCfg = { fichas, sinCaja };
     setCfg(next);
     onCampo('fichas_cfg', next);
     setMsg('Guardado ✓');
@@ -116,7 +116,16 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
             }])}
           >+ Agregar ficha</button>
 
-          <p className="hint" style={{ margin: '12px 0 0' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: '16px 0 0' }}>
+            <input
+              type="checkbox"
+              checked={!!cfg.sinCaja}
+              onChange={(e) => guardar(cfg.fichas, e.target.checked)}
+            />
+            Dejar solo las fichas (ocultar el recuadro de apuesta)
+          </label>
+
+          <p className="hint" style={{ margin: '10px 0 0' }}>
             {ubicacion === 'tira' && <>En este juego las fichas van en una fila centrada, sin posición propia. {msg}</>}
             {ubicacion === 'grupo' && <>Las fichas se ubican todas juntas donde pongas el <b>grupo de fichas</b> (⚙ Ajustar → Capas). {msg}</>}
             {ubicacion === 'arrastre' && <>También podés arrastrarlas en la <b>Vista previa</b> (⚙ Ajustar → Controles → <b>Fichas</b>). {msg}</>}

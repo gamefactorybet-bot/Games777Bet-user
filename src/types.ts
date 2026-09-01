@@ -799,6 +799,8 @@ export interface Ficha {
 
 export interface FichasCfg {
   fichas: Ficha[];
+  /** Con fichas cargadas: oculta el recuadro "Apuesta: 5000". */
+  sinCaja?: boolean;
 }
 
 /** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`

@@ -36,10 +36,12 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
   const [posCtl, setPosCtl] = useState<PosControlesMines>(() => posControlesDe(juego));
   const [ajusteElem, setAjusteElem] = useState('saldo');
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
-    supabase.from('juegos').update({ fichas_cfg: { fichas: fs } }).eq('id', juego.id).then(() => {});
-    (juego as { fichas_cfg?: unknown }).fichas_cfg = { fichas: fs };
+    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja };
+    supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
 
   const hostRef = useRef<HTMLDivElement>(null);
@@ -127,6 +129,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
             maxBet={maxBet}
             pasoApuesta={paso}
             ocultarApuesta={fichas.length > 0}
+            ocultarCaja={sinCaja}
             onIniciar={iniciar}
             onRevelar={revelar}
             onRetirar={retirar}

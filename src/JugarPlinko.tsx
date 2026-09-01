@@ -3,7 +3,7 @@ import { crearEscenario } from './juego/escenario.ts';
 import { Plinko } from './Plinko.tsx';
 import { PlinkoMesa } from './PlinkoMesa.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasDe } from '../motor/fichas.js';
+import { fichasDe, fichasSinCajaDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesPlinkoDe } from './juego/plinko.ts';
@@ -28,6 +28,7 @@ export function JugarPlinko({ datos, saldoInicial, slug, token }: JugarPlinkoPro
   const cfg = useMemo(() => cfgDe(juego), [juego]);
   const tema = useMemo(() => temaPlinkoDe(cfg.tema), [cfg.tema]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
+  const sinCaja = useMemo(() => fichasSinCajaDe(juego), [juego]);
   const pos = useRef(posControlesPlinkoDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
   const maxBet = Number(juego.max_bet) || 100000;
@@ -122,6 +123,7 @@ export function JugarPlinko({ datos, saldoInicial, slug, token }: JugarPlinkoPro
             escenario={escRef.current} cfg={cfg} pos={pos} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada}
             ocultarApuesta={fichas.length > 0}
+            ocultarCaja={sinCaja}
             onSoltar={soltar}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
             onCambiarFilas={(n) => setEstado((e) => ({ ...e, filas: n }))}

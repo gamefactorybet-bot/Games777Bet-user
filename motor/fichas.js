@@ -10,7 +10,7 @@
 // el juego usa sus controles de siempre.
 // =========================================================
 
-export const FICHAS_DEFAULT = { fichas: [] };
+export const FICHAS_DEFAULT = { fichas: [], sinCaja: false };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -19,6 +19,9 @@ const str = (v, d) => (typeof v === 'string' && v ? v : d);
 export function fichasConDefaults(cfg) {
   const arr = Array.isArray(cfg && cfg.fichas) ? cfg.fichas : [];
   return {
+    // Con fichas cargadas: oculta el recuadro "Apuesta: 5000" (cada
+    // ficha ya muestra su valor). Sin efecto si no hay fichas.
+    sinCaja: !!(cfg && cfg.sinCaja),
     fichas: arr
       .map((f) => {
         const o = f && typeof f === 'object' ? f : {};
@@ -38,4 +41,10 @@ export function fichasConDefaults(cfg) {
 /** Las fichas de un juego, ya validadas. */
 export function fichasDe(juego) {
   return fichasConDefaults(juego && juego.fichas_cfg).fichas;
+}
+
+/** true si además hay que ocultar el recuadro de apuesta. */
+export function fichasSinCajaDe(juego) {
+  const c = fichasConDefaults(juego && juego.fichas_cfg);
+  return c.fichas.length > 0 && c.sinCaja;
 }

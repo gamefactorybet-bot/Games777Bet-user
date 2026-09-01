@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TableroMines } from './TableroMines.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasDe } from '../motor/fichas.js';
+import { fichasDe, fichasSinCajaDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { crearEscenario } from './juego/escenario.ts';
 import { precargarLottie } from './lottie.ts';
@@ -38,6 +38,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const [estado, setEstado] = useState<EstadoPartida>(() => estadoInicial(3, minBet, saldoInicial));
   const posCtl = useRef(posControlesDe(juego)).current;
   const fichas = useRef(fichasDe(juego)).current;
+  const sinCaja = useRef(fichasSinCajaDe(juego)).current;
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
@@ -211,6 +212,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
             maxBet={maxBet}
             pasoApuesta={paso}
             ocultarApuesta={fichas.length > 0}
+            ocultarCaja={sinCaja}
             onIniciar={iniciar}
             onRevelar={revelar}
             onRetirar={retirar}

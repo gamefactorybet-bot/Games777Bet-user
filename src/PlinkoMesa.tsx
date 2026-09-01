@@ -23,6 +23,8 @@ interface PlinkoMesaProps {
   cayendo: boolean;
   /** El juego usa fichas: se ocultan los −/+. */
   ocultarApuesta?: boolean;
+  /** Además de los −/+, ocultar del todo el recuadro de apuesta. */
+  ocultarCaja?: boolean;
   onSoltar: () => void;
   onCambiarApuesta: (n: number) => void;
   onCambiarFilas: (n: number) => void;
@@ -30,7 +32,7 @@ interface PlinkoMesaProps {
 }
 
 export function PlinkoMesa({
-  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, cayendo, ocultarApuesta,
+  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, cayendo, ocultarApuesta, ocultarCaja,
   onSoltar, onCambiarApuesta, onCambiarFilas, onCambiarRiesgo,
 }: PlinkoMesaProps) {
   const ocupado = cayendo || estado.cargando;
@@ -81,7 +83,7 @@ export function PlinkoMesa({
         </div>
       )}
 
-      {ocultarApuesta ? (
+      {ocultarCaja ? null : ocultarApuesta ? (
         <div style={{ ...centrado(pos.apuesta), textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
           <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
           <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>
