@@ -5,10 +5,11 @@ import { Sidebar } from './Sidebar.tsx';
 import { ListaJuegos } from './ListaJuegos.tsx';
 import { Catalogo } from './Catalogo.tsx';
 import { Clientes } from './Clientes.tsx';
+import { Apariencia } from './Apariencia.tsx';
 import { Editor } from './Editor.tsx';
 import type { Juego } from './types.ts';
 
-export type VistaPanel = 'juegos' | 'catalogo' | 'clientes';
+export type VistaPanel = 'juegos' | 'catalogo' | 'clientes' | 'apariencia';
 
 interface AppProps {
   session: Session;
@@ -43,6 +44,9 @@ export function App({ session, onSalir }: AppProps) {
 
   return (
     <div className="shell">
+      <div className="ambient" aria-hidden>
+        <b className="a1" /><b className="a2" /><b className="a3" /><b className="a4" /><b className="a5" />
+      </div>
       <Sidebar
         vista={vista}
         cantidadJuegos={juegos.length}
@@ -82,6 +86,12 @@ export function App({ session, onSalir }: AppProps) {
             <>
               <div className="page-head"><div><h2>Clientes</h2><p className="sub">Los casinos a los que les servís juegos.</p></div></div>
               <Clientes />
+            </>
+          )}
+          {vista === 'apariencia' && (
+            <>
+              <div className="page-head"><div><h2>Apariencia</h2><p className="sub">Temas de vidrio y fondo animado. Los cambios se ven al instante en todo el panel.</p></div></div>
+              <Apariencia />
             </>
           )}
         </div>

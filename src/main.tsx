@@ -3,8 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase.ts';
+import { iniciarApariencia } from './apariencia.ts';
 import { Login } from './Login.tsx';
 import { App } from './App.tsx';
+
+// Aplica el tema guardado antes del primer render (sin parpadeo).
+iniciarApariencia();
 
 function Root() {
   // undefined = todavía no sabemos; null = sin sesión.

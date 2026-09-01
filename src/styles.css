@@ -1,5 +1,7 @@
 :root {
-  /* Oscuro neutro, no verde saturado. Un solo acento frío y sobrio. */
+  /* Oscuro neutro, no verde saturado. Un solo acento frío y sobrio.
+     bg / surface / surface-alt / text / text-dim / accent los pisa el
+     tema activo (ver src/apariencia.ts). El resto se deriva de esos. */
   --bg: #0c0e12;
   --surface: #14171d;
   --surface-alt: #1b1f27;
@@ -8,14 +10,22 @@
   --text: #e7eaef;
   --text-dim: #8a93a1;
   --accent: #6b8afd;
-  --accent-hover: #7d99ff;
+  --accent-hover: color-mix(in srgb, var(--accent) 78%, white);
   --accent-text: #ffffff;
-  --accent-soft: rgba(107,138,253,.12);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   --danger: #e5686b;
   --warning: #d9a441;
   --ok: #5bbf88;
   --radius: 8px;
   --radius-lg: 12px;
+
+  /* Vidrio líquido + fondo animado (los controla la pantalla "Apariencia"). */
+  --glass-pct: 92%;   /* opacidad de los paneles de vidrio */
+  --glass-blur: 12px; /* desenfoque detrás del vidrio */
+  --amb-op: 0;        /* intensidad del degradado de fondo (0 = apagado) */
+  --gota-op: 0;       /* gotas de agua sobre el vidrio (0 / 1) */
+  --amb-1: #26397a; --amb-2: #1f5563; --amb-3: #3a2f6c;
+  --amb-4: #26397a; --amb-5: #1f5563;
 }
 
 * { box-sizing: border-box; }
@@ -136,12 +146,12 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
 .grupo-btn, .cat-btn {
   display: flex; align-items: center;
   padding: 8px 14px; font-size: 13px; font-weight: 500; color: var(--text-dim);
-  background: rgba(27,31,39,.55);
+  background: color-mix(in srgb, var(--surface-alt) 60%, transparent);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-soft); border-radius: 10px; cursor: pointer;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-.grupo-btn:hover, .cat-btn:hover { background: rgba(38,43,52,.7); color: var(--text); }
+.grupo-btn:hover, .cat-btn:hover { background: color-mix(in srgb, var(--surface-alt) 82%, transparent); color: var(--text); }
 .grupo-btn.on, .cat-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
 .grupo-punto {
@@ -152,9 +162,19 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
 
 .ed-header-fijo {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 16px;
-  background: rgba(20,23,29,.6);
+  position: relative;
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+}
+.ed-header-fijo::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  opacity: var(--gota-op); transition: opacity .35s ease;
+  background-image:
+    radial-gradient(6px 6px at 16% 26%, rgba(255,255,255,.15), transparent 68%),
+    radial-gradient(4px 4px at 62% 40%, rgba(255,255,255,.12), transparent 70%),
+    radial-gradient(9px 9px at 84% 68%, rgba(255,255,255,.08), transparent 72%),
+    radial-gradient(3px 3px at 40% 78%, rgba(255,255,255,.13), transparent 70%);
 }
 .ed-header-thumb {
   width: 42px; height: 42px; border-radius: 9px; background: var(--surface-alt);
@@ -177,12 +197,33 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
    Shell del panel: barra lateral + área principal.
    La lista y el editor son pantallas separadas.
 ========================================================= */
-.shell { display: flex; min-height: 100vh; }
+.shell { display: flex; min-height: 100vh; position: relative; }
+
+/* Fondo animado: blobs difuminados que se mueven despacio detrás de todo. */
+.ambient { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.ambient b {
+  position: absolute; width: 70vw; min-width: 460px; aspect-ratio: 1; border-radius: 50%;
+  filter: blur(72px); opacity: var(--amb-op); mix-blend-mode: screen; will-change: transform;
+}
+.ambient .a1 { background: radial-gradient(circle, var(--amb-1), transparent 66%); top: -22%; left: -14%; animation: amb-a 34s ease-in-out infinite alternate; }
+.ambient .a2 { background: radial-gradient(circle, var(--amb-2), transparent 66%); bottom: -26%; right: -16%; animation: amb-b 43s ease-in-out infinite alternate; }
+.ambient .a3 { background: radial-gradient(circle, var(--amb-3), transparent 66%); top: 12%; right: 4%; animation: amb-c 38s ease-in-out infinite alternate; }
+.ambient .a4 { background: radial-gradient(circle, var(--amb-4), transparent 66%); bottom: -12%; left: 8%; animation: amb-a 49s ease-in-out infinite alternate; }
+.ambient .a5 { background: radial-gradient(circle, var(--amb-5), transparent 66%); top: -12%; right: -10%; animation: amb-b 55s ease-in-out infinite alternate; }
+@keyframes amb-a { to { transform: translate(13%, 9%) scale(1.18); } }
+@keyframes amb-b { to { transform: translate(-11%, -7%) scale(1.13); } }
+@keyframes amb-c { to { transform: translate(7%, -11%) scale(1.22); } }
+.sin-movimiento .ambient b { animation: none; }
+@media (prefers-reduced-motion: reduce) { .ambient b { animation: none; } }
 
 .side {
   width: 232px; flex-shrink: 0;
   position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
-  background: var(--surface); border-right: 1px solid var(--border-soft);
+  z-index: 1;
+  background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  border-right: 1px solid var(--border-soft);
   padding: 18px 14px; display: flex; flex-direction: column; gap: 3px;
 }
 .side-brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 16px; }
@@ -214,7 +255,10 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.shell-main { flex: 1; min-width: 0; }
+/* El fondo animado (fixed, z-index 0) se ve a través del área principal.
+   Las tarjetas, la tabla y la barra lateral traen su propio fondo casi
+   opaco, así que el texto nunca queda sobre el degradado suelto. */
+.shell-main { flex: 1; min-width: 0; position: relative; z-index: 1; }
 .shell-inner { max-width: 1180px; margin: 0 auto; padding: 26px 30px 80px; }
 /* El editor de un juego se lee mejor en una columna más angosta. */
 .editor-cont { max-width: 940px; }
@@ -293,12 +337,14 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
 .jt-wrap {
   border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden;
   overflow-x: auto;
+  background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 .jt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .jt thead th {
   text-align: left; font-weight: 500; font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
   color: var(--text-dim); padding: 11px 14px; border-bottom: 1px solid var(--border);
-  background: var(--surface); white-space: nowrap; user-select: none;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); white-space: nowrap; user-select: none;
 }
 .jt thead th.orden { cursor: pointer; }
 .jt thead th.orden:hover { color: var(--text); }
@@ -339,11 +385,24 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
 /* ---- Tarjetas ---- */
 .jcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
 .jcard {
+  position: relative;
   border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden;
-  background: var(--surface); cursor: pointer; padding: 0; text-align: left;
+  background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  cursor: pointer; padding: 0; text-align: left;
   transition: border-color .13s ease, transform .13s ease;
 }
 .jcard:hover { border-color: var(--border); transform: translateY(-2px); }
+.jcard::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  opacity: var(--gota-op); transition: opacity .35s ease;
+  background-image:
+    radial-gradient(7px 7px at 18% 22%, rgba(255,255,255,.16), transparent 68%),
+    radial-gradient(4px 4px at 63% 40%, rgba(255,255,255,.12), transparent 70%),
+    radial-gradient(10px 10px at 82% 70%, rgba(255,255,255,.08), transparent 72%),
+    radial-gradient(3px 3px at 34% 82%, rgba(255,255,255,.14), transparent 70%),
+    radial-gradient(5px 5px at 49% 12%, rgba(255,255,255,.10), transparent 70%);
+}
 .jcard .art {
   aspect-ratio: 1; background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center; position: relative;
@@ -374,6 +433,76 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
 .pager .nums button:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
 .pager .nums button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .pager .nums button:disabled { opacity: .4; cursor: default; }
+
+/* ---- Pantalla de Apariencia ---- */
+.ap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ap-sw {
+  position: relative; border: 1px solid var(--border); border-radius: var(--radius-lg);
+  overflow: hidden; background: var(--surface-alt); cursor: pointer; padding: 0; text-align: left;
+  transition: border-color .13s ease, transform .13s ease;
+}
+.ap-sw:hover { transform: translateY(-2px); border-color: var(--text-dim); }
+.ap-sw.on { border-color: var(--accent); }
+.ap-sw .grad { height: 52px; }
+.ap-sw .lbl { display: flex; align-items: center; gap: 7px; padding: 8px 10px; font-size: 12.5px; font-weight: 500; }
+.ap-sw .ac { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ap-sw .pick {
+  position: absolute; top: 7px; right: 7px; width: 19px; height: 19px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.ap-sw.on .pick { display: flex; }
+
+.ap-ctl { margin-bottom: 16px; }
+.ap-ctl .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.ap-ctl .row span { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ap-ctl input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 5px; border-radius: 999px; padding: 0;
+  background: color-mix(in srgb, var(--text) 14%, transparent); border: 0;
+}
+.ap-ctl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid var(--surface);
+}
+.ap-ctl input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--surface);
+}
+
+.ap-tgl { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; cursor: pointer; }
+.ap-tgl span { font-size: 13px; }
+.ap-tgl .box {
+  width: 38px; height: 22px; border-radius: 999px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--text) 16%, transparent); position: relative; transition: background .15s ease;
+}
+.ap-tgl .box::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--text); transition: transform .15s ease;
+}
+.ap-tgl.on .box { background: var(--accent); }
+.ap-tgl.on .box::after { transform: translateX(16px); background: #fff; }
+
+.ap-preview {
+  position: relative; overflow: hidden; border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 22px; display: flex; gap: 12px; min-height: 128px;
+  background: var(--bg);
+}
+.ap-preview .ambient { position: absolute; }
+.ap-preview .pv-side {
+  position: relative; z-index: 1; width: 108px; flex-shrink: 0; border-radius: var(--radius);
+  padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--text-dim);
+  background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-soft);
+}
+.ap-preview .pv-side .pv-on { background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 4px 6px; }
+.ap-preview .pv-main { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ap-preview .pv-card {
+  border-radius: var(--radius); padding: 10px 12px; font-size: 12px;
+  background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-soft);
+}
 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
