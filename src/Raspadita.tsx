@@ -16,6 +16,8 @@ interface RaspaditaProps {
   tirada: TiradaRaspa | null;
   /** Apuesta de la tarjeta actual — para el contador de la ganancia. */
   apuesta: number;
+  /** Monto de demo para ubicar el cartel de la ganancia desde ⚙ Ajustar. */
+  premioDemo?: number | null;
   /** Se llama cuando el jugador terminó de raspar. Pasa el multiplicador. */
   onRevelar: (mult: number) => void;
 }
@@ -26,7 +28,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
 // La tarjeta de la raspadita: la grilla de símbolos y la capa gris
 // que el jugador raspa con el dedo. El resultado ya lo decidió el
 // servidor; acá solo se descubre.
-export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, onRevelar }: RaspaditaProps) {
+export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, premioDemo, onRevelar }: RaspaditaProps) {
   const fondoPantalla = (juego.fondo_url as string) || null;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -160,6 +162,8 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, o
   tiradaRef.current = tirada;
   const apuestaRef = useRef(apuesta);
   apuestaRef.current = apuesta;
+  const posRef = useRef(pos);
+  posRef.current = pos;
   const animMontoRef = useRef(0);
 
   useEffect(() => {
@@ -289,35 +293,49 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, o
         });
       }
     }
-    if (tirada.mult > 0 && hostRef.current) {
-      const ganancia = Math.round(apuestaRef.current * tirada.mult);
-      const box = document.createElement('div');
-      box.className = 'rs-result';
-      const monto = document.createElement('strong');
-      monto.className = 'rs-monto';
-      monto.textContent = '+0';
-      const sub = document.createElement('span');
-      sub.className = 'rs-mult';
-      sub.textContent = '×' + (Math.round(tirada.mult * 100) / 100);
-      box.append(monto, sub);
-      hostRef.current.appendChild(box);
-      limpiezasRef.current.push(() => box.remove());
-
-      // Contador que sube, igual que en el slot.
-      cancelAnimationFrame(animMontoRef.current);
-      const dur = reduce ? 0 : Number((juego.contador_ms as number) ?? 900);
-      if (dur <= 0) { monto.textContent = '+' + fmt(ganancia); return; }
-      const t0 = performance.now();
-      const paso = (ahora: number) => {
-        const t = Math.min(1, (ahora - t0) / dur);
-        const suave = 1 - Math.pow(1 - t, 3);
-        monto.textContent = '+' + fmt(ganancia * suave);
-        if (t < 1) animMontoRef.current = requestAnimationFrame(paso);
-        else monto.textContent = '+' + fmt(ganancia);
-      };
-      animMontoRef.current = requestAnimationFrame(paso);
-      limpiezasRef.current.push(() => cancelAnimationFrame(animMontoRef.current));
+    if (tirada.mult > 0) {
+      mostrarPremio(Math.round(apuestaRef.current * tirada.mult), tirada.mult);
     }
+  }
+
+  // Cartel de la ganancia: contador que sube, en la posición que fijó
+  // el operador (⚙ Ajustar → Ganancia). Vive en el escenario, no en la
+  // tarjeta, así se puede poner en cualquier lado de la pantalla.
+  function mostrarPremio(ganancia: number, mult: number) {
+    const p = posRef.current.premio;
+    const box = document.createElement('div');
+    box.className = 'rs-premio';
+    box.style.left = `${p.x}%`;
+    box.style.top = `${p.y}%`;
+
+    const inner = document.createElement('div');
+    inner.className = 'rs-premio-in rs-premio-pop';
+    inner.style.setProperty('--rs-ganar', tema.ganar);
+
+    const monto = document.createElement('strong');
+    monto.className = 'rs-monto';
+    monto.textContent = '+0';
+    const sub = document.createElement('span');
+    sub.className = 'rs-mult';
+    sub.textContent = '×' + (Math.round(mult * 100) / 100);
+    inner.append(monto, sub);
+    box.append(inner);
+    escenario.el.appendChild(box);
+    limpiezasRef.current.push(() => box.remove());
+
+    cancelAnimationFrame(animMontoRef.current);
+    const dur = reduce ? 0 : Number((juego.contador_ms as number) ?? 900);
+    if (dur <= 0) { monto.textContent = '+' + fmt(ganancia); return; }
+    const t0 = performance.now();
+    const paso = (ahora: number) => {
+      const t = Math.min(1, (ahora - t0) / dur);
+      const suave = 1 - Math.pow(1 - t, 3);
+      monto.textContent = '+' + fmt(ganancia * suave);
+      if (t < 1) animMontoRef.current = requestAnimationFrame(paso);
+      else monto.textContent = '+' + fmt(ganancia);
+    };
+    animMontoRef.current = requestAnimationFrame(paso);
+    limpiezasRef.current.push(() => cancelAnimationFrame(animMontoRef.current));
   }
 
   const T = pos.tarjeta;
@@ -358,33 +376,45 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, o
         .rs-host .rs-cel.rs-win {
           background:color-mix(in srgb, var(--rs-ganar) 16%, transparent);
           box-shadow: inset 0 0 0 2px var(--rs-ganar), 0 0 16px -2px var(--rs-ganar);
-          animation: rs-pop .4s ease;
+          animation: rs-cel-pop .4s ease;
         }
-        @keyframes rs-pop { 0%{transform:scale(.9)} 60%{transform:scale(1.08)} 100%{transform:scale(1)} }
+        @keyframes rs-cel-pop { 0%{transform:scale(.9)} 60%{transform:scale(1.08)} 100%{transform:scale(1)} }
         .rs-host .rs-anim { position:absolute; inset:0; pointer-events:none; }
         .rs-host canvas.rs-cover { position:absolute; inset:0; width:100%; height:100%; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none; }
-        .rs-host .rs-result {
-          position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-          display:flex; flex-direction:column; align-items:center; gap:2px;
-          pointer-events:none; z-index:4; text-align:center;
+
+        /* Cartel de la ganancia — vive en el escenario, posicionable. */
+        .rs-premio { position:absolute; transform:translate(-50%,-50%); z-index:16; pointer-events:none; }
+        .rs-premio .rs-premio-in {
+          display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center;
           background:rgba(0,0,0,.5); padding:10px 22px; border-radius:16px;
           border:1px solid color-mix(in srgb, var(--rs-ganar) 55%, transparent);
-          animation: rs-pop .4s ease;
         }
-        .rs-host .rs-result .rs-monto {
+        .rs-premio .rs-premio-in.rs-premio-pop { animation: rs-premio-pop .38s cubic-bezier(.2,1.3,.4,1); }
+        @keyframes rs-premio-pop { 0%{transform:scale(.7); opacity:0} 100%{transform:scale(1); opacity:1} }
+        .rs-premio .rs-monto {
           font-family:var(--rs-font-display, var(--rs-body, inherit)); font-weight:800;
-          font-size:clamp(24px, 12cqw, 40px); line-height:1; color:var(--rs-ganar);
+          font-size:34px; line-height:1; color:var(--rs-ganar);
           font-variant-numeric:tabular-nums; text-shadow:0 2px 12px rgba(0,0,0,.55);
         }
-        .rs-host .rs-result .rs-mult {
+        .rs-premio .rs-mult {
           font-family:var(--rs-body, monospace); font-size:12px; font-weight:600;
           color:color-mix(in srgb, var(--rs-ganar) 80%, #fff); opacity:.85;
         }
-        @media (prefers-reduced-motion: reduce) { .rs-host .rs-cel.rs-win, .rs-host .rs-result { animation:none } }
+        @media (prefers-reduced-motion: reduce) {
+          .rs-host .rs-cel.rs-win, .rs-premio .rs-premio-in.rs-premio-pop { animation:none }
+        }
       `}</style>
       <div ref={gridRef} className="rs-grid" style={{ containerType: 'inline-size' }} />
       <canvas ref={canvasRef} className="rs-cover" />
     </div>
+    {premioDemo != null && premioDemo > 0 && (
+      <div className="rs-premio" style={{ left: `${pos.premio.x}%`, top: `${pos.premio.y}%` }}>
+        <div className="rs-premio-in" style={{ ['--rs-ganar' as string]: tema.ganar }}>
+          <strong className="rs-monto">+{fmt(premioDemo)}</strong>
+          <span className="rs-mult">×2</span>
+        </div>
+      </div>
+    )}
     </>,
     escenario.el,
   );

@@ -30,6 +30,7 @@ export const CONTROLES_RASPA_DEFAULT: PosControlesRaspa = {
   saldo: { x: 22, y: 8 },
   historial: { x: 62, y: 8 },
   tarjeta: { x: 50, y: 44, ancho: 300 },
+  premio: { x: 50, y: 44 },
   apuesta: { x: 50, y: 84 },
   boton: { x: 50, y: 93, ancho: 300, alto: 52, imagen_url: null },
 };
@@ -41,6 +42,7 @@ export function posControlesRaspaDe(cfg: Partial<RaspaCfg>): PosControlesRaspa {
     saldo: { ...d.saldo, ...g.saldo },
     historial: { ...d.historial, ...g.historial },
     tarjeta: { ...d.tarjeta, ...g.tarjeta },
+    premio: { ...d.premio, ...g.premio },
     apuesta: { ...d.apuesta, ...g.apuesta },
     boton: { ...d.boton, ...g.boton },
   };

@@ -669,6 +669,8 @@ export interface PosControlesRaspa {
   saldo: PuntoRaspa;
   historial: PuntoRaspa;
   apuesta: PuntoRaspa;
+  /** Dónde aparece el cartel de la ganancia (el contador que sube). */
+  premio: PuntoRaspa;
   /** La tarjeta (grilla de celdas): posición + ancho en % de la pantalla. */
   tarjeta: { x: number; y: number; ancho: number };
   boton: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };

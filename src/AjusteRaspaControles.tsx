@@ -9,6 +9,7 @@ type ElemId = keyof PosControlesRaspa;
 
 const ELEMS: { id: ElemId; etiqueta: string }[] = [
   { id: 'tarjeta', etiqueta: 'Tarjeta' },
+  { id: 'premio', etiqueta: 'Ganancia' },
   { id: 'boton', etiqueta: 'Botón' },
   { id: 'apuesta', etiqueta: 'Apuesta' },
   { id: 'saldo', etiqueta: 'Saldo' },
@@ -16,13 +17,15 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
 ];
 
 // Panel para ubicar los controles de la raspadita. Edita `raspa_cfg.controles`.
-export function AjusteRaspaControles({ juego, escenario, pos, onChange }: {
+export function AjusteRaspaControles({ juego, escenario, pos, onChange, onElem }: {
   juego: Juego;
   escenario: Escenario;
   pos: PosControlesRaspa;
   onChange: (pos: PosControlesRaspa) => void;
+  onElem?: (id: ElemId) => void;
 }) {
-  const [elem, setElem] = useState<ElemId>('tarjeta');
+  const [elem, setElemRaw] = useState<ElemId>('tarjeta');
+  const setElem = (id: ElemId) => { setElemRaw(id); onElem?.(id); };
   const [msg, setMsg] = useState('');
   const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
 

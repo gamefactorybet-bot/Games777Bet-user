@@ -30,6 +30,7 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
   const [mostrarPanel, setMostrarPanel] = useState(false);
   const [tab, setTab] = useState<'controles' | 'arte'>('controles');
   const [posCtl, setPosCtl] = useState<PosControlesRaspa>(() => posControlesRaspaDe(cfg));
+  const [ajusteElem, setAjusteElem] = useState('tarjeta');
   const [estado, setEstado] = useState<EstadoRaspa>(() => estadoInicial(minBet, SALDO_DEMO));
   const [tirada, setTirada] = useState<TiradaRaspa | null>(null);
   const [revelado, setRevelado] = useState(false);
@@ -91,7 +92,9 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
         <>
           <Raspadita
             escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={posCtl}
-            tirada={tirada} apuesta={estado.apuesta} onRevelar={revelar}
+            tirada={tirada} apuesta={estado.apuesta}
+            premioDemo={mostrarPanel && tab === 'controles' && ajusteElem === 'premio' ? 12345 : null}
+            onRevelar={revelar}
           />
           <RaspaditaMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
@@ -110,7 +113,7 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteRaspaControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
+            : <AjusteRaspaControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
         </div>
       )}
     </div>
