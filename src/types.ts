@@ -63,6 +63,9 @@ export interface Juego {
   /** Plinko: toda su config (rtp, filas/riesgo, tema, bola, colores…). */
   plinko_cfg?: Partial<PlinkoCfg>;
 
+  /** Raspadita: toda su config (grilla, símbolos y escalones, tema, imágenes…). */
+  raspa_cfg?: Partial<RaspaCfg>;
+
   created_at?: string;
   updated_at?: string;
 
@@ -649,6 +652,78 @@ export interface TiradaResuelta {
 /** Respuesta de `POST /api/plinko-tirar`. */
 export interface ResultadoPlinko {
   resultado: TiradaResuelta;
+  premio: number;
+  saldo: number;
+  repetido?: boolean;
+}
+
+// ---------------- Raspadita ----------------
+
+export interface PuntoRaspa { x: number; y: number; }
+
+export interface PosControlesRaspa {
+  saldo: PuntoRaspa;
+  historial: PuntoRaspa;
+  apuesta: PuntoRaspa;
+  /** La tarjeta (grilla de celdas): posición + ancho en % de la pantalla. */
+  tarjeta: { x: number; y: number; ancho: number };
+  boton: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };
+}
+
+/** Un escalón de premio de un símbolo: N iguales pagan ×m, y sale
+ * 1 de cada `cada` tarjetas. RTP del escalón = m / cada. */
+export interface EscalonRaspa {
+  c: number;
+  m: number;
+  cada: number;
+}
+
+export interface SimboloRaspa {
+  nombre: string;
+  emoji: string;
+  icono_url: string | null;
+  lottie_url: string | null;
+  /** Comodín: completa cualquier símbolo en la tarjeta ganadora, no paga solo. */
+  wild: boolean;
+  tiers: EscalonRaspa[];
+}
+
+export interface RaspaCfg {
+  /** 6 | 9 | 12. Siempre 3 columnas. */
+  celdas: number;
+  simbolos: SimboloRaspa[];
+  tema: string;
+  fondoUrl: string | null;
+  /** La capa que se raspa. */
+  cobertura: { color: string; imagen_url: string | null };
+  celda: { imagen_url: string | null };
+  /** Lottie que se reproduce sobre cada celda ganadora al revelar. */
+  animGanar_url: string | null;
+  historial: { mostrar: boolean; cantidad: number };
+  controles: Partial<PosControlesRaspa>;
+}
+
+export interface EstadoRaspa {
+  saldo: number;
+  apuesta: number;
+  cargando: boolean;
+  error: string | null;
+  /** Últimos multiplicadores, más nuevo primero. */
+  historial: number[];
+}
+
+/** Estado resuelto de una tarjeta (lo decide el servidor). */
+export interface TiradaRaspa {
+  grilla: number[];
+  ganadoras: number[];
+  mult: number;
+  simboloGanador: number | null;
+  cantidad: number;
+}
+
+/** Respuesta de `POST /api/raspadita-jugar`. */
+export interface ResultadoRaspa {
+  resultado: TiradaRaspa;
   premio: number;
   saldo: number;
   repetido?: boolean;
