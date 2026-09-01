@@ -91,7 +91,7 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
         <>
           <Raspadita
             escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={posCtl}
-            tirada={tirada} onRevelar={revelar}
+            tirada={tirada} apuesta={estado.apuesta} onRevelar={revelar}
           />
           <RaspaditaMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
