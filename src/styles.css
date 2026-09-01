@@ -172,3 +172,221 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
   from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* =========================================================
+   Shell del panel: barra lateral + área principal.
+   La lista y el editor son pantallas separadas.
+========================================================= */
+.shell { display: flex; min-height: 100vh; }
+
+.side {
+  width: 232px; flex-shrink: 0;
+  position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+  background: var(--surface); border-right: 1px solid var(--border-soft);
+  padding: 18px 14px; display: flex; flex-direction: column; gap: 3px;
+}
+.side-brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 16px; }
+.side-brand .logo {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(140deg, var(--accent), #9b7bff);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; color: #fff;
+}
+.side-brand b { font-weight: 600; letter-spacing: -.01em; }
+.side-label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-dim); padding: 14px 8px 6px;
+}
+.side-item {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 9px; border-radius: var(--radius); border: 1px solid transparent;
+  background: transparent; color: var(--text-dim); font-size: 13.5px; cursor: pointer;
+  transition: background .13s ease, color .13s ease;
+}
+.side-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+.side-item:hover { background: var(--surface-alt); color: var(--text); border-color: transparent; }
+.side-item.on { background: var(--accent-soft); color: var(--accent); }
+.side-item .side-count { margin-left: auto; font-size: 11px; color: var(--text-dim); }
+.side-item.on .side-count { color: var(--accent); }
+.side-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+.side-foot .side-who {
+  font-size: 12px; color: var(--text-dim); padding: 4px 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.shell-main { flex: 1; min-width: 0; }
+.shell-inner { max-width: 1180px; margin: 0 auto; padding: 26px 30px 80px; }
+/* El editor de un juego se lee mejor en una columna más angosta. */
+.editor-cont { max-width: 940px; }
+
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; margin-bottom: 16px;
+}
+.page-head h2 { margin: 0; font-size: 20px; }
+.page-head .sub { margin: 4px 0 0; color: var(--text-dim); font-size: 13px; }
+
+.crumbs {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  font-size: 13px; color: var(--text-dim);
+}
+.crumbs button {
+  background: none; border: 0; color: var(--text-dim); cursor: pointer;
+  padding: 4px 0; font-size: 13px;
+}
+.crumbs button:hover { color: var(--text); background: none; }
+.crumbs .sep { opacity: .5; }
+.crumbs .cur { color: var(--text); }
+
+/* ---- Alta rápida de juego ---- */
+.nuevo-juego {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 14px; margin-bottom: 14px;
+}
+.nuevo-juego input[type="text"], .nuevo-juego input:not([type]) { flex: 1; min-width: 180px; }
+
+/* ---- Barra de herramientas de la lista ---- */
+.lista-tools {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.buscar { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
+.buscar svg {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--text-dim); pointer-events: none;
+}
+.buscar input { padding-left: 33px; }
+
+.seg { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 3px; }
+.seg button {
+  border: 0; background: transparent; color: var(--text-dim);
+  font-size: 12.5px; padding: 6px 10px; border-radius: 5px; cursor: pointer;
+}
+.seg button:hover { color: var(--text); background: transparent; border-color: transparent; }
+.seg button.on { background: var(--surface-alt); color: var(--text); }
+.seg button .n { font-size: 11px; opacity: .7; margin-left: 5px; }
+
+select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
+
+.vista-toggle {
+  display: inline-flex; margin-left: auto;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 3px;
+}
+.vista-toggle button {
+  border: 0; background: transparent; color: var(--text-dim);
+  padding: 6px 8px; border-radius: 5px; cursor: pointer; display: flex;
+}
+.vista-toggle button svg { width: 16px; height: 16px; flex-shrink: 0; }
+.vista-toggle button:hover { background: transparent; border-color: transparent; color: var(--text); }
+.vista-toggle button.on { background: var(--surface-alt); color: var(--text); }
+
+/* ---- Selección en lote ---- */
+.lote {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+  padding: 9px 12px; background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: var(--radius); font-size: 13px;
+}
+.lote .lote-n { font-weight: 500; color: var(--accent); }
+.lote .sp { flex: 1; }
+.lote button { padding: 6px 11px; font-size: 12.5px; }
+
+/* ---- Tabla de juegos ---- */
+.jt-wrap {
+  border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden;
+  overflow-x: auto;
+}
+.jt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.jt thead th {
+  text-align: left; font-weight: 500; font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-dim); padding: 11px 14px; border-bottom: 1px solid var(--border);
+  background: var(--surface); white-space: nowrap; user-select: none;
+}
+.jt thead th.orden { cursor: pointer; }
+.jt thead th.orden:hover { color: var(--text); }
+.jt tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+.jt tbody tr:last-child td { border-bottom: 0; }
+.jt tbody tr { cursor: pointer; transition: background .1s ease; }
+.jt tbody tr:hover { background: var(--surface); }
+.jt tbody tr.pub td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.jt tbody tr.sel { background: var(--accent-soft); }
+.jt .c-check { width: 34px; }
+.jt .c-check input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; display: block; }
+
+.jt-juego { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.jt-thumb {
+  width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0;
+  background-size: cover; background-position: center; background-color: var(--surface-alt);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+  border: 1px solid var(--border);
+}
+.jt-juego .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jt-juego .sl { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jt .motor { color: var(--text-dim); white-space: nowrap; }
+.jt .num { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.jt .when { color: var(--text-dim); white-space: nowrap; font-size: 12.5px; }
+.jt-acts { display: flex; gap: 2px; justify-content: flex-end; opacity: 0; transition: opacity .12s ease; }
+.jt tbody tr:hover .jt-acts, .jt tbody tr.sel .jt-acts { opacity: 1; }
+@media (hover: none) { .jt-acts { opacity: 1; } }
+.jt-acts button {
+  width: 28px; height: 28px; border: 0; background: transparent; border-radius: 5px;
+  color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.jt-acts button svg { width: 15px; height: 15px; flex-shrink: 0; }
+.jt-acts button:hover { background: var(--surface-alt); color: var(--text); border-color: transparent; }
+.jt-acts button.del:hover { color: var(--danger); }
+
+.badge.pub { background: var(--accent-soft); color: var(--accent); }
+
+/* ---- Tarjetas ---- */
+.jcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.jcard {
+  border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden;
+  background: var(--surface); cursor: pointer; padding: 0; text-align: left;
+  transition: border-color .13s ease, transform .13s ease;
+}
+.jcard:hover { border-color: var(--border); transform: translateY(-2px); }
+.jcard .art {
+  aspect-ratio: 1; background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.jcard .art .flag {
+  position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.jcard .meta { padding: 9px 11px 11px; }
+.jcard .meta .nm { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jcard .meta .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 7px; }
+.jcard .meta .row .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.jcard .meta .row .badge { flex-shrink: 0; }
+
+/* ---- Paginado ---- */
+.pager {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-top: 14px;
+}
+.pager .info { font-size: 12.5px; color: var(--text-dim); }
+.pager .info b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+.pager .nums { display: flex; align-items: center; gap: 4px; }
+.pager .nums button {
+  min-width: 30px; height: 30px; padding: 0 7px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+  border-radius: 5px; font-size: 12.5px; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.pager .nums button:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
+.pager .nums button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.pager .nums button:disabled { opacity: .4; cursor: default; }
+
+@media (max-width: 860px) {
+  .shell { flex-direction: column; }
+  .side {
+    width: auto; height: auto; position: static;
+    flex-direction: row; overflow-x: auto; gap: 4px;
+    border-right: 0; border-bottom: 1px solid var(--border-soft); align-items: center;
+  }
+  .side-brand { padding: 6px 8px; }
+  .side-label, .side-foot .side-who { display: none; }
+  .side-item { width: auto; white-space: nowrap; }
+  .side-item .side-count { display: none; }
+  .side-foot { margin: 0; padding: 0; border: 0; }
+  .shell-inner { padding: 20px 16px 60px; }
+  .vista-toggle { margin-left: 0; }
+}
