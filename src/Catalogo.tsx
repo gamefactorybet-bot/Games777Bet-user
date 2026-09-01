@@ -75,16 +75,17 @@ export function Catalogo() {
         <p className="hint">Todavía no tenés ningún juego marcado como "Listo".</p>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 14 }}>
         {juegos.map((j) => (
           <button
             key={j.id}
             onClick={() => abrir(j)}
-            style={{ padding: 0, overflow: 'hidden', textAlign: 'left', display: 'block' }}
+            style={{ padding: 0, overflow: 'hidden', textAlign: 'left', display: 'block', borderRadius: 15 }}
           >
             <div
               style={{
-                aspectRatio: '1',
+                // Portadas verticales 600×800 (3:4), al tono del resto del panel.
+                aspectRatio: '3 / 4',
                 background: j.portada_url ? `center/cover url('${j.portada_url}')` : 'var(--surface-alt)',
                 display: 'flex',
                 alignItems: 'center',
