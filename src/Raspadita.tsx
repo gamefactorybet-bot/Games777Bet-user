@@ -153,11 +153,20 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, onRevelar 
   }
 
   const coberturaImgRef = useRef<HTMLImageElement | null>(null);
+  const tiradaRef = useRef<TiradaRaspa | null>(tirada);
+  tiradaRef.current = tirada;
+
   useEffect(() => {
     if (!cfg.cobertura.imagen_url) { coberturaImgRef.current = null; return; }
     const im = new Image();
     im.crossOrigin = 'anonymous';
-    im.onload = () => { coberturaImgRef.current = im; };
+    im.onload = () => {
+      coberturaImgRef.current = im;
+      // Si la tapa ya está puesta (todavía sin raspar), la repintamos
+      // ahora con la imagen — así no se ve el degradado por defecto
+      // hasta la primera jugada.
+      if (!tiradaRef.current && !reveladoRef.current) cubrirEntero();
+    };
     im.onerror = () => { coberturaImgRef.current = null; };
     im.src = cfg.cobertura.imagen_url;
   }, [cfg.cobertura.imagen_url]);

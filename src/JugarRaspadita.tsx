@@ -59,9 +59,27 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
 
     (async () => {
       const descarga = esperarRecursos(datos, (hechos, total) => setProgreso({ hechos, total }));
+      // Imágenes propias de la raspadita (cobertura, fondo de la tarjeta,
+      // marco de celda, íconos): se bajan ACÁ, en la pantalla de carga,
+      // para que la tapa ya salga con la imagen elegida desde la primera
+      // tarjeta y no con el degradado por defecto.
+      const preRaspa = Promise.all(
+        [cfg.cobertura.imagen_url, cfg.fondoUrl, cfg.celda.imagen_url, ...cfg.simbolos.map((s) => s.icono_url)]
+          .filter(Boolean)
+          .map((url) => new Promise<void>((listo) => {
+            const im = new Image();
+            im.crossOrigin = 'anonymous';
+            im.onload = im.onerror = () => listo();
+            im.src = url as string;
+          })),
+      );
       const intro = (datos.animaciones || []).find((a) => a.evento === 'intro' && a.lottie_url);
       if (intro && pantallaRef.current) await correrIntro(intro, pantallaRef.current);
-      await descarga;
+      await Promise.all([
+        descarga,
+        // tope de seguridad: una imagen colgada no deja al jugador en la carga
+        Promise.race([preRaspa, new Promise((r) => setTimeout(r, 8000))]),
+      ]);
       if (cancelado) return;
       esc.el.style.opacity = '1';
       setPantallaVisible(false);
