@@ -80,9 +80,9 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
     setEstado((e) => ({ ...e, cargando: true, error: null }));
     try {
       const t0 = Date.now();
-      const r = await fetchJson<RondaCrash>('/api/crash-iniciar', {
+      const r = await fetchJson<RondaCrash>('/api/crash', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slug, apuesta: estado.apuesta }),
+        body: JSON.stringify({ accion: 'iniciar', token, slug, apuesta: estado.apuesta }),
       });
       roundRef.current = r.roundId;
       cerrandoRef.current = false;
@@ -105,9 +105,9 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
     if (!roundRef.current || cerrandoRef.current) return;
     cerrandoRef.current = true;
     try {
-      const r = await fetchJson<RetiroCrash>('/api/crash-retirar', {
+      const r = await fetchJson<RetiroCrash>('/api/crash', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slug, roundId: roundRef.current, objetivoAuto }),
+        body: JSON.stringify({ accion: 'retirar', token, slug, roundId: roundRef.current, objetivoAuto }),
       });
       aplicarCierre(r);
     } catch (err) { cerrandoRef.current = false; conError(err); }
@@ -117,9 +117,9 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
     if (!roundRef.current || cerrandoRef.current) return;
     cerrandoRef.current = true;
     try {
-      const r = await fetchJson<RetiroCrash>('/api/crash-cerrar', {
+      const r = await fetchJson<RetiroCrash>('/api/crash', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slug, roundId: roundRef.current }),
+        body: JSON.stringify({ accion: 'cerrar', token, slug, roundId: roundRef.current }),
       });
       aplicarCierre(r);
     } catch (err) { cerrandoRef.current = false; conError(err); }

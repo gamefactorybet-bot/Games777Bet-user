@@ -571,7 +571,7 @@ export interface EstadoCrash {
   historial: number[];
 }
 
-/** Respuesta de `POST /api/crash-iniciar`. */
+/** Respuesta de `POST /api/crash` con `accion: 'iniciar'`. */
 export interface RondaCrash {
   roundId: string;
   /** ms epoch del servidor al responder (para calcular el offset de reloj). */
@@ -582,7 +582,7 @@ export interface RondaCrash {
   yaExistia?: boolean;
 }
 
-/** Respuesta de `POST /api/crash-retirar` y `/api/crash-cerrar`. */
+/** Respuesta de `POST /api/crash` con `accion: 'retirar'` o `'cerrar'`. */
 export interface RetiroCrash {
   multiplicador: number;
   ganancia: number;
