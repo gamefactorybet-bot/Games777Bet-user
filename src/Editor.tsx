@@ -2115,9 +2115,22 @@ function SeccionRaspadita({ juego, onCampo }: {
       <div className="card">
         <strong style={{ fontSize: 15 }}>Aspecto de la tarjeta</strong>
         <p className="hint" style={{ marginBottom: 12 }}>
-          Todo opcional. El fondo del área de juego se sube en <b>Arte</b>; acá va lo de la tarjeta.
+          Todo opcional. El fondo de <b>toda la pantalla</b> se sube en <b>Arte</b>; acá va lo de la tarjeta en sí.
         </p>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12 }}>
+          <div>
+            <div style={{ marginBottom: 6 }}>Fondo de la tarjeta (detrás de la grilla)</div>
+            <label style={{
+              width: 64, height: 46, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
+              background: cfg.fondoUrl ? `center/cover no-repeat url("${cfg.fondoUrl}")` : 'var(--bg)',
+            }} title="Imagen detrás de las celdas" onContextMenu={(e) => { e.preventDefault(); if (cfg.fondoUrl) guardar({ ...cfg, fondoUrl: null }); }}>
+              {!cfg.fondoUrl && '+'}
+              <input type="file" accept="image/*" hidden onChange={(e) => {
+                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => guardar({ ...cfg, fondoUrl: url }));
+              }} />
+            </label>
+          </div>
           <div>
             <div style={{ marginBottom: 6 }}>Cobertura (lo que se raspa)</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

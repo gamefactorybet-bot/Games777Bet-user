@@ -4,10 +4,11 @@ import { montarLottieEn } from './lottie.ts';
 import { cargarFuenteRaspa } from './juego/raspadita-temas.ts';
 import type { TemaRaspa } from './juego/raspadita-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
-import type { PosControlesRaspa, RaspaCfg, TiradaRaspa } from './types.ts';
+import type { Juego, PosControlesRaspa, RaspaCfg, TiradaRaspa } from './types.ts';
 
 interface RaspaditaProps {
   escenario: Escenario;
+  juego: Juego;
   cfg: RaspaCfg;
   tema: TemaRaspa;
   pos: PosControlesRaspa;
@@ -22,7 +23,8 @@ const cols = 3;
 // La tarjeta de la raspadita: la grilla de símbolos y la capa gris
 // que el jugador raspa con el dedo. El resultado ya lo decidió el
 // servidor; acá solo se descubre.
-export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: RaspaditaProps) {
+export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, onRevelar }: RaspaditaProps) {
+  const fondoPantalla = (juego.fondo_url as string) || null;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -39,7 +41,7 @@ export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: Rasp
     cargarFuenteRaspa(tema);
     const el = escenario.el;
     const prevBg = el.style.background;
-    if (tema.stageBg && !cfg.fondoUrl) el.style.background = tema.stageBg;
+    if (tema.stageBg && !fondoPantalla) el.style.background = tema.stageBg;
     const claves = Object.keys(tema.vars);
     for (const k of claves) el.style.setProperty(k, tema.vars[k]);
     if (tema.font) el.style.setProperty('--rs-body', tema.font.family);
@@ -48,7 +50,7 @@ export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: Rasp
       for (const k of claves) el.style.removeProperty(k);
       el.style.removeProperty('--rs-body');
     };
-  }, [tema, escenario, cfg.fondoUrl]);
+  }, [tema, escenario, fondoPantalla]);
 
   // ---- render de la grilla cuando llega una tarjeta nueva ----
   useEffect(() => {
@@ -172,16 +174,24 @@ export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: Rasp
     let raspando = false;
     let ultimo: { x: number; y: number } | null = null;
     let tick = 0;
+    let brochazos = 0;
+    let canvasSucio = false; // una cobertura con imagen sin CORS "ensucia" el canvas
 
     const punto = (e: PointerEvent) => {
       const r = cv.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const frac = () => {
-      const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
-      let claros = 0, m = 0;
-      for (let i = 3; i < d.length; i += 41) { m++; if (d[i] < 40) claros++; }
-      return claros / m;
+      if (canvasSucio) return brochazos > 55 ? 1 : 0; // fallback por si no se puede leer el canvas
+      try {
+        const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+        let claros = 0, m = 0;
+        for (let i = 3; i < d.length; i += 41) { m++; if (d[i] < 40) claros++; }
+        return claros / m;
+      } catch {
+        canvasSucio = true;
+        return brochazos > 55 ? 1 : 0;
+      }
     };
     const revelar = () => {
       if (reveladoRef.current) return;
@@ -197,6 +207,7 @@ export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: Rasp
       ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
       if (ultimo) { ctx.beginPath(); ctx.moveTo(ultimo.x, ultimo.y); ctx.lineTo(x, y); ctx.stroke(); }
       ultimo = { x, y };
+      brochazos++;
       if (tick++ % 3 === 0 && frac() > 0.5) revelar();
     };
 
@@ -248,6 +259,13 @@ export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: Rasp
   const filas = Math.max(1, Math.round(cfg.celdas / cols));
 
   return createPortal(
+    <>
+    {fondoPantalla && (
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+        background: `center/cover no-repeat url("${fondoPantalla}")`,
+      }} />
+    )}
     <div
       ref={hostRef}
       className="rs-host"
@@ -291,7 +309,8 @@ export function Raspadita({ escenario, cfg, tema, pos, tirada, onRevelar }: Rasp
       `}</style>
       <div ref={gridRef} className="rs-grid" style={{ containerType: 'inline-size' }} />
       <canvas ref={canvasRef} className="rs-cover" />
-    </div>,
+    </div>
+    </>,
     escenario.el,
   );
 }

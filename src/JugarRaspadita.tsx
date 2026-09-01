@@ -113,7 +113,7 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
       {listo && escRef.current && (
         <>
           <Raspadita
-            escenario={escRef.current} cfg={cfg} tema={tema} pos={pos}
+            escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={pos}
             tirada={tirada} onRevelar={revelar}
           />
           <RaspaditaMesa

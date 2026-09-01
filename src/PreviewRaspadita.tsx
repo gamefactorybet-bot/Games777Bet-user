@@ -90,7 +90,7 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
       {listo && escRef.current && (
         <>
           <Raspadita
-            escenario={escRef.current} cfg={cfg} tema={tema} pos={posCtl}
+            escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={posCtl}
             tirada={tirada} onRevelar={revelar}
           />
           <RaspaditaMesa
