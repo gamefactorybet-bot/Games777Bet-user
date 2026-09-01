@@ -33,7 +33,8 @@ export default async function handler(req, res) {
   // Mines, la ruleta de botones y el Crash no tienen tabla de símbolos
   // — su config vive en columnas / jsonb de `juegos`.
   const motor = String(juego.motor || '');
-  const sinSimbolos = motor.startsWith('mines') || motor === 'ruleta-botones' || motor.startsWith('crash') || motor.startsWith('plinko') || motor.startsWith('raspadita');
+  const sinSimbolos = motor.startsWith('mines') || motor === 'ruleta-botones' || motor.startsWith('crash')
+    || motor.startsWith('plinko') || motor.startsWith('raspadita') || motor.startsWith('limbo') || motor.startsWith('dice');
   if (!sinSimbolos && !simbolos?.length) {
     return res.status(400).json({ error: 'Este juego todavía no tiene símbolos configurados' });
   }

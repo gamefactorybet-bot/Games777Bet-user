@@ -35,7 +35,12 @@ import {
   cfgDe as cfgRaspaDe, metricasRTP as metricasRaspa, rtpPromedio as rtpRaspaPromedio,
 } from './juego/raspadita.ts';
 import { PreviewRaspadita } from './PreviewRaspadita.tsx';
-import type { CrashCfg, PlinkoCfg, RaspaCfg, SimboloRaspa } from './types.ts';
+import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
+import { PreviewDice, cfgDiceDe } from './Dice.tsx';
+import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
+import { rtpDe as rtpDiceDe } from '../motor/dice.js';
+import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
+import type { CrashCfg, DiceCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -92,7 +97,10 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esCrash = juego.motor.startsWith('crash');
   const esPlinko = juego.motor.startsWith('plinko');
   const esRaspadita = juego.motor.startsWith('raspadita');
-  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita;
+  const esLimbo = juego.motor.startsWith('limbo');
+  const esDice = juego.motor.startsWith('dice');
+  const esInstant = esLimbo || esDice;
+  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
   const [previewAbierto, setPreviewAbierto] = useState(false);
@@ -139,11 +147,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
   // Mines no es de rodillos, no hace falta.
   useEffect(() => {
-    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita) return;
+    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko, esRaspadita]);
+  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko, esRaspadita, esInstant]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -220,6 +228,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const rtpCrash = esCrash ? rtpTeoricoCrash(juego.crash_cfg || {}) * 100 : 0;
   const rtpPlinko = esPlinko ? rtpPlinkoPromedio(juego.plinko_cfg || {}) * 100 : 0;
   const rtpRaspa = esRaspadita ? rtpRaspaPromedio(juego.raspa_cfg || {}) * 100 : 0;
+  const rtpLimbo = esLimbo ? (rtpLimboDe(juego.limbo_cfg || {}) as number) * 100 : 0;
+  const rtpDice = esDice ? (rtpDiceDe(juego.dice_cfg || {}) as number) * 100 : 0;
+  const rtpInstant = esLimbo ? rtpLimbo : rtpDice;
   const rtpReal = esRuletaBotones
     ? rtpBotones
     : !simbolos.length
@@ -244,6 +255,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         ? (rtpPlinko <= 0 || rtpPlinko > 100)
       : esRaspadita
         ? (rtpRaspa <= 0 || rtpRaspa > 100)
+      : esInstant
+        ? (rtpInstant <= 0 || rtpInstant > 100)
         : esRuletaBotones
           ? (totalTajadasBotones(cfgBotonesDe(juego).numeros) < 2 || rtpBotones > 100)
           : esRuleta
@@ -462,6 +475,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         avisos.push('No hay ningún símbolo de relleno (sin premio) — con grillas grandes puede costar armar tarjetas sin premio de más.');
       if (rtpRaspa > 100) errores.push(`El RTP es ${rtpRaspa.toFixed(1)}% — la casa pierde plata en cada tarjeta.`);
       else if (rtpRaspa < 85 || rtpRaspa > 99) avisos.push(`RTP de ${rtpRaspa.toFixed(1)}%, fuera del rango habitual (85-99%).`);
+    } else if (esInstant) {
+      if (rtpInstant > 100) errores.push(`El RTP es ${rtpInstant.toFixed(1)}% — la casa pierde plata en cada jugada.`);
+      else if (rtpInstant < 85 || rtpInstant > 99) avisos.push(`RTP de ${rtpInstant.toFixed(1)}%, fuera del rango habitual (85-99%).`);
     } else {
       if (!simbolos.length) errores.push('No tiene símbolos cargados.');
       const sinIcono = simbolos.filter((s) => !s.icono_url);
@@ -476,9 +492,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !sonidos.length) avisos.push('Sin sonidos cargados.');
+    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
-    if (!esMines && !esCrash && !esPlinko && !esRaspadita && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
+    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
   };
 
@@ -566,7 +582,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="ed-resumen-fila" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRaspadita ? rtpRaspa.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
+          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRaspadita ? rtpRaspa.toFixed(1) + '%' : esInstant ? rtpInstant.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
           <span className="ed-resumen-chip">versión {juego.version || 1}</span>
           <span className="ed-resumen-chip">{juego.publicado ? 'publicado ✓' : 'sin publicar'}</span>
         </div>
@@ -625,7 +641,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : esRaspadita ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
+            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : (esRaspadita || esInstant) ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
             <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />
@@ -659,7 +675,14 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionRaspadita juego={juego} onCampo={guardarCampoJuego} />
       )}
 
-      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && (
+      {grupo === 'jugabilidad' && esLimbo && (
+        <SeccionLimbo juego={juego} onCampo={guardarCampoJuego} />
+      )}
+      {grupo === 'jugabilidad' && esDice && (
+        <SeccionDice juego={juego} onCampo={guardarCampoJuego} />
+      )}
+
+      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && !esInstant && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -814,7 +837,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                 ? <PreviewPlinko juego={juego} onClose={() => setPreviewAbierto(false)} />
                 : esRaspadita
                   ? <PreviewRaspadita juego={juego} onClose={() => setPreviewAbierto(false)} />
-                  : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
+                  : esLimbo
+                    ? <PreviewLimbo juego={juego} onClose={() => setPreviewAbierto(false)} />
+                    : esDice
+                      ? <PreviewDice juego={juego} onClose={() => setPreviewAbierto(false)} />
+                      : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
       )}
     </>
   );
@@ -2185,6 +2212,138 @@ function SeccionRaspadita({ juego, onCampo }: {
         <p className="hint" style={{ margin: '12px 0 0' }}>
           Posición y tamaño de la tarjeta y los controles en <b>⚙ Ajustar → Controles</b>. {msg}
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Limbo ----------------
+
+function SeccionLimbo({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<LimboCfg>(() => cfgLimboDe(juego));
+  useEffect(() => { setCfg(cfgLimboDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+  const guardar = (next: LimboCfg) => { setCfg(next); onCampo('limbo_cfg', next); setMsg('Guardado ✓'); };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad — Limbo</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          El jugador elige un multiplicador objetivo; el <b>servidor</b> tira un número al azar y gana si
+          llega o pasa el objetivo. El RTP es exacto para cualquier objetivo: la casa siempre se queda con 1 − RTP.
+        </p>
+
+        <label style={{ fontSize: 12, display: 'block' }}>RTP <b>{(cfg.rtp * 100).toFixed(1)}%</b></label>
+        <input type="range" min={85} max={99} step={0.5} value={cfg.rtp * 100}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Multiplicador máximo <b>×{cfg.tope.toLocaleString('es-AR')}</b>
+          <span className="hint" style={{ margin: 0 }}> — el número nunca pasa de acá (topea el premio)</span>
+        </label>
+        <input type="range" min={50} max={100000} step={50} value={Math.min(cfg.tope, 100000)}
+          onChange={(e) => guardar({ ...cfg, tope: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Objetivo por defecto <b>×{cfg.objetivoDefecto.toFixed(2)}</b>
+          <span className="hint" style={{ margin: 0 }}> — con qué objetivo arranca el jugador. A ×{cfg.objetivoDefecto.toFixed(2)} gana 1 de cada {(cfg.objetivoDefecto / cfg.rtp).toFixed(2)}</span>
+        </label>
+        <input type="range" min={1.1} max={50} step={0.1} value={Math.min(cfg.objetivoDefecto, 50)}
+          onChange={(e) => guardar({ ...cfg, objetivoDefecto: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 4px' }} />
+        <p className="hint" style={{ margin: 0 }}>{msg}</p>
+      </div>
+
+      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+    </div>
+  );
+}
+
+// ---------------- Dice ----------------
+
+function SeccionDice({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<DiceCfg>(() => cfgDiceDe(juego));
+  useEffect(() => { setCfg(cfgDiceDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+  const guardar = (next: DiceCfg) => { setCfg(next); onCampo('dice_cfg', next); setMsg('Guardado ✓'); };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad — Dice</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          El jugador mueve un umbral entre 0 y 100 y apuesta a que sale <b>mayor</b> o <b>menor</b>.
+          El pago sale de la probabilidad: <code>rtp ÷ chance</code>. Menos chance, paga más.
+        </p>
+
+        <label style={{ fontSize: 12, display: 'block' }}>RTP <b>{(cfg.rtp * 100).toFixed(1)}%</b></label>
+        <input type="range" min={85} max={99} step={0.5} value={cfg.rtp * 100}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Chance mínima que puede elegir <b>{cfg.chanceMin}%</b>
+          <span className="hint" style={{ margin: 0 }}> — tope de riesgo: a {cfg.chanceMin}% paga hasta ×{(cfg.rtp / (cfg.chanceMin / 100)).toFixed(2)}</span>
+        </label>
+        <input type="range" min={1} max={20} step={1} value={cfg.chanceMin}
+          onChange={(e) => guardar({ ...cfg, chanceMin: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>Chance máxima que puede elegir <b>{cfg.chanceMax}%</b></label>
+        <input type="range" min={60} max={98} step={1} value={cfg.chanceMax}
+          onChange={(e) => guardar({ ...cfg, chanceMax: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>Umbral por defecto <b>{cfg.umbralDefecto.toFixed(0)}</b></label>
+        <input type="range" min={1} max={99} step={1} value={cfg.umbralDefecto}
+          onChange={(e) => guardar({ ...cfg, umbralDefecto: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <div style={{ fontSize: 12, marginBottom: 4 }}>Dirección por defecto</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['mayor', 'menor'] as const).map((d) => (
+            <button key={d} onClick={() => guardar({ ...cfg, direccionDefecto: d })}
+              className={cfg.direccionDefecto === d ? 'primary' : undefined} style={{ fontSize: 12 }}>
+              {d === 'mayor' ? 'Mayor' : 'Menor'}
+            </button>
+          ))}
+        </div>
+        <p className="hint" style={{ margin: '10px 0 0' }}>{msg}</p>
+      </div>
+
+      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+    </div>
+  );
+}
+
+function TemaInstantSelector({ valor, onSet }: { valor: string; onSet: (id: string) => void }) {
+  return (
+    <div className="card">
+      <strong style={{ fontSize: 15 }}>Tema visual</strong>
+      <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel. El fondo de pantalla propio se sube en <b>Arte</b>.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
+        {TEMAS_INSTANT.map((t) => {
+          const on = (valor || 'clasico') === t.id;
+          return (
+            <button key={t.id} onClick={() => onSet(t.id)} style={{
+              display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
+              border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+              background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
+            }}>
+              <span style={{ display: 'block', height: 18, borderRadius: 5, background: t.acento }} />
+              <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

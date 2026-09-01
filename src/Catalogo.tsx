@@ -7,6 +7,8 @@ import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
 import { PreviewCrash } from './PreviewCrash.tsx';
 import { PreviewPlinko } from './PreviewPlinko.tsx';
 import { PreviewRaspadita } from './PreviewRaspadita.tsx';
+import { PreviewLimbo } from './Limbo.tsx';
+import { PreviewDice } from './Dice.tsx';
 import type { Juego, Simbolo, Sonido, Efecto } from './types.ts';
 
 /**
@@ -25,6 +27,8 @@ export function Catalogo() {
   const [previewCrash, setPreviewCrash] = useState<Juego | null>(null);
   const [previewPlinko, setPreviewPlinko] = useState<Juego | null>(null);
   const [previewRaspa, setPreviewRaspa] = useState<Juego | null>(null);
+  const [previewLimbo, setPreviewLimbo] = useState<Juego | null>(null);
+  const [previewDice, setPreviewDice] = useState<Juego | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +50,8 @@ export function Catalogo() {
     if (juego.motor.startsWith('crash')) { setPreviewCrash(juego); return; }
     if (juego.motor.startsWith('plinko')) { setPreviewPlinko(juego); return; }
     if (juego.motor.startsWith('raspadita')) { setPreviewRaspa(juego); return; }
+    if (juego.motor.startsWith('limbo')) { setPreviewLimbo(juego); return; }
+    if (juego.motor.startsWith('dice')) { setPreviewDice(juego); return; }
     if (juego.motor === 'ruleta') {
       const { data } = await supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden');
       setPreviewRuleta({ juego, simbolos: (data as Simbolo[]) || [] });
@@ -109,6 +115,8 @@ export function Catalogo() {
       {previewCrash && <PreviewCrash juego={previewCrash} onClose={() => setPreviewCrash(null)} />}
       {previewPlinko && <PreviewPlinko juego={previewPlinko} onClose={() => setPreviewPlinko(null)} />}
       {previewRaspa && <PreviewRaspadita juego={previewRaspa} onClose={() => setPreviewRaspa(null)} />}
+      {previewLimbo && <PreviewLimbo juego={previewLimbo} onClose={() => setPreviewLimbo(null)} />}
+      {previewDice && <PreviewDice juego={previewDice} onClose={() => setPreviewDice(null)} />}
     </div>
   );
 }

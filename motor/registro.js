@@ -35,6 +35,8 @@ export const MOTORES_DISPONIBLES = [
   { valor: 'crash-clasico', etiqueta: 'Crash — multiplicador que sube' },
   { valor: 'plinko-clasico', etiqueta: 'Plinko — la bolita que cae' },
   { valor: 'raspadita-clasica', etiqueta: 'Raspadita — tarjeta para raspar' },
+  { valor: 'limbo-clasico', etiqueta: 'Limbo — llegá al multiplicador' },
+  { valor: 'dice-clasico', etiqueta: 'Dice — mayor o menor' },
 ];
 
 /**

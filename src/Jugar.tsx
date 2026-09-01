@@ -10,6 +10,8 @@ import { JugarRuletaBotones } from './JugarRuletaBotones.tsx';
 import { JugarCrash } from './JugarCrash.tsx';
 import { JugarPlinko } from './JugarPlinko.tsx';
 import { JugarRaspadita } from './JugarRaspadita.tsx';
+import { JugarLimbo } from './Limbo.tsx';
+import { JugarDice } from './Dice.tsx';
 import type { DatosJuego } from './types.ts';
 
 // Pantalla jugable real, sin login: la abre directo el jugador cuando
@@ -78,6 +80,8 @@ function Jugar() {
   if (motor.startsWith('crash')) return <JugarCrash {...props} />;
   if (motor.startsWith('plinko')) return <JugarPlinko {...props} />;
   if (motor.startsWith('raspadita')) return <JugarRaspadita {...props} />;
+  if (motor.startsWith('limbo')) return <JugarLimbo {...props} />;
+  if (motor.startsWith('dice')) return <JugarDice {...props} />;
   return <JugarSlot {...props} />;
 }
 

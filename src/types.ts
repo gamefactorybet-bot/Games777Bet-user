@@ -66,6 +66,10 @@ export interface Juego {
   /** Raspadita: toda su config (grilla, símbolos y escalones, tema, imágenes…). */
   raspa_cfg?: Partial<RaspaCfg>;
 
+  /** Limbo / Dice: su config (rtp, tope/rango, tema…). */
+  limbo_cfg?: Partial<LimboCfg>;
+  dice_cfg?: Partial<DiceCfg>;
+
   created_at?: string;
   updated_at?: string;
 
@@ -724,6 +728,51 @@ export interface TiradaRaspa {
 /** Respuesta de `POST /api/raspadita-jugar`. */
 export interface ResultadoRaspa {
   resultado: TiradaRaspa;
+  premio: number;
+  saldo: number;
+  repetido?: boolean;
+}
+
+// ---------------- Instantáneos (Limbo, Dice) ----------------
+
+export interface LimboCfg {
+  rtp: number;
+  /** El número nunca pasa de acá (topea el premio). */
+  tope: number;
+  objetivoDefecto: number;
+  tema: string;
+  fondoUrl: string | null;
+}
+
+export interface DiceCfg {
+  rtp: number;
+  /** Chance de ganar (%) que puede elegir el jugador. */
+  chanceMin: number;
+  chanceMax: number;
+  umbralDefecto: number;
+  direccionDefecto: 'mayor' | 'menor';
+  tema: string;
+  fondoUrl: string | null;
+}
+
+/** Resultado de una jugada instantánea (lo decide el servidor). */
+export interface TiradaInstant {
+  tipo: 'limbo' | 'dice';
+  gano: boolean;
+  mult: number;
+  /** Limbo: el punto que salió. */
+  resultado?: number;
+  objetivo?: number;
+  /** Dice: el número 0-100. */
+  roll?: number;
+  umbral?: number;
+  direccion?: 'mayor' | 'menor';
+  prob?: number;
+}
+
+/** Respuesta de `POST /api/jugar-instant`. */
+export interface ResultadoInstant {
+  resultado: TiradaInstant;
   premio: number;
   saldo: number;
   repetido?: boolean;
