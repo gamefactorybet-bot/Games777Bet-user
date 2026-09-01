@@ -123,7 +123,7 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, onRevelar 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
-    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    const ctx = cv.getContext('2d');
     if (!ctx) return null;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 40;
@@ -179,58 +179,86 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, onRevelar 
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = '#000'; ctx.strokeStyle = '#000';
     cv.style.pointerEvents = 'auto';
+    cv.style.opacity = '1';
+
+    const W = hostRef.current?.clientWidth || 300;
+    const H = hostRef.current?.clientHeight || 300;
+    // Radio del "dedo" en px de CSS, relativo al tamaño de la tarjeta.
+    const R = Math.max(16, Math.round(Math.min(W, H) * 0.11));
+    ctx.lineWidth = R * 2;
+
+    // Cobertura por grilla gruesa: barato y fluido (nada de getImageData
+    // en cada movimiento, que en el celular trababa todo).
+    const GX = 24, GY = 24;
+    const marcado = new Uint8Array(GX * GY);
+    let marcadas = 0;
+    const marcar = (x: number, y: number) => {
+      const rgx = (R / W) * GX, rgy = (R / H) * GY;
+      const cx = (x / W) * GX, cy = (y / H) * GY;
+      for (let gy = Math.max(0, Math.floor(cy - rgy)); gy <= Math.min(GY - 1, Math.ceil(cy + rgy)); gy++) {
+        for (let gx = Math.max(0, Math.floor(cx - rgx)); gx <= Math.min(GX - 1, Math.ceil(cx + rgx)); gx++) {
+          const i = gy * GX + gx;
+          if (!marcado[i]) { marcado[i] = 1; marcadas++; }
+        }
+      }
+    };
 
     let raspando = false;
     let ultimo: { x: number; y: number } | null = null;
-    let tick = 0;
-    let brochazos = 0;
-    let canvasSucio = false; // una cobertura con imagen sin CORS "ensucia" el canvas
+    let pid: number | null = null;
 
     const punto = (e: PointerEvent) => {
       const r = cv.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
-    const frac = () => {
-      if (canvasSucio) return brochazos > 55 ? 1 : 0; // fallback por si no se puede leer el canvas
-      try {
-        const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
-        let claros = 0, m = 0;
-        for (let i = 3; i < d.length; i += 41) { m++; if (d[i] < 40) claros++; }
-        return claros / m;
-      } catch {
-        canvasSucio = true;
-        return brochazos > 55 ? 1 : 0;
-      }
-    };
     const revelar = () => {
       if (reveladoRef.current) return;
       reveladoRef.current = true;
-      cv.style.transition = 'opacity .35s ease';
+      cv.style.transition = 'opacity .3s ease';
       cv.style.opacity = '0';
-      setTimeout(() => { cv.style.pointerEvents = 'none'; }, 360);
+      setTimeout(() => { cv.style.pointerEvents = 'none'; }, 320);
       festejar();
       onRevelarRef.current(tirada ? tirada.mult : 0);
     };
     const raspar = (x: number, y: number) => {
       if (reveladoRef.current) return;
-      ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
       if (ultimo) { ctx.beginPath(); ctx.moveTo(ultimo.x, ultimo.y); ctx.lineTo(x, y); ctx.stroke(); }
       ultimo = { x, y };
-      brochazos++;
-      if (tick++ % 3 === 0 && frac() > 0.5) revelar();
+      marcar(x, y);
+      if (marcadas / (GX * GY) > 0.55) revelar();
     };
 
-    const onDown = (e: PointerEvent) => { raspando = true; ultimo = null; const p = punto(e); raspar(p.x, p.y); };
-    const onMove = (e: PointerEvent) => { if (!raspando && e.buttons !== 1) return; const p = punto(e); raspar(p.x, p.y); };
-    const onUp = () => { raspando = false; ultimo = null; if (!reveladoRef.current && frac() > 0.32) revelar(); };
+    const onDown = (e: PointerEvent) => {
+      e.preventDefault();
+      raspando = true; ultimo = null; pid = e.pointerId;
+      try { cv.setPointerCapture(e.pointerId); } catch { /* noop */ }
+      const p = punto(e); raspar(p.x, p.y);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!raspando) return;
+      e.preventDefault();
+      // getCoalescedEvents: en el celular junta varios movimientos en un
+      // solo evento — así la línea sale continua y no a saltos.
+      const conCoalesced = e as PointerEvent & { getCoalescedEvents?: () => PointerEvent[] };
+      const evs = conCoalesced.getCoalescedEvents ? conCoalesced.getCoalescedEvents() : [e];
+      for (const ev of evs) { const p = punto(ev); raspar(p.x, p.y); }
+    };
+    const onUp = () => {
+      raspando = false; ultimo = null;
+      if (pid != null) { try { cv.releasePointerCapture(pid); } catch { /* noop */ } pid = null; }
+      if (!reveladoRef.current && marcadas / (GX * GY) > 0.3) revelar();
+    };
 
     cv.addEventListener('pointerdown', onDown);
     cv.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    cv.addEventListener('pointerup', onUp);
+    cv.addEventListener('pointercancel', onUp);
     limpiezasRef.current.push(() => {
       cv.removeEventListener('pointerdown', onDown);
       cv.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      cv.removeEventListener('pointerup', onUp);
+      cv.removeEventListener('pointercancel', onUp);
     });
 
     // por si nunca la termina de raspar: revelar solo a los 12s
@@ -306,7 +334,7 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, onRevelar 
         }
         @keyframes rs-pop { 0%{transform:scale(.9)} 60%{transform:scale(1.08)} 100%{transform:scale(1)} }
         .rs-host .rs-anim { position:absolute; inset:0; pointer-events:none; }
-        .rs-host canvas.rs-cover { position:absolute; inset:0; width:100%; height:100%; cursor:grab; }
+        .rs-host canvas.rs-cover { position:absolute; inset:0; width:100%; height:100%; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none; }
         .rs-host .rs-result {
           position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
           font-family:var(--rs-font-display, var(--rs-body, inherit)); font-weight:800; font-size:20px;
