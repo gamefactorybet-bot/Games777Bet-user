@@ -70,6 +70,9 @@ export interface Juego {
   limbo_cfg?: Partial<LimboCfg>;
   dice_cfg?: Partial<DiceCfg>;
 
+  /** Fichas de apuesta rápida (cualquier motor). Vacío = controles normales. */
+  fichas_cfg?: Partial<FichasCfg>;
+
   created_at?: string;
   updated_at?: string;
 
@@ -778,6 +781,24 @@ export interface ResultadoInstant {
   premio: number;
   saldo: number;
   repetido?: boolean;
+}
+
+// ---------------- Fichas de apuesta rápida (compartidas) ----------------
+
+export interface Ficha {
+  valor: number;
+  imagen_url: string | null;
+  /** Posición en % de la pantalla del juego. */
+  x: number;
+  y: number;
+  /** Diámetro del botón en px. */
+  tam: number;
+  /** Tamaño de la imagen dentro del botón, en % (30–100). */
+  imgTam: number;
+}
+
+export interface FichasCfg {
+  fichas: Ficha[];
 }
 
 /** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`

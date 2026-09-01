@@ -79,6 +79,8 @@ interface ControlesMinesProps {
   minBet: number;
   maxBet: number;
   pasoApuesta: number;
+  /** El juego usa fichas: se ocultan los −/+. */
+  ocultarApuesta?: boolean;
   onIniciar: () => void;
   onRetirar: () => void;
   onNueva: () => void;
@@ -101,7 +103,7 @@ function estiloRecuadro(r: RecuadroMines): CSSProperties {
 // % de la pantalla 420×860 (los valores salen de `juego.mines_controles`).
 // Se monta por portal dentro del escenario, encima de la grilla.
 export function ControlesMines({
-  juego, pos, estado, minBet, maxBet, pasoApuesta,
+  juego, pos, estado, minBet, maxBet, pasoApuesta, ocultarApuesta,
   onIniciar, onRetirar, onNueva, onCambiarApuesta, onCambiarMinas,
 }: ControlesMinesProps) {
   const { fase, minas, apuesta, reveladas, multiplicador, puedeRetirar, saldo, ganancia, pendiente, cargando, error } = estado;
@@ -159,7 +161,7 @@ export function ControlesMines({
       )}
 
       {/* Apuesta − / + — solo antes de empezar */}
-      {inactiva && (
+      {inactiva && !ocultarApuesta && (
         <div style={{
           position: 'absolute', left: `${pos.apuesta.x}%`, top: `${pos.apuesta.y}%`,
           transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', gap: 8,
@@ -171,6 +173,16 @@ export function ControlesMines({
             <strong>{fmt(apuesta)}</strong>
           </span>
           <button onClick={() => onCambiarApuesta(Math.min(maxBet, apuesta + pasoApuesta))}>+</button>
+        </div>
+      )}
+      {inactiva && ocultarApuesta && (
+        <div style={{
+          position: 'absolute', left: `${pos.apuesta.x}%`, top: `${pos.apuesta.y}%`,
+          transform: 'translate(-50%,-50%)', textAlign: 'center', zIndex: 12,
+          color: '#fff', whiteSpace: 'nowrap',
+        }}>
+          <span className="hint" style={{ display: 'block', fontSize: 10, margin: 0 }}>Apuesta</span>
+          <strong>{fmt(apuesta)}</strong>
         </div>
       )}
 

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { crearEscenario } from './juego/escenario.ts';
 import { Raspadita } from './Raspadita.tsx';
 import { RaspaditaMesa } from './RaspaditaMesa.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesRaspaDe } from './juego/raspadita.ts';
@@ -24,6 +26,7 @@ const MOTOR_STUB = { COLUMNAS: 1, FILAS: 1, FILA_PAGO: 0 };
 export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspaditaProps) {
   const juego = datos.juego;
   const cfg = useMemo(() => cfgDe(juego), [juego]);
+  const fichas = useMemo(() => fichasDe(juego), [juego]);
   const tema = useMemo(() => temaRaspaDe(cfg.tema), [cfg.tema]);
   const pos = useRef(posControlesRaspaDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
@@ -137,9 +140,17 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
           <RaspaditaMesa
             escenario={escRef.current} cfg={cfg} pos={pos} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso} raspando={!!tirada && !revelado}
+            ocultarApuesta={fichas.length > 0}
             onComprar={comprar}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
           />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={!!tirada && !revelado}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+            />
+          )}
         </>
       )}
       {pantallaMontada && (

@@ -5,7 +5,7 @@ import { Rango } from './AjustePanel.tsx';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesMines } from './types.ts';
 
-type ElemId = 'saldo' | 'mult' | 'boton' | 'apuesta' | 'minas';
+type ElemId = 'saldo' | 'mult' | 'boton' | 'apuesta' | 'minas' | 'fichas';
 
 const ELEMS: { id: ElemId; etiqueta: string }[] = [
   { id: 'saldo', etiqueta: 'Saldo' },
@@ -13,19 +13,22 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
   { id: 'boton', etiqueta: 'Botón' },
   { id: 'apuesta', etiqueta: 'Apuesta' },
   { id: 'minas', etiqueta: 'Minas' },
+  { id: 'fichas', etiqueta: 'Fichas' },
 ];
 
 const CON_RECUADRO: ElemId[] = ['saldo', 'mult', 'boton'];
 
 // Panel de ajuste de los controles del tablero de Mines. Edita
 // `juego.mines_controles`.
-export function AjusteMinesControles({ juego, escenario, pos, onChange }: {
+export function AjusteMinesControles({ juego, escenario, pos, onChange, onElem }: {
   juego: Juego;
   escenario: Escenario;
   pos: PosControlesMines;
   onChange: (pos: PosControlesMines) => void;
+  onElem?: (id: ElemId) => void;
 }) {
-  const [elem, setElem] = useState<ElemId>('saldo');
+  const [elem, setElemRaw] = useState<ElemId>('saldo');
+  const setElem = (id: ElemId) => { setElemRaw(id); onElem?.(id); };
   const [msg, setMsg] = useState('');
   const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
 
@@ -36,10 +39,12 @@ export function AjusteMinesControles({ juego, escenario, pos, onChange }: {
     (juego as { mostrar_nombre?: boolean }).mostrar_nombre = v;
   };
 
-  const actual = pos[elem] as Record<string, number | string | null>;
+  const esFichas = elem === 'fichas';
+  const actual = (esFichas ? {} : pos[elem]) as Record<string, number | string | null>;
 
   const set = (prop: string, valor: number | string | null) => {
-    onChange({ ...pos, [elem]: { ...(pos[elem] as object), [prop]: valor } });
+    if (esFichas) return;
+    onChange({ ...pos, [elem]: { ...(pos[elem as Exclude<ElemId, 'fichas'>] as object), [prop]: valor } });
   };
 
   const subirA = async (prop: string, f: File) => {
@@ -72,8 +77,17 @@ export function AjusteMinesControles({ juego, escenario, pos, onChange }: {
         ))}
       </div>
 
-      <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
-      <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
+      {esFichas ? (
+        <p className="hint" style={{ margin: '4px 0 0' }}>
+          Arrastrá cada ficha en la vista previa para ubicarla. El valor, la imagen y los tamaños se
+          cargan en <b>Jugabilidad → Fichas de apuesta rápida</b>.
+        </p>
+      ) : (
+        <>
+          <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
+          <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
+        </>
+      )}
 
       {CON_RECUADRO.includes(elem) && (
         <>

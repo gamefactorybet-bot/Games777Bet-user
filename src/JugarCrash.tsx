@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { crearEscenario } from './juego/escenario.ts';
 import { Crash } from './Crash.tsx';
 import { CrashMesa } from './CrashMesa.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesCrashDe } from './juego/crash.ts';
@@ -25,6 +27,7 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
   const juego = datos.juego;
   const cfg = useMemo(() => cfgDe(juego), [juego]);
   const tema = useMemo(() => temaCrashDe(cfg.tema), [cfg.tema]);
+  const fichas = useMemo(() => fichasDe(juego), [juego]);
   const pos = useRef(posControlesCrashDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
   const maxBet = Number(juego.max_bet) || 100000;
@@ -169,12 +172,20 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
           <CrashMesa
             escenario={escRef.current} cfg={cfg} pos={pos} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso}
+            ocultarApuesta={fichas.length > 0}
             onApostar={apostar}
             onRetirar={() => retirar()}
             onNueva={nueva}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
             onCambiarAuto={(activo, objetivo) => setEstado((e) => ({ ...e, autoActivo: activo, autoObjetivo: objetivo }))}
           />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={estado.fase === 'en_curso' || estado.cargando}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+            />
+          )}
         </>
       )}
       {pantallaMontada && (

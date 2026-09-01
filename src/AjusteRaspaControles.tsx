@@ -5,11 +5,12 @@ import { Rango } from './AjustePanel.tsx';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesRaspa } from './types.ts';
 
-type ElemId = keyof PosControlesRaspa;
+type ElemId = keyof PosControlesRaspa | 'fichas';
 
 const ELEMS: { id: ElemId; etiqueta: string }[] = [
   { id: 'tarjeta', etiqueta: 'Tarjeta' },
   { id: 'premio', etiqueta: 'Ganancia' },
+  { id: 'fichas', etiqueta: 'Fichas' },
   { id: 'boton', etiqueta: 'Botón' },
   { id: 'apuesta', etiqueta: 'Apuesta' },
   { id: 'saldo', etiqueta: 'Saldo' },
@@ -36,9 +37,11 @@ export function AjusteRaspaControles({ juego, escenario, pos, onChange, onElem }
     (juego as { mostrar_nombre?: boolean }).mostrar_nombre = v;
   };
 
-  const actual = pos[elem] as Record<string, number | string | null>;
+  const esFichas = elem === 'fichas';
+  const actual = (esFichas ? {} : pos[elem]) as Record<string, number | string | null>;
   const set = (prop: string, valor: number | string | null) => {
-    onChange({ ...pos, [elem]: { ...(pos[elem] as object), [prop]: valor } });
+    if (esFichas) return;
+    onChange({ ...pos, [elem]: { ...(pos[elem as keyof PosControlesRaspa] as object), [prop]: valor } });
   };
 
   const guardar = async () => {
@@ -69,8 +72,17 @@ export function AjusteRaspaControles({ juego, escenario, pos, onChange, onElem }
         ))}
       </div>
 
-      <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
-      <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
+      {esFichas ? (
+        <p className="hint" style={{ margin: '4px 0 0' }}>
+          Arrastrá cada ficha en la vista previa para ubicarla. El valor, la imagen y los tamaños se
+          cargan en <b>Jugabilidad → Fichas de apuesta rápida</b>.
+        </p>
+      ) : (
+        <>
+          <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
+          <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
+        </>
+      )}
 
       {elem === 'tarjeta' && (
         <Rango etiqueta="Ancho" min={160} max={400} unidad="px" valor={actual.ancho as number} onInput={(n) => set('ancho', n)} />

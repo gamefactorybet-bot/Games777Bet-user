@@ -35,6 +35,7 @@ import {
   cfgDe as cfgRaspaDe, metricasRTP as metricasRaspa, rtpPromedio as rtpRaspaPromedio,
 } from './juego/raspadita.ts';
 import { PreviewRaspadita } from './PreviewRaspadita.tsx';
+import { SeccionFichas } from './SeccionFichas.tsx';
 import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
 import { PreviewDice, cfgDiceDe } from './Dice.tsx';
 import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
@@ -741,6 +742,14 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
           <PanelRotacion juego={juego} />
         </div>
+      )}
+
+      {grupo === 'jugabilidad' && !esRuletaBotones && (
+        <SeccionFichas
+          juego={juego}
+          onCampo={guardarCampoJuego}
+          ubicacion={esInstant ? 'tira' : (esRuleta || (!esMines && !esCrash && !esPlinko && !esRaspadita)) ? 'grupo' : 'arrastre'}
+        />
       )}
 
       {grupo === 'sonido' && (

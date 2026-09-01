@@ -18,6 +18,8 @@ interface CrashMesaProps {
   minBet: number;
   maxBet: number;
   pasoApuesta: number;
+  /** El juego usa fichas: se ocultan los −/+. */
+  ocultarApuesta?: boolean;
   onApostar: () => void;
   onRetirar: () => void;
   onNueva: () => void;
@@ -28,7 +30,7 @@ interface CrashMesaProps {
 // La "mesa" del Crash: controles sobre una capa aparte (portal en el
 // escenario). El número grande y la curva los pone <Crash>.
 export function CrashMesa({
-  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta,
+  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, ocultarApuesta,
   onApostar, onRetirar, onNueva, onCambiarApuesta, onCambiarAuto,
 }: CrashMesaProps) {
   const { fase } = estado;
@@ -106,16 +108,23 @@ export function CrashMesa({
       )}
 
       {/* Apuesta */}
-      <div style={{ ...centrado(pos.apuesta), display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
-        <button disabled={enCurso} onClick={() => onCambiarApuesta(Math.max(minBet, estado.apuesta - pasoApuesta))}
-          style={stepBtn}>−</button>
-        <span style={{ minWidth: 92, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+      {ocultarApuesta ? (
+        <div style={{ ...centrado(pos.apuesta), textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
           <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
           <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>
-        </span>
-        <button disabled={enCurso} onClick={() => onCambiarApuesta(Math.min(maxBet, estado.apuesta + pasoApuesta))}
-          style={stepBtn}>+</button>
-      </div>
+        </div>
+      ) : (
+        <div style={{ ...centrado(pos.apuesta), display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
+          <button disabled={enCurso} onClick={() => onCambiarApuesta(Math.max(minBet, estado.apuesta - pasoApuesta))}
+            style={stepBtn}>−</button>
+          <span style={{ minWidth: 92, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+            <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
+            <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>
+          </span>
+          <button disabled={enCurso} onClick={() => onCambiarApuesta(Math.min(maxBet, estado.apuesta + pasoApuesta))}
+            style={stepBtn}>+</button>
+        </div>
+      )}
 
       {/* Botón principal */}
       <button

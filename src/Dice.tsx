@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
+import { FichasStrip } from './Fichas.tsx';
+import { fichasDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
 import {
   cfgConDefaults as _cfgDice, tirar as _tirarDice, umbralPermitido as _umbralOk, chanceDe as _chance,
 } from '../motor/dice.js';
-import type { DatosJuego, DiceCfg, Juego, ResultadoInstant, TiradaInstant } from './types.ts';
+import type { DatosJuego, DiceCfg, Ficha, Juego, ResultadoInstant, TiradaInstant } from './types.ts';
 
 export const cfgDiceDe = (juego: Juego): DiceCfg => _cfgDice(juego.dice_cfg) as DiceCfg;
 
@@ -13,11 +15,13 @@ type Dir = 'mayor' | 'menor';
 type Jugar = (umbral: number, direccion: Dir, apuesta: number) =>
   Promise<{ resultado: TiradaInstant; premio: number; saldo: number }>;
 
-function DiceJuego({ cfg, saldoInicial, minBet, maxBet, paso, onJugar }: {
-  cfg: DiceCfg; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+function DiceJuego({ cfg, fichas, saldoInicial, minBet, maxBet, paso, onJugar }: {
+  cfg: DiceCfg; fichas: Ficha[]; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
 }) {
   const [saldo, setSaldo] = useState(saldoInicial);
-  const [apuesta, setApuesta] = useState(Math.max(minBet, Math.min(maxBet, 1000)));
+  const [apuesta, setApuesta] = useState(
+    fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000)),
+  );
   const [dir, setDir] = useState<Dir>(cfg.direccionDefecto);
   const [umbral, setUmbralRaw] = useState(cfg.umbralDefecto);
   const [roll, setRoll] = useState<number | null>(null);
@@ -124,8 +128,12 @@ function DiceJuego({ cfg, saldoInicial, minBet, maxBet, paso, onJugar }: {
         ))}
       </div>
 
-      <ApuestaControl apuesta={apuesta} minBet={minBet} maxBet={maxBet} paso={paso}
-        ocupado={fase === 'rolling'} onApuesta={setApuesta} />
+      {fichas.length > 0 ? (
+        <FichasStrip fichas={fichas} apuesta={apuesta} bloqueado={fase === 'rolling'} onElegir={setApuesta} />
+      ) : (
+        <ApuestaControl apuesta={apuesta} minBet={minBet} maxBet={maxBet} paso={paso}
+          ocupado={fase === 'rolling'} onApuesta={setApuesta} />
+      )}
       <BotonJugar texto={fase === 'rolling' ? '…' : 'Tirar'} disabled={fase === 'rolling' || saldo < apuesta} onClick={jugar} />
       <Saldo valor={saldo} />
     </>
@@ -138,6 +146,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
 }) {
   const juego = datos.juego;
   const cfg = useMemo(() => cfgDiceDe(juego), [juego]);
+  const fichas = useMemo(() => fichasDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const [cargando, setCargando] = useState(true);
 
@@ -166,7 +175,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
       mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       cargando={cargando} cargaImagen={(juego.carga_url as string) || (juego.portada_url as string) || null}
     >
-      <DiceJuego cfg={cfg} saldoInicial={Number(saldoInicial)}
+      <DiceJuego cfg={cfg} fichas={fichas} saldoInicial={Number(saldoInicial)}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
     </InstantShell>
@@ -176,6 +185,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
 // ---- Vista previa (plata de mentira) ----
 export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => void }) {
   const cfg = useMemo(() => cfgDiceDe(juego), [juego]);
+  const fichas = useMemo(() => fichasDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const saldoRef = useRef(10000);
 
@@ -188,7 +198,7 @@ export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => v
 
   return (
     <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}>
-      <DiceJuego cfg={cfg} saldoInicial={10000}
+      <DiceJuego cfg={cfg} fichas={fichas} saldoInicial={10000}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
     </InstantShell>

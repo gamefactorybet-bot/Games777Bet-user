@@ -1,0 +1,41 @@
+// =========================================================
+// FICHAS DE APUESTA RÁPIDA — compartidas por todos los juegos.
+//
+// Si un juego tiene fichas cargadas, el jugador toca una para fijar la
+// apuesta (en vez de los −/+). Cada ficha es independiente: su valor,
+// una imagen redonda con su tamaño propio, el tamaño del botón y su
+// posición en la pantalla.
+//
+// Config en `juegos.fichas_cfg` (jsonb): { fichas: [...] }. Vacío =
+// el juego usa sus controles de siempre.
+// =========================================================
+
+export const FICHAS_DEFAULT = { fichas: [] };
+
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
+const str = (v, d) => (typeof v === 'string' && v ? v : d);
+
+export function fichasConDefaults(cfg) {
+  const arr = Array.isArray(cfg && cfg.fichas) ? cfg.fichas : [];
+  return {
+    fichas: arr
+      .map((f) => {
+        const o = f && typeof f === 'object' ? f : {};
+        return {
+          valor: Math.max(1, Math.round(num(o.valor, 1000))),
+          imagen_url: str(o.imagen_url, null),
+          x: clamp(num(o.x, 50), 0, 100),
+          y: clamp(num(o.y, 88), 0, 100),
+          tam: clamp(Math.round(num(o.tam, 54)), 28, 140),
+          imgTam: clamp(Math.round(num(o.imgTam, 88)), 30, 100),
+        };
+      })
+      .slice(0, 12),
+  };
+}
+
+/** Las fichas de un juego, ya validadas. */
+export function fichasDe(juego) {
+  return fichasConDefaults(juego && juego.fichas_cfg).fichas;
+}

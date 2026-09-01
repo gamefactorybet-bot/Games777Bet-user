@@ -4,12 +4,14 @@ import { supabase } from './supabase.ts';
 import { crearEscenario } from './juego/escenario.ts';
 import { Raspadita } from './Raspadita.tsx';
 import { RaspaditaMesa } from './RaspaditaMesa.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasConDefaults } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjusteRaspaControles } from './AjusteRaspaControles.tsx';
 import { cfgDe, estadoInicial, posControlesRaspaDe, jugarLocal } from './juego/raspadita.ts';
 import { temaRaspaDe } from './juego/raspadita-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoRaspa, Juego, PosControlesRaspa, TiradaRaspa } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoRaspa, Ficha, Juego, PosControlesRaspa, TiradaRaspa } from './types.ts';
 
 const MOTOR_STUB = { COLUMNAS: 1, FILAS: 1, FILA_PAGO: 0 };
 const SALDO_DEMO = 10000;
@@ -31,6 +33,12 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
   const [tab, setTab] = useState<'controles' | 'arte'>('controles');
   const [posCtl, setPosCtl] = useState<PosControlesRaspa>(() => posControlesRaspaDe(cfg));
   const [ajusteElem, setAjusteElem] = useState('tarjeta');
+  const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const guardarFichas = (fs: Ficha[]) => {
+    setFichas(fs);
+    supabase.from('juegos').update({ fichas_cfg: { fichas: fs } }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = { fichas: fs };
+  };
   const [estado, setEstado] = useState<EstadoRaspa>(() => estadoInicial(minBet, SALDO_DEMO));
   const [tirada, setTirada] = useState<TiradaRaspa | null>(null);
   const [revelado, setRevelado] = useState(false);
@@ -99,9 +107,19 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
           <RaspaditaMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso} raspando={!!tirada && !revelado}
+            ocultarApuesta={fichas.length > 0}
             onComprar={comprar}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
           />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={!!tirada && !revelado}
+              editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+              onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+            />
+          )}
         </>
       )}
 

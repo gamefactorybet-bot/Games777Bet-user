@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TableroMines } from './TableroMines.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { crearEscenario } from './juego/escenario.ts';
 import { precargarLottie } from './lottie.ts';
@@ -35,6 +37,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
 
   const [estado, setEstado] = useState<EstadoPartida>(() => estadoInicial(3, minBet, saldoInicial));
   const posCtl = useRef(posControlesDe(juego)).current;
+  const fichas = useRef(fichasDe(juego)).current;
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
@@ -198,21 +201,31 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
 
       <div ref={hostRef} />
       {listo && escRef.current && (
-        <TableroMines
-          escenario={escRef.current}
-          pos={posCtl}
-          juego={juego}
-          estado={estado}
-          minBet={minBet}
-          maxBet={maxBet}
-          pasoApuesta={paso}
-          onIniciar={iniciar}
-          onRevelar={revelar}
-          onRetirar={retirar}
-          onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
-          onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
-          onNueva={nueva}
-        />
+        <>
+          <TableroMines
+            escenario={escRef.current}
+            pos={posCtl}
+            juego={juego}
+            estado={estado}
+            minBet={minBet}
+            maxBet={maxBet}
+            pasoApuesta={paso}
+            ocultarApuesta={fichas.length > 0}
+            onIniciar={iniciar}
+            onRevelar={revelar}
+            onRetirar={retirar}
+            onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
+            onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
+            onNueva={nueva}
+          />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={estado.fase !== 'inactiva' || estado.cargando}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+            />
+          )}
+        </>
       )}
 
       {pantallaMontada && (

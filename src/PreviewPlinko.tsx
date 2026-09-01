@@ -4,12 +4,14 @@ import { supabase } from './supabase.ts';
 import { crearEscenario } from './juego/escenario.ts';
 import { Plinko } from './Plinko.tsx';
 import { PlinkoMesa } from './PlinkoMesa.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasConDefaults } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjustePlinkoControles } from './AjustePlinkoControles.tsx';
 import { cfgDe, estadoInicial, posControlesPlinkoDe, tirarLocal } from './juego/plinko.ts';
 import { temaPlinkoDe } from './juego/plinko-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoPlinko, Juego, PosControlesPlinko, TiradaResuelta } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoPlinko, Ficha, Juego, PosControlesPlinko, TiradaResuelta } from './types.ts';
 
 const MOTOR_STUB = { COLUMNAS: 1, FILAS: 1, FILA_PAGO: 0 };
 const SALDO_DEMO = 10000;
@@ -30,6 +32,13 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
   const [mostrarPanel, setMostrarPanel] = useState(false);
   const [tab, setTab] = useState<'controles' | 'arte'>('controles');
   const [posCtl, setPosCtl] = useState<PosControlesPlinko>(() => posControlesPlinkoDe(cfg));
+  const [ajusteElem, setAjusteElem] = useState('boton');
+  const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const guardarFichas = (fs: Ficha[]) => {
+    setFichas(fs);
+    supabase.from('juegos').update({ fichas_cfg: { fichas: fs } }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = { fichas: fs };
+  };
   const [estado, setEstado] = useState<EstadoPlinko>(() => estadoInicial(minBet, SALDO_DEMO, cfg));
   const [tirada, setTirada] = useState<TiradaResuelta | null>(null);
 
@@ -96,11 +105,21 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
           <PlinkoMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada}
+            ocultarApuesta={fichas.length > 0}
             onSoltar={soltar}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
             onCambiarFilas={(n) => setEstado((e) => ({ ...e, filas: n }))}
             onCambiarRiesgo={(r) => setEstado((e) => ({ ...e, riesgo: r }))}
           />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={!!tirada}
+              editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+              onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+            />
+          )}
         </>
       )}
 
@@ -112,7 +131,7 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjustePlinkoControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
+            : <AjustePlinkoControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
         </div>
       )}
     </div>

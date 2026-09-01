@@ -1,5 +1,5 @@
 -- ================================================
--- COMBINADO: sql/40 → sql/46 (ruletas + rotación RTP + crash + plinko + raspadita + limbo + dice)
+-- COMBINADO: sql/40 → sql/47 (ruletas + rotación RTP + crash + plinko + raspadita + limbo + dice + fichas)
 -- Seguro de correr varias veces (todo es IF NOT EXISTS / OR REPLACE).
 -- ================================================
 
@@ -230,3 +230,19 @@ comment on column juegos.limbo_cfg is
   'Config del motor limbo: { rtp, tope, objetivoDefecto, tema, fondoUrl }. Ver motor/limbo.js';
 comment on column juegos.dice_cfg is
   'Config del motor dice: { rtp, chanceMin, chanceMax, umbralDefecto, direccionDefecto, tema, fondoUrl }. Ver motor/dice.js';
+
+-- ===================== sql/47_fichas.sql =====================
+-- =========================================================
+-- 47 — FICHAS DE APUESTA RÁPIDA (compartidas por todos los motores)
+--
+-- Botones redondos para fijar la apuesta de una, en vez de los −/+.
+-- Cada ficha: valor, imagen redonda (con su tamaño), tamaño del botón
+-- y posición. Config en jsonb, una sola columna para cualquier juego.
+-- Vacío = el juego usa sus controles de siempre.
+-- =========================================================
+
+alter table juegos
+  add column if not exists fichas_cfg jsonb not null default '{}'::jsonb;
+
+comment on column juegos.fichas_cfg is
+  'Fichas de apuesta rápida: { fichas: [{ valor, imagen_url, x, y, tam, imgTam }] }. Ver motor/fichas.js';

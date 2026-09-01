@@ -21,6 +21,8 @@ interface PlinkoMesaProps {
   maxBet: number;
   pasoApuesta: number;
   cayendo: boolean;
+  /** El juego usa fichas: se ocultan los −/+. */
+  ocultarApuesta?: boolean;
   onSoltar: () => void;
   onCambiarApuesta: (n: number) => void;
   onCambiarFilas: (n: number) => void;
@@ -28,7 +30,7 @@ interface PlinkoMesaProps {
 }
 
 export function PlinkoMesa({
-  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, cayendo,
+  escenario, cfg, pos, estado, minBet, maxBet, pasoApuesta, cayendo, ocultarApuesta,
   onSoltar, onCambiarApuesta, onCambiarFilas, onCambiarRiesgo,
 }: PlinkoMesaProps) {
   const ocupado = cayendo || estado.cargando;
@@ -79,16 +81,23 @@ export function PlinkoMesa({
         </div>
       )}
 
-      <div style={{ ...centrado(pos.apuesta), display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
-        <button disabled={ocupado} onClick={() => onCambiarApuesta(Math.max(minBet, estado.apuesta - pasoApuesta))}
-          style={stepBtn}>−</button>
-        <span style={{ minWidth: 92, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+      {ocultarApuesta ? (
+        <div style={{ ...centrado(pos.apuesta), textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
           <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
           <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>
-        </span>
-        <button disabled={ocupado} onClick={() => onCambiarApuesta(Math.min(maxBet, estado.apuesta + pasoApuesta))}
-          style={stepBtn}>+</button>
-      </div>
+        </div>
+      ) : (
+        <div style={{ ...centrado(pos.apuesta), display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
+          <button disabled={ocupado} onClick={() => onCambiarApuesta(Math.max(minBet, estado.apuesta - pasoApuesta))}
+            style={stepBtn}>−</button>
+          <span style={{ minWidth: 92, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+            <span className="hint" style={{ display: 'block', fontSize: 9, margin: 0, textTransform: 'uppercase' }}>Apuesta</span>
+            <strong style={{ fontSize: 15 }}>{fmt(estado.apuesta)}</strong>
+          </span>
+          <button disabled={ocupado} onClick={() => onCambiarApuesta(Math.min(maxBet, estado.apuesta + pasoApuesta))}
+            style={stepBtn}>+</button>
+        </div>
+      )}
 
       <button
         onClick={onSoltar}

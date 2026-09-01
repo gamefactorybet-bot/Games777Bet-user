@@ -18,12 +18,20 @@ import { mostrarAnimacionJuego, detenerAnimacionesJuego, detenerAnimacionesSimbo
 import { conDefaults, ordenPorDefecto, filtroCss, posPremioDefaults, escapeHtml } from './defaults.ts';
 import type { CapaId, PosCapas, PosPremio } from './defaults.ts';
 import { pintarMonto } from './monto.ts';
+import { fichasDe } from '../../motor/fichas.js';
 import type {
   AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
   NivelPremio, PremioVisual, Rect, Simbolo, Sonido,
 } from '../types.ts';
 
 type Modo = 'preview' | 'jugar';
+
+/** Etiqueta corta para la ficha sin imagen: 1k, 5k, 1M… */
+function fichaCorto(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(n % 1000 ? 1 : 0) + 'k';
+  return String(Math.round(n));
+}
 
 export interface CrearEscenarioOpts {
   modo: Modo;
@@ -211,6 +219,12 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const fichasPorDefecto = [1, 2, 5, 20, 50].map((m) => apuestaMin * m).filter((f) => f <= apuestaMax);
   const fichasJuego = juego.fichas as number[] | undefined;
   const fichasIniciales = fichasJuego?.length ? fichasJuego.map(Number) : fichasPorDefecto;
+  // Fichas "ricas" (motor/fichas.js): botón redondo con imagen y tamaño
+  // propios. Si el juego tiene alguna cargada, reemplazan a las fichas
+  // simples y a los −/+ (mismo criterio que el resto de los motores).
+  const fichasRicas = fichasDe(juego) as {
+    valor: number; imagen_url: string | null; tam: number; imgTam: number;
+  }[];
 
   const cssEfectos = (efectos || []).map((ef) => ef.css || '').join('\n');
   const audios: Partial<Record<string, HTMLAudioElement>> = {};
@@ -588,9 +602,46 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const pintarApuesta = () => { apuestaEl.textContent = escenario.apuesta.toLocaleString('es-PY'); };
 
   const pintarFichas = () => {
-    fichasEl.innerHTML = escenario.fichas.map((f) => `
-      <button data-f="${f}" style="padding:3px 9px; font-size:11px; ${f === escenario.apuesta ? 'border-color:var(--accent); color:var(--accent)' : ''}">${Number(f).toLocaleString('es-PY')}</button>
-    `).join('');
+    if (fichasRicas.length) {
+      fichasEl.style.gap = '14px';
+      fichasEl.innerHTML = fichasRicas.map((f, i) => {
+        const marcada = Math.round(f.valor) === Math.round(escenario.apuesta);
+        const fondo = f.imagen_url
+          ? `center/cover no-repeat url('${escapeHtml(f.imagen_url)}')`
+          : 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))';
+        return `
+          <button data-f="${f.valor}" data-i="${i}" title="${Number(f.valor).toLocaleString('es-PY')}" style="
+            position:relative; padding:0; border:0; border-radius:50%; flex-shrink:0;
+            width:${f.tam}px; height:${f.tam}px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            background:radial-gradient(circle at 32% 28%, #2b3140, #171a22);
+            box-shadow:${marcada
+              ? '0 0 0 2px var(--accent), 0 0 22px -2px var(--accent), 0 6px 16px -6px rgba(0,0,0,.6)'
+              : '0 6px 16px -6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08)'};
+            filter:${marcada ? 'brightness(1.2) saturate(1.08)' : 'none'};
+            transform:${marcada ? 'scale(1.09)' : 'none'};
+            transition:box-shadow .14s, transform .12s, filter .14s;">
+            <span style="width:${f.imgTam}%; height:${f.imgTam}%; border-radius:50%; background:${fondo};
+              box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
+              display:flex; align-items:center; justify-content:center;
+              font-family:var(--mono, monospace); font-weight:700; color:#fff;
+              font-size:${Math.max(9, f.tam * f.imgTam / 100 * 0.34)}px;">
+              ${f.imagen_url ? '' : escapeHtml(fichaCorto(f.valor))}
+            </span>
+            <span style="position:absolute; bottom:-14px; left:50%; transform:translateX(-50%);
+              font-family:var(--mono, monospace); font-size:10px; font-weight:600;
+              color:${marcada ? 'var(--accent)' : 'var(--text-dim, #8a93a1)'};
+              background:rgba(0,0,0,.55); padding:1px 6px; border-radius:5px; white-space:nowrap;">
+              ${Number(f.valor).toLocaleString('es-PY')}
+            </span>
+          </button>`;
+      }).join('');
+    } else {
+      fichasEl.style.gap = '4px';
+      fichasEl.innerHTML = escenario.fichas.map((f) => `
+        <button data-f="${f}" style="padding:3px 9px; font-size:11px; ${f === escenario.apuesta ? 'border-color:var(--accent); color:var(--accent)' : ''}">${Number(f).toLocaleString('es-PY')}</button>
+      `).join('');
+    }
     fichasEl.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
       b.addEventListener('click', () => {
         if (escenario.girando) return;
@@ -617,8 +668,12 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   };
 
   const aplicarModo = () => {
-    const conFichas = escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto';
-    const conMasMenos = escenario.modoApuesta === 'mas_menos' || escenario.modoApuesta === 'mixto';
+    // Con fichas ricas se ignora modo_apuesta: mandan las fichas y se
+    // esconden los −/+ (la apuesta se fija tocando una ficha).
+    const conFichas = fichasRicas.length > 0
+      || escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto';
+    const conMasMenos = fichasRicas.length === 0
+      && (escenario.modoApuesta === 'mas_menos' || escenario.modoApuesta === 'mixto');
     fichasEl.style.display = conFichas ? 'flex' : 'none';
     btnMenos.style.display = conMasMenos ? 'flex' : 'none';
     btnMas.style.display = conMasMenos ? 'flex' : 'none';
@@ -670,7 +725,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     efectos: efectos || [],
     simbolos: opts.simbolos,
 
-    apuesta: apuestaMin,
+    apuesta: fichasRicas.length ? Math.round(fichasRicas[0].valor) : apuestaMin,
     apuestaMin, apuestaMax, pasoApuesta,
     saldo: 10000,
     velocidad: 1,

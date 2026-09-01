@@ -5,24 +5,27 @@ import { Rango } from './AjustePanel.tsx';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesPlinko } from './types.ts';
 
-type ElemId = keyof PosControlesPlinko;
+type ElemId = keyof PosControlesPlinko | 'fichas';
 
 const ELEMS: { id: ElemId; etiqueta: string }[] = [
   { id: 'boton', etiqueta: 'Botón' },
   { id: 'apuesta', etiqueta: 'Apuesta' },
+  { id: 'fichas', etiqueta: 'Fichas' },
   { id: 'opciones', etiqueta: 'Filas/Riesgo' },
   { id: 'saldo', etiqueta: 'Saldo' },
   { id: 'historial', etiqueta: 'Historial' },
 ];
 
 // Panel para ubicar los controles del Plinko. Edita `plinko_cfg.controles`.
-export function AjustePlinkoControles({ juego, escenario, pos, onChange }: {
+export function AjustePlinkoControles({ juego, escenario, pos, onChange, onElem }: {
   juego: Juego;
   escenario: Escenario;
   pos: PosControlesPlinko;
   onChange: (pos: PosControlesPlinko) => void;
+  onElem?: (id: ElemId) => void;
 }) {
-  const [elem, setElem] = useState<ElemId>('boton');
+  const [elem, setElemRaw] = useState<ElemId>('boton');
+  const setElem = (id: ElemId) => { setElemRaw(id); onElem?.(id); };
   const [msg, setMsg] = useState('');
   const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
 
@@ -33,9 +36,11 @@ export function AjustePlinkoControles({ juego, escenario, pos, onChange }: {
     (juego as { mostrar_nombre?: boolean }).mostrar_nombre = v;
   };
 
-  const actual = pos[elem] as Record<string, number | string | null>;
+  const esFichas = elem === 'fichas';
+  const actual = (esFichas ? {} : pos[elem]) as Record<string, number | string | null>;
   const set = (prop: string, valor: number | string | null) => {
-    onChange({ ...pos, [elem]: { ...(pos[elem] as object), [prop]: valor } });
+    if (esFichas) return;
+    onChange({ ...pos, [elem]: { ...(pos[elem as keyof PosControlesPlinko] as object), [prop]: valor } });
   };
 
   const guardar = async () => {
@@ -66,8 +71,17 @@ export function AjustePlinkoControles({ juego, escenario, pos, onChange }: {
         ))}
       </div>
 
-      <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
-      <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
+      {esFichas ? (
+        <p className="hint" style={{ margin: '4px 0 0' }}>
+          Arrastrá cada ficha en la vista previa para ubicarla. El valor, la imagen y los tamaños se
+          cargan en <b>Jugabilidad → Fichas de apuesta rápida</b>.
+        </p>
+      ) : (
+        <>
+          <Rango etiqueta="Posición X" min={0} max={100} valor={actual.x as number} onInput={(n) => set('x', n)} />
+          <Rango etiqueta="Posición Y" min={0} max={100} valor={actual.y as number} onInput={(n) => set('y', n)} />
+        </>
+      )}
 
       {elem === 'boton' && (
         <>

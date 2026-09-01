@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabase.ts';
 import { TableroMines } from './TableroMines.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasConDefaults } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjusteMinesControles } from './AjusteMinesControles.tsx';
 import { crearEscenario } from './juego/escenario.ts';
@@ -10,7 +12,7 @@ import {
 } from './juego/mines.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { EstadoPartida } from './juego/mines.ts';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, Juego, PosControlesMines } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, Ficha, Juego, PosControlesMines } from './types.ts';
 
 interface PreviewMinesProps {
   juego: Juego;
@@ -32,6 +34,13 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
   const minasSecretas = useRef<number[]>([]);
   const [estado, setEstado] = useState<EstadoPartida>(() => estadoInicial(3, minBet, 10000));
   const [posCtl, setPosCtl] = useState<PosControlesMines>(() => posControlesDe(juego));
+  const [ajusteElem, setAjusteElem] = useState('saldo');
+  const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const guardarFichas = (fs: Ficha[]) => {
+    setFichas(fs);
+    supabase.from('juegos').update({ fichas_cfg: { fichas: fs } }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = { fichas: fs };
+  };
 
   const hostRef = useRef<HTMLDivElement>(null);
   const escRef = useRef<Escenario | null>(null);
@@ -108,21 +117,33 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
       <div ref={hostRef} />
 
       {listo && escRef.current && (
-        <TableroMines
-          escenario={escRef.current}
-          pos={posCtl}
-          juego={juego}
-          estado={estado}
-          minBet={minBet}
-          maxBet={maxBet}
-          pasoApuesta={paso}
-          onIniciar={iniciar}
-          onRevelar={revelar}
-          onRetirar={retirar}
-          onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
-          onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
-          onNueva={nueva}
-        />
+        <>
+          <TableroMines
+            escenario={escRef.current}
+            pos={posCtl}
+            juego={juego}
+            estado={estado}
+            minBet={minBet}
+            maxBet={maxBet}
+            pasoApuesta={paso}
+            ocultarApuesta={fichas.length > 0}
+            onIniciar={iniciar}
+            onRevelar={revelar}
+            onRetirar={retirar}
+            onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
+            onCambiarMinas={(n) => setEstado((e) => ({ ...e, minas: n }))}
+            onNueva={nueva}
+          />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={estado.fase !== 'inactiva'}
+              editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+              onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+            />
+          )}
+        </>
       )}
 
       {listo && mostrarPanel && escRef.current && (
@@ -133,7 +154,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteMinesControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
+            : <AjusteMinesControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
         </div>
       )}
     </div>

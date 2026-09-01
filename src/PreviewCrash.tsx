@@ -4,12 +4,14 @@ import { supabase } from './supabase.ts';
 import { crearEscenario } from './juego/escenario.ts';
 import { Crash } from './Crash.tsx';
 import { CrashMesa } from './CrashMesa.tsx';
+import { Fichas } from './Fichas.tsx';
+import { fichasConDefaults } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjusteCrashControles } from './AjusteCrashControles.tsx';
 import { cfgDe, estadoInicial, posControlesCrashDe, resolverRetiro, sortearReventon } from './juego/crash.ts';
 import { temaCrashDe } from './juego/crash-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoCrash, Juego, PosControlesCrash } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoCrash, Ficha, Juego, PosControlesCrash } from './types.ts';
 
 const MOTOR_STUB = { COLUMNAS: 1, FILAS: 1, FILA_PAGO: 0 };
 const SALDO_DEMO = 10000;
@@ -34,6 +36,13 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
   const [mostrarPanel, setMostrarPanel] = useState(false);
   const [tab, setTab] = useState<'controles' | 'arte'>('controles');
   const [posCtl, setPosCtl] = useState<PosControlesCrash>(() => posControlesCrashDe(cfg));
+  const [ajusteElem, setAjusteElem] = useState('boton');
+  const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const guardarFichas = (fs: Ficha[]) => {
+    setFichas(fs);
+    supabase.from('juegos').update({ fichas_cfg: { fichas: fs } }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = { fichas: fs };
+  };
   const [estado, setEstado] = useState<EstadoCrash>(() => estadoInicial(minBet, SALDO_DEMO, cfg));
 
   useEffect(() => {
@@ -115,12 +124,22 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
           <CrashMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
             minBet={minBet} maxBet={maxBet} pasoApuesta={paso}
+            ocultarApuesta={fichas.length > 0}
             onApostar={apostar}
             onRetirar={() => cerrarRonda()}
             onNueva={nueva}
             onCambiarApuesta={(n) => setEstado((e) => ({ ...e, apuesta: n }))}
             onCambiarAuto={(activo, objetivo) => setEstado((e) => ({ ...e, autoActivo: activo, autoObjetivo: objetivo }))}
           />
+          {fichas.length > 0 && (
+            <Fichas
+              host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
+              bloqueado={estado.fase === 'en_curso'}
+              editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
+              onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+              onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+            />
+          )}
         </>
       )}
 
@@ -132,7 +151,7 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteCrashControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
+            : <AjusteCrashControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
         </div>
       )}
     </div>
