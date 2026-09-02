@@ -776,6 +776,25 @@ export interface KenoCfg {
   fondoUrl: string | null;
   /** Ajustes manuales de la tabla: { [marcados]: { [aciertos]: mult } }. */
   pagos: Record<string, Record<string, number>>;
+  /** Posición de los controles en la pantalla del juego. */
+  controles: Partial<PosControlesKeno>;
+}
+
+export interface PuntoKeno { x: number; y: number; }
+
+export interface PosControlesKeno {
+  saldo: PuntoKeno;
+  historial: PuntoKeno;
+  apuesta: PuntoKeno;
+  /** Botones Automático / Limpiar. */
+  acciones: PuntoKeno;
+  /** Dónde aparece el cartel de la ganancia (el contador que sube). */
+  premio: PuntoKeno;
+  /** El tablero de números: posición + ancho en % de la pantalla. */
+  tablero: { x: number; y: number; ancho: number };
+  /** El bolillero (las bolas que van saliendo): posición + ancho. */
+  bolillero: { x: number; y: number; ancho: number };
+  boton: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };
 }
 
 /** Resultado de una jugada instantánea (lo decide el servidor). */
@@ -803,6 +822,22 @@ export interface ResultadoInstant {
   premio: number;
   saldo: number;
   repetido?: boolean;
+}
+
+/** Estado en curso de una partida de Keno (en el navegador). */
+export interface EstadoKeno {
+  saldo: number;
+  apuesta: number;
+  /** Números que marcó el jugador. */
+  picked: number[];
+  /** Números que salieron (se van agregando en la animación). */
+  drawn: number[];
+  fase: 'idle' | 'rolling' | 'done';
+  res: { aciertos: number; mult: number; amount: number } | null;
+  cargando: boolean;
+  error: string | null;
+  /** Multiplicadores de las últimas rondas (0 = sin premio). */
+  historial: number[];
 }
 
 // ---------------- Fichas de apuesta rápida (compartidas) ----------------

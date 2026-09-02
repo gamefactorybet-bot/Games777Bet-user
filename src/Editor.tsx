@@ -43,6 +43,7 @@ import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
 import { rtpDe as rtpDiceDe } from '../motor/dice.js';
 import { rtpDe as rtpKenoDe, rtpTabla as rtpKenoTabla, tablaBase as tablaKenoBase } from '../motor/keno.js';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
+import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
 import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
@@ -756,7 +757,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionFichas
           juego={juego}
           onCampo={guardarCampoJuego}
-          ubicacion={esInstant ? 'tira' : (esRuleta || (!esMines && !esCrash && !esPlinko && !esRaspadita)) ? 'grupo' : 'arrastre'}
+          ubicacion={(esLimbo || esDice) ? 'tira'
+            : (esMines || esCrash || esPlinko || esRaspadita || esKeno) ? 'arrastre'
+            : 'grupo'}
         />
       )}
 
@@ -2491,7 +2494,25 @@ function SeccionKeno({ juego, onCampo }: {
         </div>
       </div>
 
-      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Tema visual</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel. El fondo de pantalla propio se sube en <b>Arte</b>. Los controles se ubican en la <b>Vista previa</b> (⚙ Ajustar).</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
+          {TEMAS_KENO.map((t) => {
+            const on = (cfg.tema || 'clasico') === t.id;
+            return (
+              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
+                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
+              }}>
+                <span style={{ display: 'block', height: 18, borderRadius: 5, background: t.acento }} />
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

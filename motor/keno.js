@@ -69,6 +69,8 @@ export function cfgConDefaults(cfg) {
     tema: str(c.tema, D.tema),
     fondoUrl: str(c.fondoUrl, null),
     pagos,
+    // Posición de los controles (solo la usa el frontend; se pasa tal cual).
+    controles: obj(c.controles),
   };
 }
 

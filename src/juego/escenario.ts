@@ -66,6 +66,9 @@ export interface CrearEscenarioOpts {
   /** Raspadita: caja vacía y SIN controles de slot (trae los suyos:
    *  comprar tarjeta, apuesta). Como Mines. */
   esRaspadita?: boolean;
+  /** Keno: caja vacía y SIN controles de slot (trae los suyos:
+   *  tablero, bolillero, jugar, apuesta). Como Mines. */
+  esKeno?: boolean;
 }
 
 const CLAVES_BOTON: { clave: Boton['clave']; etiqueta: string }[] = [
@@ -166,11 +169,12 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const esCrash = !!opts.esCrash;
   const esPlinko = !!opts.esPlinko;
   const esRaspadita = !!opts.esRaspadita;
+  const esKeno = !!opts.esKeno;
   // Grilla como caja vacía y posicionable (Mines, las ruletas, el
-  // crash, el plinko y la raspadita montan su propio contenido adentro).
-  const cajaVacia = esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita;
+  // crash, el plinko, la raspadita y el keno montan su propio contenido adentro).
+  const cajaVacia = esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita || esKeno;
   // Sin controles de slot (traen los suyos).
-  const sinControlesSlot = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita;
+  const sinControlesSlot = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esKeno;
 
   const pos = conDefaults(juego);
   const ordenCapas = ordenPorDefecto(juego);

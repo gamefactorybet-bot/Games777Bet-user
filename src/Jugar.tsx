@@ -12,7 +12,7 @@ import { JugarPlinko } from './JugarPlinko.tsx';
 import { JugarRaspadita } from './JugarRaspadita.tsx';
 import { JugarLimbo } from './Limbo.tsx';
 import { JugarDice } from './Dice.tsx';
-import { JugarKeno } from './Keno.tsx';
+import { JugarKeno } from './JugarKeno.tsx';
 import type { DatosJuego } from './types.ts';
 
 // Pantalla jugable real, sin login: la abre directo el jugador cuando
