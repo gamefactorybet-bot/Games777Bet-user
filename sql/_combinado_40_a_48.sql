@@ -1,5 +1,5 @@
 -- ================================================
--- COMBINADO: sql/40 → sql/47 (ruletas + rotación RTP + crash + plinko + raspadita + limbo + dice + fichas)
+-- COMBINADO: sql/40 → sql/48 (ruletas + rotación RTP + crash + plinko + raspadita + limbo + dice + fichas + keno)
 -- Seguro de correr varias veces (todo es IF NOT EXISTS / OR REPLACE).
 -- ================================================
 
@@ -246,3 +246,19 @@ alter table juegos
 
 comment on column juegos.fichas_cfg is
   'Fichas de apuesta rápida: { fichas: [{ valor, imagen_url, x, y, tam, imgTam }] }. Ver motor/fichas.js';
+
+-- ===================== sql/48_keno.sql =====================
+-- =========================================================
+-- 48 — MOTOR KENO
+--
+-- El jugador marca números en un tablero, la banca saca las bolas y
+-- cobra según cuántas acierta. Juego "de una tirada": comparte el
+-- endpoint api/jugar-instant.js con Limbo y Dice. No usa `simbolos`.
+-- RTP exacto por probabilidad hipergeométrica; config en jsonb.
+-- =========================================================
+
+alter table juegos
+  add column if not exists keno_cfg jsonb not null default '{}'::jsonb;
+
+comment on column juegos.keno_cfg is
+  'Config del motor keno: { rtp, tablero (25|40|80), bolas, maxMarcar, riesgo, tema, fondoUrl, pagos:{ [marcados]:{ [aciertos]:mult } } }. Ver motor/keno.js';

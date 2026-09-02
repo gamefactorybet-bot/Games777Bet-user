@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import * as limbo from '../motor/limbo.js';
 import * as dice from '../motor/dice.js';
+import * as keno from '../motor/keno.js';
 import { apostar, premiar } from './_lib/proveedorCliente.js';
 
 // Endpoint único de los juegos "de una tirada": Limbo y Dice (y
@@ -12,7 +13,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
-    const { token, slug, apuesta, clientId, objetivo, umbral, direccion } = req.body || {};
+    const { token, slug, apuesta, clientId, objetivo, umbral, direccion, marcados } = req.body || {};
     if (!token) return res.status(400).json({ error: 'Falta el token' });
     if (!clientId) return res.status(400).json({ error: 'Falta clientId' });
 
@@ -25,7 +26,8 @@ export default async function handler(req, res) {
     const motor = String(juego.motor || '');
     const esLimbo = motor.startsWith('limbo');
     const esDice = motor.startsWith('dice');
-    if (!esLimbo && !esDice) {
+    const esKeno = motor.startsWith('keno');
+    if (!esLimbo && !esDice && !esKeno) {
       return res.status(400).json({ error: 'Este juego no es de una tirada' });
     }
 
@@ -45,6 +47,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `La apuesta debe estar entre ${juego.min_bet} y ${juego.max_bet}` });
     }
 
+    // Keno: se valida la selección ANTES de cobrar (el motor tira si
+    // está mal; Limbo y Dice recortan en vez de fallar).
+    if (esKeno) {
+      const cfgK = keno.cfgConDefaults(juego.keno_cfg);
+      const sel = Array.isArray(marcados) ? marcados : [];
+      const validos = new Set(sel.map((n) => Math.round(Number(n))).filter((n) => n >= 1 && n <= cfgK.tablero));
+      if (validos.size < 1 || validos.size > cfgK.maxMarcar) {
+        return res.status(400).json({ error: `Marcá entre 1 y ${cfgK.maxMarcar} números.` });
+      }
+    }
+
     // Primero se cobra (Win777 es idempotente por roundId = clientId).
     const trasApostar = await apostar(token, clientId, monto);
 
@@ -52,9 +65,12 @@ export default async function handler(req, res) {
     if (esLimbo) {
       r = limbo.tirar(juego.limbo_cfg, objetivo);
       resultado = { tipo: 'limbo', resultado: r.resultado, objetivo: r.objetivo, gano: r.gano, mult: r.mult };
-    } else {
+    } else if (esDice) {
       r = dice.tirar(juego.dice_cfg, umbral, direccion);
       resultado = { tipo: 'dice', roll: r.roll, umbral: r.umbral, direccion: r.direccion, gano: r.gano, mult: r.mult, prob: r.prob };
+    } else {
+      r = keno.tirar(juego.keno_cfg, marcados);
+      resultado = { tipo: 'keno', sorteados: r.sorteados, marcados: r.marcados, aciertos: r.aciertos, gano: r.gano, mult: r.mult };
     }
 
     const ganancia = Number((monto * (Number(r.mult) || 0)).toFixed(2));

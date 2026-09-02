@@ -37,6 +37,7 @@ export const MOTORES_DISPONIBLES = [
   { valor: 'raspadita-clasica', etiqueta: 'Raspadita — tarjeta para raspar' },
   { valor: 'limbo-clasico', etiqueta: 'Limbo — llegá al multiplicador' },
   { valor: 'dice-clasico', etiqueta: 'Dice — mayor o menor' },
+  { valor: 'keno-clasico', etiqueta: 'Keno — marcá y que salgan' },
 ];
 
 /**

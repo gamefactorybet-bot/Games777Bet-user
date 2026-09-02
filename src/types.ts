@@ -70,6 +70,9 @@ export interface Juego {
   limbo_cfg?: Partial<LimboCfg>;
   dice_cfg?: Partial<DiceCfg>;
 
+  /** Keno: su config (tablero, bolas, marcar, riesgo, tema, pagos…). */
+  keno_cfg?: Partial<KenoCfg>;
+
   /** Fichas de apuesta rápida (cualquier motor). Vacío = controles normales. */
   fichas_cfg?: Partial<FichasCfg>;
 
@@ -760,9 +763,24 @@ export interface DiceCfg {
   fondoUrl: string | null;
 }
 
+export interface KenoCfg {
+  rtp: number;
+  /** Cantidad de números del tablero (25 | 40 | 80). */
+  tablero: number;
+  /** Cuántas bolas saca la banca. */
+  bolas: number;
+  /** Tope de números que puede marcar el jugador. */
+  maxMarcar: number;
+  riesgo: 'bajo' | 'medio' | 'alto';
+  tema: string;
+  fondoUrl: string | null;
+  /** Ajustes manuales de la tabla: { [marcados]: { [aciertos]: mult } }. */
+  pagos: Record<string, Record<string, number>>;
+}
+
 /** Resultado de una jugada instantánea (lo decide el servidor). */
 export interface TiradaInstant {
-  tipo: 'limbo' | 'dice';
+  tipo: 'limbo' | 'dice' | 'keno';
   gano: boolean;
   mult: number;
   /** Limbo: el punto que salió. */
@@ -773,6 +791,10 @@ export interface TiradaInstant {
   umbral?: number;
   direccion?: 'mayor' | 'menor';
   prob?: number;
+  /** Keno: los números que salieron, los marcados y cuántos acertó. */
+  sorteados?: number[];
+  marcados?: number[];
+  aciertos?: number;
 }
 
 /** Respuesta de `POST /api/jugar-instant`. */

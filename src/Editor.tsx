@@ -38,10 +38,12 @@ import { PreviewRaspadita } from './PreviewRaspadita.tsx';
 import { SeccionFichas } from './SeccionFichas.tsx';
 import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
 import { PreviewDice, cfgDiceDe } from './Dice.tsx';
+import { PreviewKeno, cfgKenoDe } from './Keno.tsx';
 import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
 import { rtpDe as rtpDiceDe } from '../motor/dice.js';
+import { rtpDe as rtpKenoDe, rtpTabla as rtpKenoTabla, tablaBase as tablaKenoBase } from '../motor/keno.js';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
-import type { CrashCfg, DiceCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa } from './types.ts';
+import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -100,7 +102,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esRaspadita = juego.motor.startsWith('raspadita');
   const esLimbo = juego.motor.startsWith('limbo');
   const esDice = juego.motor.startsWith('dice');
-  const esInstant = esLimbo || esDice;
+  const esKeno = juego.motor.startsWith('keno');
+  const esInstant = esLimbo || esDice || esKeno;
   const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
@@ -231,7 +234,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const rtpRaspa = esRaspadita ? rtpRaspaPromedio(juego.raspa_cfg || {}) * 100 : 0;
   const rtpLimbo = esLimbo ? (rtpLimboDe(juego.limbo_cfg || {}) as number) * 100 : 0;
   const rtpDice = esDice ? (rtpDiceDe(juego.dice_cfg || {}) as number) * 100 : 0;
-  const rtpInstant = esLimbo ? rtpLimbo : rtpDice;
+  const rtpKeno = esKeno ? (rtpKenoDe(juego.keno_cfg || {}) as number) * 100 : 0;
+  const rtpInstant = esLimbo ? rtpLimbo : esDice ? rtpDice : rtpKeno;
   const rtpReal = esRuletaBotones
     ? rtpBotones
     : !simbolos.length
@@ -683,6 +687,10 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionDice juego={juego} onCampo={guardarCampoJuego} />
       )}
 
+      {grupo === 'jugabilidad' && esKeno && (
+        <SeccionKeno juego={juego} onCampo={guardarCampoJuego} />
+      )}
+
       {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && !esInstant && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
@@ -850,6 +858,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                     ? <PreviewLimbo juego={juego} onClose={() => setPreviewAbierto(false)} />
                     : esDice
                       ? <PreviewDice juego={juego} onClose={() => setPreviewAbierto(false)} />
+                    : esKeno
+                      ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
                       : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
       )}
     </>
@@ -2332,6 +2342,167 @@ function SeccionDice({ juego, onCampo }: {
       <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
     </div>
   );
+}
+
+// ---------------- Keno ----------------
+
+function SeccionKeno({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<KenoCfg>(() => cfgKenoDe(juego));
+  useEffect(() => { setCfg(cfgKenoDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+  const [tab, setTab] = useState(3);
+  const guardar = (next: KenoCfg) => { setCfg(next); onCampo('keno_cfg', next); setMsg('Guardado ✓'); };
+
+  const topeBolas = Math.floor(cfg.tablero / 2);
+  const topeMarcar = Math.min(15, topeBolas);
+  const P = Math.min(Math.max(1, tab), cfg.maxMarcar);
+  const base = tablaKenoBase(cfg, P) as number[];
+  const over = (cfg.pagos && cfg.pagos[P]) || {};
+  const efect = base.map((v, h) => (over[h] != null ? over[h] : v));
+  const rtpP = rtpKenoTabla(cfg, P) * 100;
+  const objetivo = cfg.rtp * 100;
+  const enObjetivo = Math.abs(rtpP - objetivo) <= 1.2;
+
+  const setTablero = (t: number) => {
+    const tb = Math.floor(t / 2);
+    guardar({
+      ...cfg, tablero: t,
+      bolas: Math.min(cfg.bolas, tb),
+      maxMarcar: Math.min(cfg.maxMarcar, Math.min(15, tb)),
+      pagos: {},
+    });
+  };
+  const setPago = (h: number, val: string) => {
+    const pagos: KenoCfg['pagos'] = { ...(cfg.pagos || {}) };
+    const fila = { ...(pagos[P] || {}) };
+    const n = parseFloat(val.replace(',', '.'));
+    if (val.trim() === '' || Number.isNaN(n) || Math.abs(n - base[h]) < 1e-9) delete fila[h];
+    else fila[h] = Math.max(0, Math.round(n * 100) / 100);
+    if (Object.keys(fila).length) pagos[P] = fila; else delete pagos[P];
+    guardar({ ...cfg, pagos });
+  };
+  const resetTabla = () => {
+    const pagos = { ...(cfg.pagos || {}) };
+    delete pagos[P];
+    guardar({ ...cfg, pagos });
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad — Keno</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          El jugador marca números, el <b>servidor</b> saca las bolas y paga según cuántas acierta.
+          Cada cantidad de marcados tiene su tabla; el motor la arma para el RTP objetivo por
+          probabilidad hipergeométrica exacta.
+        </p>
+
+        <div style={{ fontSize: 12, marginBottom: 4 }}>Tablero</div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+          {[25, 40, 80].map((t) => (
+            <button key={t} onClick={() => setTablero(t)}
+              className={cfg.tablero === t ? 'primary' : undefined} style={{ fontSize: 12 }}>
+              {t} números
+            </button>
+          ))}
+        </div>
+
+        <label style={{ fontSize: 12, display: 'block' }}>RTP objetivo <b>{objetivo.toFixed(1)}%</b></label>
+        <input type="range" min={85} max={99} step={0.5} value={objetivo}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Bolas que saca la banca <b>{cfg.bolas}</b>
+          <span className="hint" style={{ margin: 0 }}> — hasta {topeBolas} (la mitad del tablero)</span>
+        </label>
+        <input type="range" min={1} max={topeBolas} step={1} value={cfg.bolas}
+          onChange={(e) => guardar({ ...cfg, bolas: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>Máximo que puede marcar el jugador <b>{cfg.maxMarcar}</b></label>
+        <input type="range" min={1} max={topeMarcar} step={1} value={cfg.maxMarcar}
+          onChange={(e) => guardar({ ...cfg, maxMarcar: Number(e.target.value) })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <div style={{ fontSize: 12, marginBottom: 4 }}>Riesgo <span className="hint" style={{ margin: 0 }}>— cómo reparte los pagos: bajo = premios chicos y seguidos, alto = pocos pero grandes</span></div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          {(['bajo', 'medio', 'alto'] as const).map((r) => (
+            <button key={r} onClick={() => guardar({ ...cfg, riesgo: r, pagos: {} })}
+              className={cfg.riesgo === r ? 'primary' : undefined} style={{ fontSize: 12, textTransform: 'capitalize' }}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <p className="hint" style={{ margin: 0 }}>{msg}</p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Tabla de pagos</strong>
+        <p className="hint" style={{ marginBottom: 10 }}>
+          Elegí una cantidad de marcados y ajustá los multiplicadores a mano. Vacío = lo pone el motor.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+          {Array.from({ length: cfg.maxMarcar }, (_, i) => i + 1).map((n) => (
+            <button key={n} onClick={() => setTab(n)}
+              className={P === n ? 'primary' : undefined}
+              style={{ fontSize: 11, padding: '4px 9px' }}>marca {n}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {efect.map((m, h) => {
+            const prob = probKeno(cfg.tablero, cfg.bolas, P, h) * 100;
+            if (m === 0 && base[h] === 0 && h < P * 0.5) return null;
+            return (
+              <div key={h} style={{ display: 'grid', gridTemplateColumns: '132px 1fr 78px', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                <span className="hint" style={{ margin: 0, fontFamily: 'monospace' }}>
+                  {h} de {P} · {prob.toFixed(prob < 0.01 ? 3 : 2)}%
+                </span>
+                <span style={{ height: 6, borderRadius: 3, background: 'var(--surface-alt)', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', height: '100%', width: `${Math.min(100, (m / Math.max(1, ...efect)) * 100)}%`, background: 'var(--accent)' }} />
+                </span>
+                <input
+                  value={m}
+                  inputMode="decimal"
+                  onChange={(e) => setPago(h, e.target.value)}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '5px 4px' }}
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+          <span style={{
+            fontSize: 12.5, fontFamily: 'monospace', padding: '6px 12px', borderRadius: 8,
+            background: enObjetivo ? 'var(--accent-soft, rgba(107,138,253,.14))' : 'rgba(230,179,84,.16)',
+            color: enObjetivo ? 'var(--accent)' : '#d9a441',
+          }}>
+            {enObjetivo ? '✓' : '!'} RTP con {P} marcados: <b>{rtpP.toFixed(2)}%</b>
+          </span>
+          {cfg.pagos && cfg.pagos[P] && (
+            <button style={{ fontSize: 12 }} onClick={resetTabla}>Volver a automático</button>
+          )}
+        </div>
+      </div>
+
+      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+    </div>
+  );
+}
+
+// Probabilidad hipergeométrica — copia chica para el editor (sin
+// importar toda la matemática del motor sólo para esto).
+function probKeno(T: number, D: number, P: number, h: number): number {
+  const lg = (n: number) => { let s = 0; for (let i = 2; i <= n; i++) s += Math.log(i); return s; };
+  const lc = (n: number, k: number) => (k < 0 || k > n || n < 0 ? -Infinity : lg(n) - lg(k) - lg(n - k));
+  const v = lc(P, h) + lc(T - P, D - h) - lc(T, D);
+  return v === -Infinity ? 0 : Math.exp(v);
 }
 
 function TemaInstantSelector({ valor, onSet }: { valor: string; onSet: (id: string) => void }) {
