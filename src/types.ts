@@ -73,6 +73,9 @@ export interface Juego {
   /** Keno: su config (tablero, bolas, marcar, riesgo, tema, pagos…). */
   keno_cfg?: Partial<KenoCfg>;
 
+  /** Torre: su config (rtp, dificultad, pisos, tema, imágenes, escalera…). */
+  torre_cfg?: Partial<TorreCfg>;
+
   /** Fichas de apuesta rápida (cualquier motor). Vacío = controles normales. */
   fichas_cfg?: Partial<FichasCfg>;
 
@@ -84,7 +87,7 @@ export interface Juego {
 
 export type EstadoMines = 'en_curso' | 'retirada' | 'perdida';
 
-/** Respuesta de `POST /api/mines-iniciar`. */
+/** Respuesta de `POST /api/mines` (accion: 'iniciar'). */
 export interface RondaMines {
   roundId: string;
   minas: number;
@@ -95,7 +98,7 @@ export interface RondaMines {
   yaExistia: boolean;
 }
 
-/** Respuesta de `POST /api/mines-revelar`. */
+/** Respuesta de `POST /api/mines` (accion: 'revelar'). */
 export interface RevelarMines {
   esMina: boolean;
   casilla: number;
@@ -136,7 +139,7 @@ export interface PosControlesMines {
   boton: BotonMines;
 }
 
-/** Respuesta de `POST /api/mines-retirar`. */
+/** Respuesta de `POST /api/mines` (accion: 'retirar'). */
 export interface RetirarMines {
   ganancia: number;
   multiplicador: number;
@@ -838,6 +841,106 @@ export interface EstadoKeno {
   error: string | null;
   /** Multiplicadores de las últimas rondas (0 = sin premio). */
   historial: number[];
+}
+
+// ---------------- Torre ----------------
+
+export type DificultadTorre = 'facil' | 'media' | 'dificil' | 'experto' | 'maestro' | 'custom';
+
+export interface TorreCfg {
+  rtp: number;
+  dificultad: DificultadTorre;
+  /** Solo si dificultad === 'custom'. */
+  cols: number;
+  trampas: number;
+  pisos: number;
+  tema: string;
+  fondoUrl: string | null;
+  /** Imágenes de las casillas (opcionales). */
+  casillaTapadaUrl: string | null;
+  casillaSeguraUrl: string | null;
+  casillaTrampaUrl: string | null;
+  casillaPasadaUrl: string | null;
+  fondoTorreUrl: string | null;
+  /** Animaciones Lottie (opcionales). */
+  animSubirUrl: string | null;
+  animTrampaUrl: string | null;
+  animRetiroUrl: string | null;
+  /** Ajustes manuales de la escalera: { [piso]: mult }. */
+  pagos: Record<string, number>;
+  controles: Partial<PosControlesTorre>;
+}
+
+export interface PuntoTorre { x: number; y: number; }
+
+export interface PosControlesTorre {
+  saldo: PuntoTorre;
+  historial: PuntoTorre;
+  /** El multiplicador grande. */
+  multiplicador: PuntoTorre;
+  /** Los −/+ de apuesta (o las fichas), antes de empezar. */
+  apuesta: PuntoTorre;
+  /** El cartel de la ganancia (contador que sube). */
+  premio: PuntoTorre;
+  /** La torre de casillas: posición + ancho en % de la pantalla. */
+  torre: { x: number; y: number; ancho: number };
+  boton: { x: number; y: number; ancho: number; alto: number; imagen_url?: string | null };
+}
+
+/** Estado en curso de una partida de Torre (en el navegador). */
+export interface EstadoTorre {
+  saldo: number;
+  apuesta: number;
+  /** Piso que se juega ahora (1..pisos). */
+  piso: number;
+  /** picks[i] = { piso, casilla } elegidos. */
+  picks: { piso: number; casilla: number }[];
+  /** Al perder / retirar: trampas de toda la torre. */
+  trampas: number[][] | null;
+  fase: 'idle' | 'jugando' | 'perdida' | 'retirada' | 'cargando';
+  /** Multiplicador banco (lo que cobrás si retirás ahora). */
+  mult: number;
+  res: { mult: number; amount: number; top: boolean } | null;
+  error: string | null;
+  /** Multiplicadores de las últimas rondas (0 = perdió). */
+  historial: number[];
+}
+
+/** Respuesta de `POST /api/torre` (accion: 'iniciar'). */
+export interface RondaTorre {
+  roundId: string;
+  piso: number;
+  pisos: number;
+  cols: number;
+  trampas: number;
+  multiplicador: number;
+  escalera: number[];
+  picks: { piso: number; casilla: number }[];
+  estado: 'en_curso' | 'retirada' | 'perdida';
+  saldo?: number;
+  yaExistia: boolean;
+}
+
+/** Respuesta de `POST /api/torre` (accion: 'subir'). */
+export interface SubirTorre {
+  trampa: boolean;
+  piso: number;
+  casilla: number;
+  estado: 'en_curso' | 'retirada' | 'perdida';
+  multiplicador?: number;
+  top?: boolean;
+  ganancia?: number;
+  saldo?: number | null;
+  trampasReveladas?: number[][];
+}
+
+/** Respuesta de `POST /api/torre` (accion: 'retirar'). */
+export interface RetirarTorre {
+  ganancia: number;
+  multiplicador: number;
+  saldo: number | null;
+  trampasReveladas?: number[][];
+  repetido?: boolean;
 }
 
 // ---------------- Fichas de apuesta rápida (compartidas) ----------------

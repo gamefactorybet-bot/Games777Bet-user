@@ -38,6 +38,7 @@ export const MOTORES_DISPONIBLES = [
   { valor: 'limbo-clasico', etiqueta: 'Limbo — llegá al multiplicador' },
   { valor: 'dice-clasico', etiqueta: 'Dice — mayor o menor' },
   { valor: 'keno-clasico', etiqueta: 'Keno — marcá y que salgan' },
+  { valor: 'torre-clasica', etiqueta: 'Torre — subí esquivando trampas' },
 ];
 
 /**

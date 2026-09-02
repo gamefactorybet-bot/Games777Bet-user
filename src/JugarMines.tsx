@@ -21,7 +21,7 @@ interface JugarMinesProps {
 const MOTOR_STUB = { COLUMNAS: 5, FILAS: 5, FILA_PAGO: 0 };
 
 // Pantalla real de Mines. Cada paso (empezar, destapar, retirar) lo
-// resuelve el servidor (api/mines-iniciar|revelar|retirar); acá solo
+// resuelve el servidor (api/mines, por accion); acá solo
 // se muestra. Las posiciones de las minas nunca llegan al navegador
 // hasta que la partida termina.
 export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps) {
@@ -119,9 +119,9 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const iniciar = async () => {
     setEstado((e) => ({ ...e, cargando: true, error: null }));
     try {
-      const r = await fetchJson<RondaMines>('/api/mines-iniciar', {
+      const r = await fetchJson<RondaMines>('/api/mines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slug, apuesta: estado.apuesta, minas: estado.minas }),
+        body: JSON.stringify({ accion: 'iniciar', token, slug, apuesta: estado.apuesta, minas: estado.minas }),
       });
       roundIdRef.current = r.roundId;
       const reveladas = r.reveladas || [];
@@ -146,9 +146,9 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
     // Feedback inmediato: la casilla se marca antes de que conteste el servidor.
     setEstado((e) => ({ ...e, pendiente: casilla, error: null }));
     try {
-      const r = await fetchJson<RevelarMines>('/api/mines-revelar', {
+      const r = await fetchJson<RevelarMines>('/api/mines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slug, roundId: roundIdRef.current, casilla }),
+        body: JSON.stringify({ accion: 'revelar', token, slug, roundId: roundIdRef.current, casilla }),
       });
       if (r.esMina) {
         setEstado((e) => ({ ...e, pendiente: null, fase: 'perdida', minasPos: r.posicionesMina ?? [], clicMina: casilla, ganancia: 0 }));
@@ -168,9 +168,9 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
     if (!roundIdRef.current || estado.fase !== 'en_curso') return;
     setEstado((e) => ({ ...e, cargando: true, error: null }));
     try {
-      const r = await fetchJson<RetirarMines>('/api/mines-retirar', {
+      const r = await fetchJson<RetirarMines>('/api/mines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slug, roundId: roundIdRef.current }),
+        body: JSON.stringify({ accion: 'retirar', token, slug, roundId: roundIdRef.current }),
       });
       setEstado((e) => ({
         ...e,

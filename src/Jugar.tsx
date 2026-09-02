@@ -13,6 +13,7 @@ import { JugarRaspadita } from './JugarRaspadita.tsx';
 import { JugarLimbo } from './Limbo.tsx';
 import { JugarDice } from './Dice.tsx';
 import { JugarKeno } from './JugarKeno.tsx';
+import { JugarTorre } from './JugarTorre.tsx';
 import type { DatosJuego } from './types.ts';
 
 // Pantalla jugable real, sin login: la abre directo el jugador cuando
@@ -84,6 +85,7 @@ function Jugar() {
   if (motor.startsWith('limbo')) return <JugarLimbo {...props} />;
   if (motor.startsWith('dice')) return <JugarDice {...props} />;
   if (motor.startsWith('keno')) return <JugarKeno {...props} />;
+  if (motor.startsWith('torre')) return <JugarTorre {...props} />;
   return <JugarSlot {...props} />;
 }
 

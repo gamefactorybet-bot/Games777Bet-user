@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   const motor = String(juego.motor || '');
   const sinSimbolos = motor.startsWith('mines') || motor === 'ruleta-botones' || motor.startsWith('crash')
     || motor.startsWith('plinko') || motor.startsWith('raspadita') || motor.startsWith('limbo')
-    || motor.startsWith('dice') || motor.startsWith('keno');
+    || motor.startsWith('dice') || motor.startsWith('keno') || motor.startsWith('torre');
   if (!sinSimbolos && !simbolos?.length) {
     return res.status(400).json({ error: 'Este juego todavía no tiene símbolos configurados' });
   }

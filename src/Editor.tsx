@@ -39,12 +39,15 @@ import { SeccionFichas } from './SeccionFichas.tsx';
 import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
 import { PreviewDice, cfgDiceDe } from './Dice.tsx';
 import { PreviewKeno, cfgKenoDe } from './Keno.tsx';
+import { PreviewTorre, cfgTorreDe } from './Torre.tsx';
 import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
 import { rtpDe as rtpDiceDe } from '../motor/dice.js';
 import { rtpDe as rtpKenoDe, rtpTabla as rtpKenoTabla, tablaBase as tablaKenoBase } from '../motor/keno.js';
+import { rtpDe as rtpTorreDe, multBase as multTorreBase, rtpPiso as rtpTorrePiso, chanceZafar as chanceTorre } from '../motor/torre.js';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
-import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa } from './types.ts';
+import { TEMAS as TEMAS_TORRE } from './juego/torre-temas.ts';
+import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa, TorreCfg } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -104,8 +107,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esLimbo = juego.motor.startsWith('limbo');
   const esDice = juego.motor.startsWith('dice');
   const esKeno = juego.motor.startsWith('keno');
+  const esTorre = juego.motor.startsWith('torre');
   const esInstant = esLimbo || esDice || esKeno;
-  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant;
+  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esTorre;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
   const [previewAbierto, setPreviewAbierto] = useState(false);
@@ -152,11 +156,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
   // Mines no es de rodillos, no hace falta.
   useEffect(() => {
-    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant) return;
+    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esTorre) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko, esRaspadita, esInstant]);
+  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko, esRaspadita, esInstant, esTorre]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -237,6 +241,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const rtpDice = esDice ? (rtpDiceDe(juego.dice_cfg || {}) as number) * 100 : 0;
   const rtpKeno = esKeno ? (rtpKenoDe(juego.keno_cfg || {}) as number) * 100 : 0;
   const rtpInstant = esLimbo ? rtpLimbo : esDice ? rtpDice : rtpKeno;
+  const rtpTorre = esTorre ? (rtpTorreDe(juego.torre_cfg || {}) as number) * 100 : 0;
   const rtpReal = esRuletaBotones
     ? rtpBotones
     : !simbolos.length
@@ -263,6 +268,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         ? (rtpRaspa <= 0 || rtpRaspa > 100)
       : esInstant
         ? (rtpInstant <= 0 || rtpInstant > 100)
+      : esTorre
+        ? (rtpTorre <= 0 || rtpTorre > 100)
         : esRuletaBotones
           ? (totalTajadasBotones(cfgBotonesDe(juego).numeros) < 2 || rtpBotones > 100)
           : esRuleta
@@ -484,6 +491,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     } else if (esInstant) {
       if (rtpInstant > 100) errores.push(`El RTP es ${rtpInstant.toFixed(1)}% — la casa pierde plata en cada jugada.`);
       else if (rtpInstant < 85 || rtpInstant > 99) avisos.push(`RTP de ${rtpInstant.toFixed(1)}%, fuera del rango habitual (85-99%).`);
+    } else if (esTorre) {
+      if (rtpTorre > 100) errores.push(`El RTP es ${rtpTorre.toFixed(1)}% — la casa pierde plata. Revisá la escalera de multiplicadores.`);
+      else if (rtpTorre < 85 || rtpTorre > 99) avisos.push(`RTP de ${rtpTorre.toFixed(1)}%, fuera del rango habitual (85-99%).`);
     } else {
       if (!simbolos.length) errores.push('No tiene símbolos cargados.');
       const sinIcono = simbolos.filter((s) => !s.icono_url);
@@ -498,9 +508,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && !sonidos.length) avisos.push('Sin sonidos cargados.');
+    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esTorre && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
-    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
+    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esTorre && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
   };
 
@@ -588,7 +598,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="ed-resumen-fila" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRaspadita ? rtpRaspa.toFixed(1) + '%' : esInstant ? rtpInstant.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
+          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRaspadita ? rtpRaspa.toFixed(1) + '%' : esInstant ? rtpInstant.toFixed(1) + '%' : esTorre ? rtpTorre.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
           <span className="ed-resumen-chip">versión {juego.version || 1}</span>
           <span className="ed-resumen-chip">{juego.publicado ? 'publicado ✓' : 'sin publicar'}</span>
         </div>
@@ -647,7 +657,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : (esRaspadita || esInstant) ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
+            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : (esRaspadita || esInstant || esTorre) ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
             <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />
             <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />
@@ -691,8 +701,14 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
       {grupo === 'jugabilidad' && esKeno && (
         <SeccionKeno juego={juego} onCampo={guardarCampoJuego} />
       )}
+      {grupo === 'jugabilidad' && esTorre && (
+        <SeccionTorre juego={juego} onCampo={guardarCampoJuego} />
+      )}
+      {grupo === 'arte' && esTorre && (
+        <SeccionArteTorre juego={juego} onCampo={guardarCampoJuego} />
+      )}
 
-      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && !esInstant && (
+      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esTorre && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -758,7 +774,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           juego={juego}
           onCampo={guardarCampoJuego}
           ubicacion={(esLimbo || esDice) ? 'tira'
-            : (esMines || esCrash || esPlinko || esRaspadita || esKeno) ? 'arrastre'
+            : (esMines || esCrash || esPlinko || esRaspadita || esKeno || esTorre) ? 'arrastre'
             : 'grupo'}
         />
       )}
@@ -863,6 +879,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                       ? <PreviewDice juego={juego} onClose={() => setPreviewAbierto(false)} />
                     : esKeno
                       ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
+                    : esTorre
+                      ? <PreviewTorre juego={juego} onClose={() => setPreviewAbierto(false)} />
                       : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
       )}
     </>
@@ -2512,6 +2530,213 @@ function SeccionKeno({ juego, onCampo }: {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Torre ----------------
+
+const DIF_TORRE: { id: TorreCfg['dificultad']; nombre: string; cols?: number; trampas?: number }[] = [
+  { id: 'facil', nombre: 'Fácil', cols: 4, trampas: 1 },
+  { id: 'media', nombre: 'Media', cols: 3, trampas: 1 },
+  { id: 'dificil', nombre: 'Difícil', cols: 2, trampas: 1 },
+  { id: 'experto', nombre: 'Experto', cols: 3, trampas: 2 },
+  { id: 'maestro', nombre: 'Maestro', cols: 4, trampas: 3 },
+];
+
+function SeccionTorre({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<TorreCfg>(() => cfgTorreDe(juego));
+  useEffect(() => { setCfg(cfgTorreDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+  const guardar = (next: TorreCfg) => { setCfg(next); onCampo('torre_cfg', next); setMsg('Guardado ✓'); };
+
+  const f = cfg.dificultad === 'custom'
+    ? { cols: cfg.cols, trampas: cfg.trampas }
+    : (DIF_TORRE.find((d) => d.id === cfg.dificultad) || DIF_TORRE[1]);
+  const cols = f.cols || 3;
+  const trampas = f.trampas || 1;
+  const p = (cols - trampas) / cols;
+  const objetivo = cfg.rtp * 100;
+
+  const setPago = (piso: number, val: string) => {
+    const pagos: TorreCfg['pagos'] = { ...(cfg.pagos || {}) };
+    const base = multTorreBase({ ...cfg }, piso) as number;
+    const n = parseFloat(val.replace(',', '.'));
+    if (val.trim() === '' || Number.isNaN(n) || Math.abs(n - base) < 1e-9) delete pagos[piso];
+    else pagos[piso] = Math.max(0, Math.round(n * 100) / 100);
+    guardar({ ...cfg, pagos });
+  };
+  const resetEscalera = () => guardar({ ...cfg, pagos: {} });
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad — Torre</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          El jugador sube piso por piso; si pisa la trampa pierde todo. El <b>servidor</b> guarda dónde
+          están las trampas. El multiplicador de cada piso sale de la probabilidad, así el RTP es el
+          mismo retire donde retire.
+        </p>
+
+        <label className="hint" style={{ display: 'block', margin: 0 }}>RTP objetivo <b style={{ color: 'var(--text)' }}>{objetivo.toFixed(1)}%</b></label>
+        <input type="range" min={85} max={99} step={0.5} value={objetivo}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <div style={{ fontSize: 12, marginBottom: 4 }}>Dificultad <span className="hint" style={{ margin: 0 }}>— casillas / trampas por piso</span></div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          {DIF_TORRE.map((d) => (
+            <button key={d.id} onClick={() => guardar({ ...cfg, dificultad: d.id, pagos: {} })}
+              className={cfg.dificultad === d.id ? 'primary' : undefined} style={{ fontSize: 11.5 }}>
+              {d.nombre} · {d.cols}/{d.trampas}
+            </button>
+          ))}
+          <button onClick={() => guardar({ ...cfg, dificultad: 'custom', cols, trampas, pagos: {} })}
+            className={cfg.dificultad === 'custom' ? 'primary' : undefined} style={{ fontSize: 11.5 }}>Personalizada</button>
+        </div>
+
+        {cfg.dificultad === 'custom' && (
+          <div style={{ display: 'flex', gap: 16, margin: '4px 0 12px' }}>
+            <label className="hint" style={{ margin: 0 }}>Casillas
+              <input type="number" min={2} max={6} value={cfg.cols}
+                onChange={(e) => { const c = Math.max(2, Math.min(6, Number(e.target.value) || 3)); guardar({ ...cfg, cols: c, trampas: Math.min(cfg.trampas, c - 1), pagos: {} }); }}
+                style={{ width: 60, marginLeft: 6, fontFamily: 'var(--mono)', textAlign: 'center' }} />
+            </label>
+            <label className="hint" style={{ margin: 0 }}>Trampas
+              <input type="number" min={1} max={cfg.cols - 1} value={cfg.trampas}
+                onChange={(e) => guardar({ ...cfg, trampas: Math.max(1, Math.min(cfg.cols - 1, Number(e.target.value) || 1)), pagos: {} })}
+                style={{ width: 60, marginLeft: 6, fontFamily: 'var(--mono)', textAlign: 'center' }} />
+            </label>
+          </div>
+        )}
+
+        <label className="hint" style={{ display: 'block', margin: '4px 0 0' }}>
+          Pisos <b style={{ color: 'var(--text)' }}>{cfg.pisos}</b>
+          <span className="hint" style={{ margin: 0 }}> — el último es el multiplicador tope. Chance de zafar por piso: {(p * 100).toFixed(1)}%</span>
+        </label>
+        <input type="range" min={4} max={14} step={1} value={cfg.pisos}
+          onChange={(e) => guardar({ ...cfg, pisos: Number(e.target.value), pagos: {} })}
+          style={{ width: '100%', margin: '4px 0 8px' }} />
+        <p className="hint" style={{ margin: 0 }}>{msg}</p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Escalera de multiplicadores</strong>
+        <p className="hint" style={{ marginBottom: 10 }}>
+          La calcula el motor (<span style={{ color: 'var(--text)' }}>RTP ÷ p^piso</span>). Tocá un valor para ajustarlo a mano.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 260, overflow: 'auto' }}>
+          {Array.from({ length: cfg.pisos }, (_, i) => i + 1).map((piso) => {
+            const base = multTorreBase({ ...cfg }, piso) as number;
+            const eff = cfg.pagos?.[piso] != null ? cfg.pagos[piso] : base;
+            const rtpP = (rtpTorrePiso({ ...cfg }, piso) as number) * 100;
+            const llegar = Math.pow((chanceTorre({ ...cfg }) as number), piso) * 100;
+            const ok = Math.abs(rtpP - objetivo) <= 1.5;
+            return (
+              <div key={piso} style={{ display: 'grid', gridTemplateColumns: '92px 1fr 84px', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                <span className="hint" style={{ margin: 0, fontFamily: 'var(--mono)' }}>piso {piso}</span>
+                <span className="hint" style={{ margin: 0, fontFamily: 'var(--mono)', opacity: 0.6, fontSize: 10.5 }}>{llegar.toFixed(llegar < 1 ? 2 : 1)}% llega</span>
+                <input value={eff} inputMode="decimal" onChange={(e) => setPago(piso, e.target.value)}
+                  style={{ width: '100%', fontFamily: 'var(--mono)', fontSize: 11.5, textAlign: 'center', padding: '5px 4px', color: ok ? 'var(--accent)' : '#d9a441' }} />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+          <span style={{
+            fontSize: 12.5, fontFamily: 'var(--mono)', padding: '6px 12px', borderRadius: 8,
+            background: 'var(--accent-soft, rgba(107,138,253,.14))', color: 'var(--accent)',
+          }}>RTP promedio: <b>{(rtpTorreDe({ ...cfg }) as number * 100).toFixed(2)}%</b></span>
+          {cfg.pagos && Object.keys(cfg.pagos).length > 0 && (
+            <button style={{ fontSize: 12 }} onClick={resetEscalera}>Volver a automático</button>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Tema visual</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel. Los controles se ubican en la <b>Vista previa</b> (⚙ Ajustar).</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
+          {TEMAS_TORRE.map((t) => {
+            const on = (cfg.tema || 'clasico') === t.id;
+            return (
+              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
+                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
+              }}>
+                <span style={{ display: 'block', height: 18, borderRadius: 5, background: t.acento }} />
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeccionArteTorre({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<TorreCfg>(() => cfgTorreDe(juego));
+  useEffect(() => { setCfg(cfgTorreDe(juego)); }, [juego.id]);
+  const set = (campo: keyof TorreCfg, url: string | null) => {
+    const next = { ...cfg, [campo]: url } as TorreCfg;
+    setCfg(next); onCampo('torre_cfg', next);
+  };
+  const subir = async (campo: keyof TorreCfg, file: File, lottie: boolean) => {
+    const url = await subirArchivo(file, `torre/${juego.id}`);
+    if (url) set(campo, url);
+    void lottie;
+  };
+
+  const slot = (campo: keyof TorreCfg, etiqueta: string, sub: string, lottie = false) => {
+    const url = cfg[campo] as string | null;
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 5 }}>{etiqueta}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, border: '1px dashed var(--border)', borderRadius: 10, background: 'var(--surface-alt)' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 8, border: '1px solid var(--border)', background: url && !lottie ? `center/cover no-repeat url("${url}")` : 'var(--bg)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>
+            {url ? (lottie ? '✨' : '') : (lottie ? '✨' : '🖼️')}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 12.5, display: 'block' }}>{url ? 'cargado' : 'sin cargar'}</b>
+            <span className="hint" style={{ margin: 0, fontSize: 10.5 }}>{sub}</span>
+          </div>
+          <label className="add-sym" style={{ flexShrink: 0, fontSize: 11 }}>
+            {url ? 'Cambiar' : 'Subir'}
+            <input type="file" accept={lottie ? '.json,.lottie,application/json' : 'image/*'} hidden
+              onChange={(e) => { const fl = e.target.files?.[0]; e.target.value = ''; if (fl) subir(campo, fl, lottie); }} />
+          </label>
+          {url && <button style={{ fontSize: 11, color: 'var(--danger)' }} onClick={() => set(campo, null)}>Quitar</button>}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Casillas de la torre</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Cada casilla puede ser una imagen. Sin cargar nada se ve un estilo por defecto (💎 / 💀).</p>
+        {slot('casillaTapadaUrl', 'Casilla tapada', 'lo que ve antes de elegir')}
+        {slot('casillaSeguraUrl', 'Casilla segura (zafó)', 'gema, huevo, moneda…')}
+        {slot('casillaTrampaUrl', 'Casilla trampa (perdió)', 'dragón, calavera, bomba…')}
+        {slot('casillaPasadaUrl', 'Casilla ya pasada', 'los pisos que ya subió (opcional)')}
+        {slot('fondoTorreUrl', 'Fondo de la torre', 'detrás de las casillas (opcional)')}
+      </div>
+      <div className="card">
+        <strong style={{ fontSize: 15 }}>Animaciones (Lottie)</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Opcionales.</p>
+        {slot('animSubirUrl', 'Al subir', 'destello sobre la casilla segura', true)}
+        {slot('animTrampaUrl', 'Al pisar la trampa', 'explosión / fuego', true)}
+        {slot('animRetiroUrl', 'Al retirar', 'festejo / lluvia de monedas', true)}
       </div>
     </div>
   );
