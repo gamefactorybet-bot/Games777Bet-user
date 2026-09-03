@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { analizar, analizarRuleta } from './motor.ts';
 import { cargarMotor, MOTORES_DISPONIBLES } from '../motor/registro.js';
@@ -39,18 +39,17 @@ import { SeccionFichas } from './SeccionFichas.tsx';
 import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
 import { PreviewDice, cfgDiceDe } from './Dice.tsx';
 import { PreviewKeno, cfgKenoDe } from './Keno.tsx';
-import { PreviewSieteUd, cfgSieteUdDe } from './SieteUd.tsx';
+import { PreviewSieteUd } from './SieteUd.tsx';
 import { PreviewTorre, cfgTorreDe } from './Torre.tsx';
 import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
 import { rtpDe as rtpDiceDe } from '../motor/dice.js';
-import { rtpDe as rtpSieteUdDe, rtpZona as rtpZonaSieteUd, probsZonas as probsSieteUd } from '../motor/sieteud.js';
+import { rtpDe as rtpSieteUdDe } from '../motor/sieteud.js';
 import { rtpDe as rtpKenoDe, rtpTabla as rtpKenoTabla, tablaBase as tablaKenoBase } from '../motor/keno.js';
 import { rtpDe as rtpTorreDe, multBase as multTorreBase, rtpPiso as rtpTorrePiso, chanceZafar as chanceTorre } from '../motor/torre.js';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
 import { TEMAS as TEMAS_TORRE } from './juego/torre-temas.ts';
-import { Rango } from './AjustePanel.tsx';
-import type { AjusteImg, CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SieteUdCfg, SimboloRaspa, TorreCfg, ZonaSieteUd } from './types.ts';
+import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SieteUdCfg, SimboloRaspa, TorreCfg } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -669,8 +668,15 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         </div>
       )}
 
-      {grupo === 'arte' && esSieteUd && (
-        <SeccionArteSieteUd juego={juego} onGuardarCfg={guardarSieteUdCfg} />
+      {(grupo === 'arte' || grupo === 'jugabilidad') && esSieteUd && (
+        <div className="card fade-in" style={{ marginBottom: 16 }}>
+          <strong style={{ fontSize: 15 }}>7 Up 7 Down se configura en la Vista previa</strong>
+          <p className="hint" style={{ margin: '6px 0 12px' }}>
+            Pagos, RTP, tema, imágenes (con retoque) y la posición de cada pieza — todo desde <b>⚙ Ajustar</b>,
+            viéndolo en vivo sobre el teléfono. Acá abajo solo va la portada y la pantalla de carga.
+          </p>
+          <button className="primary" onClick={() => setPreviewAbierto(true)}>Abrir Vista previa</button>
+        </div>
       )}
 
       {grupo === 'arte' && (
@@ -721,9 +727,6 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
       {grupo === 'jugabilidad' && esKeno && (
         <SeccionKeno juego={juego} onCampo={guardarCampoJuego} />
-      )}
-      {grupo === 'jugabilidad' && esSieteUd && (
-        <SeccionSieteUd juego={juego} onGuardarCfg={guardarSieteUdCfg} />
       )}
       {grupo === 'jugabilidad' && esTorre && (
         <SeccionTorre juego={juego} onCampo={guardarCampoJuego} />
@@ -2387,259 +2390,6 @@ function SeccionDice({ juego, onCampo }: {
       </div>
 
       <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
-    </div>
-  );
-}
-
-// ---------------- 7 Up 7 Down ----------------
-
-function SeccionSieteUd({ juego, onGuardarCfg }: {
-  juego: Juego;
-  onGuardarCfg: (patch: Partial<SieteUdCfg>) => Promise<void>;
-}) {
-  const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
-  useEffect(() => { setCfg(cfgSieteUdDe(juego)); setDirty(false); }, [juego.id]);
-  const [dirty, setDirty] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  // edita en local; recién se persiste con "Guardar"
-  const edit = (next: SieteUdCfg) => { setCfg(next); setDirty(true); setMsg(''); };
-
-  const guardar = async () => {
-    setMsg('Guardando…');
-    // sólo los campos de jugabilidad — imágenes van en Arte, `controles` en el editor de posiciones
-    await onGuardarCfg({ rtp: cfg.rtp, caras: cfg.caras, pagos: cfg.pagos, tema: cfg.tema });
-    setDirty(false); setMsg('Guardado ✓');
-  };
-
-  const barra = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-      <button className={dirty ? 'primary' : undefined} disabled={!dirty} onClick={guardar} style={{ fontSize: 12 }}>
-        Guardar
-      </button>
-      <span className="hint" style={{ margin: 0 }}>{msg || (dirty ? 'hay cambios sin guardar' : '')}</span>
-    </div>
-  );
-
-  const ZS: { id: ZonaSieteUd; nombre: string; rango: string }[] = [
-    { id: 'abajo', nombre: '7 abajo', rango: '2–6' },
-    { id: 'siete', nombre: 'Lucky 7', rango: '=7' },
-    { id: 'arriba', nombre: '7 arriba', rango: '8–12' },
-  ];
-  const probs = probsSieteUd(cfg.caras) as Record<ZonaSieteUd, number>;
-  const setPago = (z: ZonaSieteUd, val: string) => {
-    const n = parseFloat(val.replace(',', '.'));
-    const pagos = { ...cfg.pagos };
-    pagos[z] = (val.trim() === '' || Number.isNaN(n) || n <= 1) ? null : Math.round(n * 100) / 100;
-    edit({ ...cfg, pagos });
-  };
-  const resetPagos = () => edit({ ...cfg, pagos: { abajo: null, siete: null, arriba: null } });
-
-  return (
-    <div className="fade-in">
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Jugabilidad — 7 Up 7 Down</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>
-          Dos dados; el jugador apuesta a que la suma cae <b>abajo</b> del 7, <b>justo</b> en 7 o <b>arriba</b>.
-          El <b>servidor</b> tira los dados. Pago por zona = <code>rtp ÷ P(zona)</code>: el retorno esperado es
-          el mismo elijas la zona que elijas.
-        </p>
-
-        <label style={{ fontSize: 12, display: 'block' }}>RTP objetivo <b>{(cfg.rtp * 100).toFixed(1)}%</b></label>
-        <input type="range" min={85} max={99} step={0.5} value={cfg.rtp * 100}
-          onChange={(e) => edit({ ...cfg, rtp: Number(e.target.value) / 100 })}
-          style={{ width: '100%', margin: '4px 0 14px' }} />
-
-        <label style={{ fontSize: 12, display: 'block' }}>
-          Caras por dado <b>{cfg.caras}</b>
-          <span className="hint" style={{ margin: 0 }}> — 6 = dado normal. Con menos de 6 puede no haber ningún 7.</span>
-        </label>
-        <input type="range" min={4} max={10} step={1} value={cfg.caras}
-          onChange={(e) => edit({ ...cfg, caras: Number(e.target.value), pagos: { abajo: null, siete: null, arriba: null } })}
-          style={{ width: '100%', margin: '4px 0 8px' }} />
-        {barra}
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Pagos por zona</strong>
-        <p className="hint" style={{ marginBottom: 10 }}>
-          Vacío = exacto por RTP. Si tocás un pago a mano, mostramos el RTP real que queda en esa zona.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 88px 68px', gap: 8, alignItems: 'center', fontSize: 12, fontFamily: 'monospace' }}>
-          <span className="hint" style={{ margin: 0 }}>zona</span>
-          <span className="hint" style={{ margin: 0, textAlign: 'center' }}>pago ×</span>
-          <span className="hint" style={{ margin: 0, textAlign: 'right' }}>RTP real</span>
-          {ZS.map((z) => {
-            const p = probs[z.id] || 0;
-            return (
-              <Fragment key={z.id}>
-                <span>{z.nombre} <span className="hint" style={{ margin: 0 }}>· {z.rango} · {(p * 100).toFixed(1)}%</span></span>
-                <input
-                  key={`${z.id}-${cfg.caras}-${cfg.pagos[z.id] ?? 'x'}`}
-                  defaultValue={cfg.pagos[z.id] != null ? String(cfg.pagos[z.id]) : ''}
-                  placeholder={p > 0 ? (cfg.rtp / p).toFixed(2) : '—'}
-                  onBlur={(e) => setPago(z.id, e.target.value)}
-                  style={{ width: '100%', textAlign: 'center', fontSize: 12 }} />
-                <span style={{ textAlign: 'right', color: 'var(--ok)' }}>
-                  {p > 0 ? ((rtpZonaSieteUd(cfg, z.id) as number) * 100).toFixed(1) + '%' : '—'}
-                </span>
-              </Fragment>
-            );
-          })}
-        </div>
-        <button className="linkbtn" style={{ marginTop: 10, background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
-          onClick={resetPagos}>Volver a pagos exactos por RTP</button>
-        {barra}
-      </div>
-
-      <TemaInstantSelector valor={cfg.tema} onSet={(id) => edit({ ...cfg, tema: id })} />
-      {dirty && (
-        <p className="hint" style={{ margin: '8px 0 0' }}>
-          Cambiaste el tema — tocá <b>Guardar</b> en cualquiera de las tarjetas de arriba.
-        </p>
-      )}
-      <p className="hint" style={{ margin: '10px 0 0' }}>
-        Las imágenes (fondo, fieltro, cartel, botón) se suben en la pestaña <b>Arte</b>. Las posiciones y
-        tamaños, en <b>⚙ Ajustar</b> dentro de la Vista previa.
-      </p>
-    </div>
-  );
-}
-
-// Arte de 7 Up 7 Down: todas las imágenes en un lugar. Escribe en
-// sieteud_cfg (merge) salvo el fondo de pantalla que puede ir también
-// a la columna juego.fondo_url.
-type ArteKey = 'pantalla' | 'mesa' | 'cartel' | 'boton';
-const FIT_OPC: { v: AjusteImg['fit']; t: string }[] = [
-  { v: 'cover', t: 'Cubrir' }, { v: 'contain', t: 'Contener' }, { v: 'fill', t: 'Estirar' },
-];
-
-function RetoqueImg({ a, controles, onSet }: {
-  a: AjusteImg;
-  /** qué sliders mostrar además del encuadre. */
-  controles: ('pos' | 'zoom' | 'blur' | 'osc')[];
-  onSet: (patch: Partial<AjusteImg>) => void;
-}) {
-  return (
-    <div style={{ marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--border)' }}>
-      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>Encuadre</div>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        {FIT_OPC.map((o) => (
-          <button key={o.v} onClick={() => onSet({ fit: o.v })}
-            className={a.fit === o.v ? 'primary' : undefined} style={{ fontSize: 11, flex: 1, padding: '4px 0' }}>{o.t}</button>
-        ))}
-      </div>
-      {controles.includes('pos') && <>
-        <Rango etiqueta="Posición X" min={-50} max={150} valor={Math.round(a.x)} onInput={(n) => onSet({ x: n })} />
-        <Rango etiqueta="Posición Y" min={-50} max={150} valor={Math.round(a.y)} onInput={(n) => onSet({ y: n })} />
-      </>}
-      {controles.includes('zoom') && (
-        <Rango etiqueta="Zoom" min={20} max={400} unidad="%" valor={Math.round(a.zoom)} onInput={(n) => onSet({ zoom: n })} />
-      )}
-      {controles.includes('blur') && (
-        <Rango etiqueta="Desenfoque" min={0} max={30} unidad="px" valor={Math.round(a.blur)} onInput={(n) => onSet({ blur: n })} />
-      )}
-      {controles.includes('osc') && (
-        <Rango etiqueta="Oscurecer" min={0} max={90} unidad="%" valor={Math.round(a.osc)} onInput={(n) => onSet({ osc: n })} />
-      )}
-    </div>
-  );
-}
-
-function SeccionArteSieteUd({ juego, onGuardarCfg }: {
-  juego: Juego;
-  onGuardarCfg: (patch: Partial<SieteUdCfg>) => Promise<void>;
-}) {
-  const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
-  useEffect(() => { setCfg(cfgSieteUdDe(juego)); }, [juego.id]);
-  const [msg, setMsg] = useState('');
-  const [abierto, setAbierto] = useState<ArteKey | null>(null);
-  const guardarT = useRef<number | undefined>(undefined);
-  const pendiente = useRef(false);
-
-  const cfgRef = useRef(cfg); cfgRef.current = cfg;
-  const persist = async () => {
-    if (!pendiente.current) return;
-    pendiente.current = false;
-    setMsg('Guardando…');
-    const c = cfgRef.current;
-    await onGuardarCfg({
-      fondoPantallaUrl: c.fondoPantallaUrl, fondoUrl: c.fondoUrl, cartelUrl: c.cartelUrl,
-      botonImg: c.botonImg, velo: c.velo, arte: c.arte,
-    });
-    setMsg('Guardado ✓');
-  };
-  const persistRef = useRef(persist); persistRef.current = persist;
-  const autoguardar = () => {
-    pendiente.current = true;
-    window.clearTimeout(guardarT.current);
-    guardarT.current = window.setTimeout(() => persistRef.current(), 500);
-  };
-  useEffect(() => () => { window.clearTimeout(guardarT.current); void persistRef.current(); }, []);
-
-  const editar = (patch: Partial<SieteUdCfg>) => { setCfg((c) => ({ ...c, ...patch })); autoguardar(); };
-  const setArte = (k: ArteKey, patch: Partial<AjusteImg>) =>
-    setCfg((c) => { const n = { ...c, arte: { ...c.arte, [k]: { ...c.arte[k], ...patch } } }; autoguardar(); return n; });
-
-  const subir = async (campo: keyof SieteUdCfg, file: File) => {
-    const url = await subirArchivo(file, `sieteud/${juego.id}`);
-    if (url) { editar({ [campo]: url } as Partial<SieteUdCfg>); }
-  };
-
-  const slot = (
-    campo: 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 'botonImg',
-    arteKey: ArteKey, etiqueta: string, sub: string,
-    controles: ('pos' | 'zoom' | 'blur' | 'osc')[],
-  ) => {
-    const url = cfg[campo] as string | null;
-    return (
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 5 }}>{etiqueta}</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, border: '1px dashed var(--border)', borderRadius: 10, background: 'var(--surface-alt)' }}>
-          <div style={{ width: 48, height: 40, borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0, background: url ? `center/cover no-repeat url("${url}")` : 'var(--bg)', display: 'grid', placeItems: 'center', fontSize: 15 }}>
-            {url ? '' : '🖼️'}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <b style={{ fontSize: 12.5, display: 'block' }}>{url ? 'cargado' : 'sin cargar'}</b>
-            <span className="hint" style={{ margin: 0, fontSize: 10.5 }}>{sub}</span>
-          </div>
-          {url && (
-            <button style={{ fontSize: 11 }} onClick={() => setAbierto((a) => (a === arteKey ? null : arteKey))}>
-              {abierto === arteKey ? 'Cerrar' : 'Retoque'}
-            </button>
-          )}
-          <label className="add-sym" style={{ flexShrink: 0, fontSize: 11 }}>
-            {url ? 'Cambiar' : 'Subir'}
-            <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subir(campo, f); }} />
-          </label>
-          {url && <button style={{ fontSize: 11, color: 'var(--danger)' }} onClick={() => editar({ [campo]: null } as Partial<SieteUdCfg>)}>Quitar</button>}
-        </div>
-        {url && abierto === arteKey && (
-          <RetoqueImg a={cfg.arte[arteKey]} controles={controles} onSet={(p) => setArte(arteKey, p)} />
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div className="fade-in">
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Imágenes de 7 Up 7 Down</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Todo opcional. Con una imagen cargada, tocá <b>Retoque</b> para el encuadre, la posición, el zoom, el desenfoque y el oscurecido. Se guarda solo.</p>
-        {slot('fondoPantallaUrl', 'pantalla', 'Fondo de pantalla', 'detrás de todo, ocupa la pantalla entera', ['pos', 'zoom', 'blur', 'osc'])}
-        {slot('fondoUrl', 'mesa', 'Fondo de la mesa (fieltro)', 'donde caen los dados', ['pos', 'zoom', 'blur', 'osc'])}
-        <label style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-          Velo sobre el fieltro <b>{Math.round(cfg.velo * 100)}%</b>
-          <span className="hint" style={{ margin: 0 }}> — velo del color del tema; más velo = los dados se leen mejor</span>
-        </label>
-        <input type="range" min={10} max={95} step={1} value={Math.round(cfg.velo * 100)}
-          onChange={(e) => editar({ velo: Number(e.target.value) / 100 })}
-          style={{ width: '100%', margin: '4px 0 14px' }} />
-        {slot('cartelUrl', 'cartel', 'Cartel de premio', 'aparece al ganar — su posición y tamaño se ajustan en ⚙ Ajustar', ['blur', 'osc'])}
-        {slot('botonImg', 'boton', 'Imagen del botón de tirar', 'PNG apaisado; reemplaza el botón de color', [])}
-        <p className="hint" style={{ margin: '4px 0 0' }}>{msg}</p>
-      </div>
-      <p className="hint">La <b>portada</b> del catálogo y la <b>pantalla de carga</b> se suben en la tarjeta de abajo. Las posiciones de cada pieza, en <b>⚙ Ajustar</b> dentro de la Vista previa.</p>
     </div>
   );
 }

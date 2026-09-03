@@ -12,6 +12,8 @@
 // redondeadas. En el aire se ve más grande (cae desde alto).
 // =========================================================
 
+import { type M3, I3, m3mul, m3v, m3rot, m3ortho, m3T, m3axisAngle } from './mat3.ts';
+
 export interface PaletaDados {
   /** Fieltro: centro y borde del degradado radial. */
   feltA: string;
@@ -23,8 +25,8 @@ export interface PaletaDados {
   pip: string;
 }
 
+/** Retoque de la imagen del fieltro. `fit` fijo en cover: nunca deja franjas. */
 export interface AjusteFondoMesa {
-  fit: 'cover' | 'contain' | 'fill';
   x: number; y: number; zoom: number; blur: number; osc: number;
 }
 
@@ -32,7 +34,7 @@ export interface OpcionesDados3D {
   paleta: PaletaDados;
   /** Imagen de fondo de la mesa (se dibuja bajo el fieltro con un velo). */
   fondo?: HTMLImageElement | null;
-  /** Retoque de esa imagen (encuadre, posición, zoom, desenfoque, oscurecido). */
+  /** Retoque de esa imagen (posición, zoom, desenfoque, oscurecido). */
   fondoAjuste?: AjusteFondoMesa;
   /** Opacidad del velo del color del fieltro sobre la imagen (0-1). */
   velo?: number;
@@ -42,51 +44,7 @@ export interface OpcionesDados3D {
   animar?: boolean;
 }
 
-type M3 = number[]; // 3x3 row-major
-
-// ---------- álgebra 3x3 ----------
-const I3: M3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
-
-function m3mul(a: M3, b: M3): M3 {
-  return [
-    a[0] * b[0] + a[1] * b[3] + a[2] * b[6], a[0] * b[1] + a[1] * b[4] + a[2] * b[7], a[0] * b[2] + a[1] * b[5] + a[2] * b[8],
-    a[3] * b[0] + a[4] * b[3] + a[5] * b[6], a[3] * b[1] + a[4] * b[4] + a[5] * b[7], a[3] * b[2] + a[4] * b[5] + a[5] * b[8],
-    a[6] * b[0] + a[7] * b[3] + a[8] * b[6], a[6] * b[1] + a[7] * b[4] + a[8] * b[7], a[6] * b[2] + a[7] * b[5] + a[8] * b[8],
-  ];
-}
-function m3v(m: M3, v: number[]): number[] {
-  return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]];
-}
-function m3rot(x: number, y: number, z: number, ang: number): M3 {
-  const c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
-  return [t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c];
-}
-function m3ortho(m: M3): M3 {
-  let xx = m[0], xy = m[3], xz = m[6], yx = m[1], yy = m[4], yz = m[7];
-  let l = Math.hypot(xx, xy, xz) || 1; xx /= l; xy /= l; xz /= l;
-  const d = xx * yx + xy * yy + xz * yz; yx -= d * xx; yy -= d * xy; yz -= d * xz;
-  l = Math.hypot(yx, yy, yz) || 1; yx /= l; yy /= l; yz /= l;
-  const zx = xy * yz - xz * yy, zy = xz * yx - xx * yz, zz = xx * yy - xy * yx;
-  return [xx, yx, zx, xy, yy, zy, xz, yz, zz];
-}
-function m3T(m: M3): M3 { return [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]]; }
-function m3axisAngle(m: M3) {
-  const ct = clamp((m[0] + m[4] + m[8] - 1) / 2, -1, 1), a = Math.acos(ct);
-  if (a < 1e-5) return { x: 1, y: 0, z: 0, a: 0 };
-  if (a > Math.PI - 1e-4) {
-    const xx = (m[0] + 1) / 2, yy = (m[4] + 1) / 2, zz = (m[8] + 1) / 2;
-    const xy = (m[1] + m[3]) / 4, xz = (m[2] + m[6]) / 4, yz = (m[5] + m[7]) / 4;
-    let x: number, y: number, z: number;
-    if (xx >= yy && xx >= zz) { x = Math.sqrt(Math.max(xx, 0)); y = xy / x; z = xz / x; }
-    else if (yy >= zz) { y = Math.sqrt(Math.max(yy, 0)); x = xy / y; z = yz / y; }
-    else { z = Math.sqrt(Math.max(zz, 0)); x = xz / z; y = yz / z; }
-    const l = Math.hypot(x, y, z) || 1;
-    return { x: x / l, y: y / l, z: z / l, a: Math.PI };
-  }
-  const s = 2 * Math.sin(a);
-  return { x: (m[7] - m[5]) / s, y: (m[2] - m[6]) / s, z: (m[3] - m[1]) / s, a };
-}
 
 // ---------- cubo ----------
 const CUBE = [
@@ -129,6 +87,10 @@ export interface Dados3D {
   resize(): void;
   destruir(): void;
   reposar(dados: [number, number]): void;
+  /** Cambia la imagen del fieltro sin recrear el motor. */
+  setFondo(img: HTMLImageElement | null, ajuste: AjusteFondoMesa | null, velo: number): void;
+  /** Cambia la paleta (tema) sin recrear el motor. */
+  setPaleta(p: PaletaDados): void;
 }
 
 export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): Dados3D {
@@ -143,8 +105,11 @@ export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): 
   let VW = 0, VH = 0;
   const SPECKLE: number[][] = [];
   for (let i = 0; i < 150; i++) SPECKLE.push([Math.random(), Math.random(), Math.random() * 1.4 + 0.3, Math.random() * 0.05]);
-  const col = { hi: hexRgb(opts.paleta.dieHi), lo: hexRgb(opts.paleta.dieLo), pip: hexRgb(opts.paleta.pip) };
-  const gradFeltA = opts.paleta.feltA, gradFeltB = opts.paleta.feltB;
+  let col = { hi: hexRgb(opts.paleta.dieHi), lo: hexRgb(opts.paleta.dieLo), pip: hexRgb(opts.paleta.pip) };
+  let gradFeltA = opts.paleta.feltA, gradFeltB = opts.paleta.feltB;
+  let fondoImg: HTMLImageElement | null = opts.fondo ?? null;
+  let fondoAj: AjusteFondoMesa | null = opts.fondoAjuste ?? null;
+  let veloN = opts.velo ?? 0.5;
 
   const dieSize = () => clamp(Math.min(VW * 0.15, VH * 0.19), 44, 78);
   const diePad = () => Math.max(12, dieSize() * 0.32);
@@ -312,12 +277,12 @@ export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): 
     cx.drawImage(im, x + (w - dw) / 2, y + (hh - dh) / 2, dw, dh);
   }
   function drawFondoMesa(im: HTMLImageElement, a: AjusteFondoMesa) {
+    // siempre "cover" (nunca deja franjas), después zoom (≥1) y paneo.
     const ir = im.naturalWidth / im.naturalHeight, cr = VW / VH;
     let bw: number, bh: number;
-    if (a.fit === 'fill') { bw = VW; bh = VH; }
-    else if (a.fit === 'contain') { if (ir > cr) { bw = VW; bh = VW / ir; } else { bh = VH; bw = VH * ir; } }
-    else { if (ir > cr) { bh = VH; bw = VH * ir; } else { bw = VW; bh = VW / ir; } }
-    bw *= a.zoom / 100; bh *= a.zoom / 100;
+    if (ir > cr) { bh = VH; bw = VH * ir; } else { bw = VW; bh = VW / ir; }
+    const z = Math.max(1, a.zoom / 100);
+    bw *= z; bh *= z;
     const ox = (VW - bw) * (a.x / 100), oy = (VH - bh) * (a.y / 100);
     cx.save();
     if (a.blur > 0) cx.filter = `blur(${a.blur}px)`;
@@ -355,11 +320,10 @@ export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): 
     const g = cx.createRadialGradient(VW * 0.5, VH * 0.34, VH * 0.04, VW * 0.5, VH * 0.52, VH * 0.95);
     g.addColorStop(0, gradFeltA); g.addColorStop(1, gradFeltB);
     cx.fillStyle = g; cx.fill(); cx.clip();
-    const fondo = opts.fondo;
-    if (fondo && fondo.complete && fondo.naturalWidth > 0) {
-      if (opts.fondoAjuste) drawFondoMesa(fondo, opts.fondoAjuste);
-      else coverImg(fondo, 0, 0, VW, VH);
-      cx.globalAlpha = opts.velo ?? 0.5; cx.fillStyle = g; cx.fillRect(0, 0, VW, VH); cx.globalAlpha = 1;
+    if (fondoImg && fondoImg.complete && fondoImg.naturalWidth > 0) {
+      if (fondoAj) drawFondoMesa(fondoImg, fondoAj);
+      else coverImg(fondoImg, 0, 0, VW, VH);
+      cx.globalAlpha = veloN; cx.fillStyle = g; cx.fillRect(0, 0, VW, VH); cx.globalAlpha = 1;
     }
     cx.fillStyle = '#fff';
     for (const s of SPECKLE) { cx.globalAlpha = s[3]; cx.beginPath(); cx.arc(s[0] * VW, s[1] * VH, s[2], 0, 7); cx.fill(); }
@@ -471,6 +435,16 @@ export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): 
     tirar,
     resize: fit,
     reposar,
+    setFondo(img, ajuste, velo) {
+      fondoImg = img; fondoAj = ajuste; veloN = velo;
+      if (img && !img.complete) img.addEventListener('load', () => { if (!raf) draw(); }, { once: true });
+      if (!raf) draw();
+    },
+    setPaleta(p) {
+      col = { hi: hexRgb(p.dieHi), lo: hexRgb(p.dieLo), pip: hexRgb(p.pip) };
+      gradFeltA = p.feltA; gradFeltB = p.feltB;
+      if (!raf) draw();
+    },
     destruir() {
       if (raf) cancelAnimationFrame(raf);
       raf = 0; resolver = null;

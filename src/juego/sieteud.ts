@@ -19,6 +19,10 @@ import type { PaletaDados } from './dados3d.ts';
 
 export { CFG_DEFAULT };
 
+/** El juego se diseña sobre una escena de teléfono de 420 × 860. */
+export const ESCENA_W = 420;
+export const ESCENA_H = 860;
+
 export const ZONAS: ZonaSieteUd[] = ['abajo', 'siete', 'arriba'];
 
 export const ZONA_INFO: Record<ZonaSieteUd, { nombre: string; rango: string }> = {
@@ -54,7 +58,7 @@ export function campana(caras: number): { suma: number; frac: number; zona: Zona
 }
 
 // ---------------- Paleta de la mesa por tema (para el canvas 3D) ----------------
-// Los ids son los de instant-temas.ts (clasico | dorado | neon | oceano).
+// Los ids son los de instant-temas.ts.
 
 const PALETAS: Record<string, PaletaDados> = {
   clasico: { feltA: '#1e2b46', feltB: '#111726', dieHi: '#ffffff', dieLo: '#d7ddec', pip: '#1b2130' },
@@ -73,43 +77,94 @@ export function paletaDadosDe(temaId: string | undefined | null): PaletaDados {
   return PALETAS[temaId || 'clasico'] || PALETAS.clasico;
 }
 
-// ---------------- Retoque de imágenes (CSS) ----------------
+// ---------------- Retoque de imágenes ----------------
 
 export const AJUSTE_IMG_DEFAULT: AjusteImg = { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 };
 
-/** Estilo para un <div> que sólo lleva la imagen de fondo, ya retocada. */
+export const FIT_OPC: { v: AjusteImg['fit']; t: string }[] = [
+  { v: 'cover', t: 'Cubrir' }, { v: 'contain', t: 'Contener' }, { v: 'fill', t: 'Estirar' },
+];
+
+function filtroDe(a: AjusteImg): string {
+  return [a.blur ? `blur(${a.blur}px)` : '', a.osc ? `brightness(${1 - a.osc / 100})` : '']
+    .filter(Boolean).join(' ');
+}
+
+/**
+ * Fondo full-bleed: SIEMPRE cubre (nunca deja franjas). El retoque sólo
+ * panea, agranda (zoom ≥ 100 %), desenfoca y oscurece. Para una capa
+ * `position:absolute; inset:0` dentro de un contenedor con overflow:hidden.
+ */
+export function estiloFondo(url: string | null | undefined, a: AjusteImg): CSSProperties {
+  if (!url) return {};
+  const z = Math.max(1, a.zoom / 100) + a.blur * 0.012;
+  const f = filtroDe(a);
+  return {
+    position: 'absolute', inset: 0, pointerEvents: 'none',
+    backgroundImage: `url("${url}")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: 'cover',
+    backgroundPosition: `${a.x}% ${a.y}%`,
+    transform: `scale(${z.toFixed(3)})`,
+    transformOrigin: `${a.x}% ${a.y}%`,
+    ...(f ? { filter: f } : {}),
+  };
+}
+
+/** Imagen de contenido (cartel, botón): respeta el encuadre elegido. */
 export function estiloImg(url: string | null | undefined, a: AjusteImg): CSSProperties {
   if (!url) return {};
   const size = a.fit === 'fill'
     ? '100% 100%'
     : a.zoom === 100
-      ? a.fit // 'cover' | 'contain'
+      ? a.fit
       : `${a.zoom}% ${a.zoom}%`;
-  const filtro = [a.blur ? `blur(${a.blur}px)` : '', a.osc ? `brightness(${1 - a.osc / 100})` : '']
-    .filter(Boolean).join(' ');
+  const f = filtroDe(a);
   return {
     backgroundImage: `url("${url}")`,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: `${a.x}% ${a.y}%`,
     backgroundSize: size,
-    ...(filtro ? { filter: filtro } : {}),
+    ...(f ? { filter: f } : {}),
   };
 }
 
-// ---------------- Posición de las piezas en la pantalla ----------------
-// Todo en % de la escena (relación 420 × 760). Se edita desde ⚙ Ajustar
-// y vive en sieteud_cfg.controles.
+// ---------------- Piezas de la escena ----------------
+// Una sola lista que maneja el layout (SieteUdMesa) y el editor
+// (SieteUdEditor) de forma genérica.
+
+export type TipoPieza = 'punto' | 'ancho' | 'caja';
+
+export interface MetaPieza {
+  id: keyof PosControlesSieteUd;
+  etiqueta: string;
+  tipo: TipoPieza;
+}
+
+export const PIEZAS_SIETEUD: MetaPieza[] = [
+  { id: 'mesa', etiqueta: 'Mesa (dados)', tipo: 'caja' },
+  { id: 'cartel', etiqueta: 'Cartel de premio', tipo: 'caja' },
+  { id: 'suma', etiqueta: 'Suma', tipo: 'punto' },
+  { id: 'campana', etiqueta: 'Campana', tipo: 'ancho' },
+  { id: 'zonas', etiqueta: 'Zonas de apuesta', tipo: 'ancho' },
+  { id: 'apuesta', etiqueta: 'Apuesta / fichas', tipo: 'punto' },
+  { id: 'boton', etiqueta: 'Botón de tirar', tipo: 'ancho' },
+  { id: 'saldo', etiqueta: 'Saldo', tipo: 'punto' },
+  { id: 'historial', etiqueta: 'Historial', tipo: 'punto' },
+];
+
+// ---------------- Posición de las piezas (% de 420 × 860) ----------------
 
 export const CONTROLES_SIETEUD_DEFAULT: PosControlesSieteUd = {
-  saldo: { x: 20, y: 5, escala: 1 },
-  historial: { x: 72, y: 5, escala: 1 },
-  mesa: { x: 50, y: 29, w: 90, h: 34, escala: 1 },
-  cartel: { x: 50, y: 26, w: 78, h: 22, escala: 1 },
-  suma: { x: 50, y: 50, escala: 1 },
-  campana: { x: 50, y: 59, w: 66, escala: 1 },
+  saldo: { x: 16, y: 4, escala: 1 },
+  historial: { x: 78, y: 4, escala: 1 },
+  mesa: { x: 50, y: 27, w: 92, h: 40, escala: 1 },
+  cartel: { x: 50, y: 24, w: 80, h: 20, escala: 1 },
+  suma: { x: 50, y: 52, escala: 1 },
+  campana: { x: 50, y: 60, w: 68, escala: 1 },
   zonas: { x: 50, y: 71, w: 94, escala: 1 },
-  apuesta: { x: 50, y: 83, escala: 1 },
-  boton: { x: 50, y: 93, w: 82, escala: 1 },
+  apuesta: { x: 50, y: 82, escala: 1 },
+  boton: { x: 50, y: 92, w: 84, escala: 1 },
 };
 
 const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
