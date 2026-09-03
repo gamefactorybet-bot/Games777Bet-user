@@ -4,7 +4,7 @@ import {
 } from 'react';
 import { FichasStrip } from './Fichas.tsx';
 import { crearDados3D, type Dados3D } from './juego/dados3d.ts';
-import { ZONAS, ZONA_INFO, pagoDe, campana, paletaDadosDe } from './juego/sieteud.ts';
+import { ZONAS, ZONA_INFO, pagoDe, campana, paletaDadosDe, estiloImg } from './juego/sieteud.ts';
 import type { Ficha, PosControlesSieteUd, SieteUdCfg, TiradaInstant, ZonaSieteUd } from './types.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
@@ -60,10 +60,12 @@ export function SieteUdMesa({
     if (!canvasRef.current) return;
     let fondo: HTMLImageElement | null = null;
     if (cfg.fondoUrl) { fondo = new Image(); fondo.src = cfg.fondoUrl; }
-    const m = crearDados3D(canvasRef.current, { paleta: paletaDadosDe(cfg.tema), fondo, velo: cfg.velo });
+    const m = crearDados3D(canvasRef.current, {
+      paleta: paletaDadosDe(cfg.tema), fondo, velo: cfg.velo, fondoAjuste: cfg.arte.mesa,
+    });
     motorRef.current = m;
     return () => { m.destruir(); motorRef.current = null; };
-  }, [cfg.tema, cfg.fondoUrl, cfg.velo]);
+  }, [cfg.tema, cfg.fondoUrl, cfg.velo, JSON.stringify(cfg.arte.mesa)]);
 
   // re-medir el canvas cuando cambia el tamaño de su caja en ⚙ Ajustar
   useEffect(() => { motorRef.current?.resize(); }, [pos.mesa.w, pos.mesa.h, pos.mesa.escala]);
@@ -140,7 +142,7 @@ export function SieteUdMesa({
           <div style={{
             width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', display: 'grid', placeItems: 'center',
             border: '1px solid var(--accent)', backgroundColor: 'var(--surface-alt)',
-            background: cfg.cartelUrl ? `center/cover no-repeat url("${cfg.cartelUrl}")` : undefined,
+            ...estiloImg(cfg.cartelUrl, cfg.arte.cartel),
             boxShadow: '0 22px 55px -14px rgba(0,0,0,.6)',
             animation: cartelMonto != null ? 'sud-cartel .42s cubic-bezier(.2,1.35,.4,1)' : undefined,
           }}>
@@ -238,7 +240,7 @@ export function SieteUdMesa({
             width: '100%', minHeight: cfg.botonImg ? 48 : undefined, padding: cfg.botonImg ? 0 : '13px 0',
             border: 0, borderRadius: 12, cursor: ajuste ? 'move' : 'pointer',
             fontFamily: 'var(--in-num, var(--in-body, inherit))', fontWeight: 800, letterSpacing: '.03em', fontSize: 16,
-            background: cfg.botonImg ? `center/100% 100% no-repeat url("${cfg.botonImg}")` : 'var(--accent)',
+            ...(cfg.botonImg ? estiloImg(cfg.botonImg, cfg.arte.boton) : { background: 'var(--accent)' }),
             color: cfg.botonImg ? '#fff' : 'var(--accent-text, #fff)',
             textShadow: cfg.botonImg ? '0 1px 4px rgba(0,0,0,.6)' : undefined,
             aspectRatio: cfg.botonImg ? '5 / 1' : undefined,

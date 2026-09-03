@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { cargarFuenteInstant, type TemaInstant } from './juego/instant-temas.ts';
@@ -17,6 +17,8 @@ interface InstantShellProps {
   cargando?: boolean;
   progreso?: { hechos: number; total: number };
   cargaImagen?: string | null;
+  /** Estilo custom para la capa de fondo (imagen retocada: posición, zoom, blur, oscurecido). */
+  fondoEstilo?: CSSProperties;
   children: ReactNode;
 }
 
@@ -24,16 +26,18 @@ interface InstantShellProps {
 // nombre + pantalla de carga. El juego en sí va como children.
 export function InstantShell({
   nombre, fondoUrl, tema, mostrarNombre = true, demo, onCerrar,
-  cargando, progreso, cargaImagen, children,
+  cargando, progreso, cargaImagen, fondoEstilo, children,
 }: InstantShellProps) {
   useEffect(() => { cargarFuenteInstant(tema); }, [tema]);
 
   const vars: Record<string, string> = { ...tema.vars };
   if (tema.font) vars['--in-body'] = tema.font.family;
 
-  const fondo = fondoUrl
-    ? `center/cover no-repeat url("${fondoUrl}")`
-    : tema.stageBg || 'var(--bg)';
+  const fondo = fondoEstilo
+    ? (tema.stageBg || 'var(--bg)')
+    : fondoUrl
+      ? `center/cover no-repeat url("${fondoUrl}")`
+      : tema.stageBg || 'var(--bg)';
 
   const cuerpo = (
     <div
@@ -45,6 +49,10 @@ export function InstantShell({
         ...(vars as object),
       }}
     >
+      {fondoEstilo && (
+        <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', ...fondoEstilo }} />
+      )}
+
       {demo && (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center' }}>
           <span className="hint">plata de mentira</span>
@@ -54,12 +62,12 @@ export function InstantShell({
 
       {mostrarNombre && nombre && (
         <p style={{
-          position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', margin: 0,
+          position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', margin: 0, zIndex: 2,
           fontSize: 13, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-dim)',
         }}>{nombre}</p>
       )}
 
-      <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
         {children}
       </div>
 

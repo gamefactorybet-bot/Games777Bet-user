@@ -13,7 +13,8 @@ import {
   tirar as _tirar,
   CFG_DEFAULT,
 } from '../../motor/sieteud.js';
-import type { Juego, PosControlesSieteUd, SieteUdCfg, TiradaInstant, ZonaSieteUd } from '../types.ts';
+import type { CSSProperties } from 'react';
+import type { AjusteImg, Juego, PosControlesSieteUd, SieteUdCfg, TiradaInstant, ZonaSieteUd } from '../types.ts';
 import type { PaletaDados } from './dados3d.ts';
 
 export { CFG_DEFAULT };
@@ -70,6 +71,29 @@ const PALETAS: Record<string, PaletaDados> = {
 
 export function paletaDadosDe(temaId: string | undefined | null): PaletaDados {
   return PALETAS[temaId || 'clasico'] || PALETAS.clasico;
+}
+
+// ---------------- Retoque de imágenes (CSS) ----------------
+
+export const AJUSTE_IMG_DEFAULT: AjusteImg = { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 };
+
+/** Estilo para un <div> que sólo lleva la imagen de fondo, ya retocada. */
+export function estiloImg(url: string | null | undefined, a: AjusteImg): CSSProperties {
+  if (!url) return {};
+  const size = a.fit === 'fill'
+    ? '100% 100%'
+    : a.zoom === 100
+      ? a.fit // 'cover' | 'contain'
+      : `${a.zoom}% ${a.zoom}%`;
+  const filtro = [a.blur ? `blur(${a.blur}px)` : '', a.osc ? `brightness(${1 - a.osc / 100})` : '']
+    .filter(Boolean).join(' ');
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: `${a.x}% ${a.y}%`,
+    backgroundSize: size,
+    ...(filtro ? { filter: filtro } : {}),
+  };
 }
 
 // ---------------- Posición de las piezas en la pantalla ----------------

@@ -805,8 +805,24 @@ export interface SieteUdCfg {
   cartelUrl: string | null;
   /** Imagen del botón de tirar (opcional). */
   botonImg: string | null;
+  /** Retoque de cada imagen (encuadre, posición, zoom, desenfoque, oscurecido). */
+  arte: {
+    pantalla: AjusteImg;
+    mesa: AjusteImg;
+    cartel: AjusteImg;
+    boton: AjusteImg;
+  };
   /** Posición de cada pieza en la pantalla del juego (% de la escena). */
   controles: Partial<PosControlesSieteUd>;
+}
+
+export interface AjusteImg {
+  fit: 'cover' | 'contain' | 'fill';
+  x: number;
+  y: number;
+  zoom: number;
+  blur: number;
+  osc: number;
 }
 
 export interface PuntoSieteUd { x: number; y: number; escala: number; }

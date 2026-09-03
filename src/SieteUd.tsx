@@ -6,7 +6,8 @@ import { temaInstantDe } from './juego/instant-temas.ts';
 import { SieteUdMesa, type JugarSieteUd } from './SieteUdMesa.tsx';
 import { AjusteSieteUdControles } from './AjusteSieteUdControles.tsx';
 import { cfgConDefaults as _cfg, tirar as _tirarLocal } from '../motor/sieteud.js';
-import { posControlesSieteUdDe } from './juego/sieteud.ts';
+import { posControlesSieteUdDe, estiloImg } from './juego/sieteud.ts';
+import type { CSSProperties } from 'react';
 import type {
   DatosJuego, Juego, PosControlesSieteUd, ResultadoInstant, SieteUdCfg, TiradaInstant,
 } from './types.ts';
@@ -14,6 +15,13 @@ import type {
 type ElemId = keyof PosControlesSieteUd;
 
 export const cfgSieteUdDe = (juego: Juego): SieteUdCfg => _cfg(juego.sieteud_cfg) as SieteUdCfg;
+
+function fondoPantallaEstilo(cfg: SieteUdCfg, juego: Juego): CSSProperties | undefined {
+  const url = cfg.fondoPantallaUrl || (juego.fondo_url as string) || null;
+  if (!url) return undefined;
+  const s = estiloImg(url, cfg.arte.pantalla);
+  return cfg.arte.pantalla.blur > 0 ? { ...s, transform: 'scale(1.08)' } : s;
+}
 
 // ---- Pantalla real ----
 export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
@@ -35,7 +43,7 @@ export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
 
   return (
     <InstantShell
-      nombre={juego.nombre} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} tema={tema}
+      nombre={juego.nombre} fondoUrl={null} fondoEstilo={fondoPantallaEstilo(cfg, juego)} tema={tema}
       mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       cargaImagen={(juego.carga_url as string) || (juego.portada_url as string) || null}
     >
@@ -68,7 +76,7 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
   };
 
   return (
-    <InstantShell nombre={juego.nombre} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} tema={tema} demo onCerrar={onClose}>
+    <InstantShell nombre={juego.nombre} fondoUrl={null} fondoEstilo={fondoPantallaEstilo(cfg, juego)} tema={tema} demo onCerrar={onClose}>
       <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 60 }}>
         <button onClick={() => setAjustar((v) => !v)}>{ajustar ? '✓ Listo' : '⚙ Ajustar'}</button>
       </div>

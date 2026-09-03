@@ -23,10 +23,17 @@ export interface PaletaDados {
   pip: string;
 }
 
+export interface AjusteFondoMesa {
+  fit: 'cover' | 'contain' | 'fill';
+  x: number; y: number; zoom: number; blur: number; osc: number;
+}
+
 export interface OpcionesDados3D {
   paleta: PaletaDados;
   /** Imagen de fondo de la mesa (se dibuja bajo el fieltro con un velo). */
   fondo?: HTMLImageElement | null;
+  /** Retoque de esa imagen (encuadre, posición, zoom, desenfoque, oscurecido). */
+  fondoAjuste?: AjusteFondoMesa;
   /** Opacidad del velo del color del fieltro sobre la imagen (0-1). */
   velo?: number;
   /** Inclinación de cámara en radianes (0 = totalmente cenital). */
@@ -304,6 +311,20 @@ export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): 
     if (ir > r) { dh = hh; dw = hh * ir; } else { dw = w; dh = w / ir; }
     cx.drawImage(im, x + (w - dw) / 2, y + (hh - dh) / 2, dw, dh);
   }
+  function drawFondoMesa(im: HTMLImageElement, a: AjusteFondoMesa) {
+    const ir = im.naturalWidth / im.naturalHeight, cr = VW / VH;
+    let bw: number, bh: number;
+    if (a.fit === 'fill') { bw = VW; bh = VH; }
+    else if (a.fit === 'contain') { if (ir > cr) { bw = VW; bh = VW / ir; } else { bh = VH; bw = VH * ir; } }
+    else { if (ir > cr) { bh = VH; bw = VH * ir; } else { bw = VW; bh = VW / ir; } }
+    bw *= a.zoom / 100; bh *= a.zoom / 100;
+    const ox = (VW - bw) * (a.x / 100), oy = (VH - bh) * (a.y / 100);
+    cx.save();
+    if (a.blur > 0) cx.filter = `blur(${a.blur}px)`;
+    cx.drawImage(im, ox, oy, bw, bh);
+    cx.restore();
+    if (a.osc > 0) { cx.fillStyle = `rgba(0,0,0,${a.osc / 100})`; cx.fillRect(0, 0, VW, VH); }
+  }
   function hull2(pts: number[][]) {
     const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
     const lo: number[][] = [], hi: number[][] = [];
@@ -336,7 +357,8 @@ export function crearDados3D(canvas: HTMLCanvasElement, opts: OpcionesDados3D): 
     cx.fillStyle = g; cx.fill(); cx.clip();
     const fondo = opts.fondo;
     if (fondo && fondo.complete && fondo.naturalWidth > 0) {
-      coverImg(fondo, 0, 0, VW, VH);
+      if (opts.fondoAjuste) drawFondoMesa(fondo, opts.fondoAjuste);
+      else coverImg(fondo, 0, 0, VW, VH);
       cx.globalAlpha = opts.velo ?? 0.5; cx.fillStyle = g; cx.fillRect(0, 0, VW, VH); cx.globalAlpha = 1;
     }
     cx.fillStyle = '#fff';

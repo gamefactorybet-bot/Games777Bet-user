@@ -27,7 +27,27 @@ export const CFG_DEFAULT = {
   velo: 0.5,              // opacidad del velo del color del fieltro sobre esa imagen (0.1–0.9)
   cartelUrl: null,        // imagen del cartel que sale al ganar
   botonImg: null,         // imagen del botón de tirar (opcional)
+  // Retoque de cada imagen: encuadre, posición, zoom, desenfoque y oscurecido.
+  arte: {
+    pantalla: { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+    mesa:     { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+    cartel:   { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+    boton:    { fit: 'fill',  x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+  },
 };
+
+const FITS = ['cover', 'contain', 'fill'];
+function ajusteImg(v, def) {
+  const o = obj(v);
+  return {
+    fit: FITS.includes(o.fit) ? o.fit : def.fit,
+    x: clamp(num(o.x, def.x), -50, 150),
+    y: clamp(num(o.y, def.y), -50, 150),
+    zoom: clamp(num(o.zoom, def.zoom), 20, 400),
+    blur: clamp(num(o.blur, def.blur), 0, 30),
+    osc: clamp(num(o.osc, def.osc), 0, 90),
+  };
+}
 
 const ZONAS = ['abajo', 'siete', 'arriba'];
 
@@ -80,6 +100,12 @@ export function cfgConDefaults(cfg) {
     velo: clamp(num(c.velo, D.velo), 0.1, 0.95),
     cartelUrl: str(c.cartelUrl, null),
     botonImg: str(c.botonImg, null),
+    arte: {
+      pantalla: ajusteImg(obj(c.arte).pantalla, D.arte.pantalla),
+      mesa: ajusteImg(obj(c.arte).mesa, D.arte.mesa),
+      cartel: ajusteImg(obj(c.arte).cartel, D.arte.cartel),
+      boton: ajusteImg(obj(c.arte).boton, D.arte.boton),
+    },
     // Posición de los controles / cartel (solo la usa el frontend; se pasa tal cual).
     controles: obj(c.controles),
   };

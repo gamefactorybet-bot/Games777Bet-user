@@ -49,7 +49,8 @@ import { rtpDe as rtpTorreDe, multBase as multTorreBase, rtpPiso as rtpTorrePiso
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
 import { TEMAS as TEMAS_TORRE } from './juego/torre-temas.ts';
-import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SieteUdCfg, SimboloRaspa, TorreCfg, ZonaSieteUd } from './types.ts';
+import { Rango } from './AjustePanel.tsx';
+import type { AjusteImg, CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SieteUdCfg, SimboloRaspa, TorreCfg, ZonaSieteUd } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -2508,6 +2509,43 @@ function SeccionSieteUd({ juego, onGuardarCfg }: {
 // Arte de 7 Up 7 Down: todas las imágenes en un lugar. Escribe en
 // sieteud_cfg (merge) salvo el fondo de pantalla que puede ir también
 // a la columna juego.fondo_url.
+type ArteKey = 'pantalla' | 'mesa' | 'cartel' | 'boton';
+const FIT_OPC: { v: AjusteImg['fit']; t: string }[] = [
+  { v: 'cover', t: 'Cubrir' }, { v: 'contain', t: 'Contener' }, { v: 'fill', t: 'Estirar' },
+];
+
+function RetoqueImg({ a, controles, onSet }: {
+  a: AjusteImg;
+  /** qué sliders mostrar además del encuadre. */
+  controles: ('pos' | 'zoom' | 'blur' | 'osc')[];
+  onSet: (patch: Partial<AjusteImg>) => void;
+}) {
+  return (
+    <div style={{ marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--border)' }}>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>Encuadre</div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {FIT_OPC.map((o) => (
+          <button key={o.v} onClick={() => onSet({ fit: o.v })}
+            className={a.fit === o.v ? 'primary' : undefined} style={{ fontSize: 11, flex: 1, padding: '4px 0' }}>{o.t}</button>
+        ))}
+      </div>
+      {controles.includes('pos') && <>
+        <Rango etiqueta="Posición X" min={-50} max={150} valor={Math.round(a.x)} onInput={(n) => onSet({ x: n })} />
+        <Rango etiqueta="Posición Y" min={-50} max={150} valor={Math.round(a.y)} onInput={(n) => onSet({ y: n })} />
+      </>}
+      {controles.includes('zoom') && (
+        <Rango etiqueta="Zoom" min={20} max={400} unidad="%" valor={Math.round(a.zoom)} onInput={(n) => onSet({ zoom: n })} />
+      )}
+      {controles.includes('blur') && (
+        <Rango etiqueta="Desenfoque" min={0} max={30} unidad="px" valor={Math.round(a.blur)} onInput={(n) => onSet({ blur: n })} />
+      )}
+      {controles.includes('osc') && (
+        <Rango etiqueta="Oscurecer" min={0} max={90} unidad="%" valor={Math.round(a.osc)} onInput={(n) => onSet({ osc: n })} />
+      )}
+    </div>
+  );
+}
+
 function SeccionArteSieteUd({ juego, onGuardarCfg }: {
   juego: Juego;
   onGuardarCfg: (patch: Partial<SieteUdCfg>) => Promise<void>;
@@ -2515,19 +2553,44 @@ function SeccionArteSieteUd({ juego, onGuardarCfg }: {
   const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
   useEffect(() => { setCfg(cfgSieteUdDe(juego)); }, [juego.id]);
   const [msg, setMsg] = useState('');
+  const [abierto, setAbierto] = useState<ArteKey | null>(null);
+  const guardarT = useRef<number | undefined>(undefined);
+  const pendiente = useRef(false);
 
-  const set = async (patch: Partial<SieteUdCfg>) => {
-    setCfg((c) => ({ ...c, ...patch }));
+  const cfgRef = useRef(cfg); cfgRef.current = cfg;
+  const persist = async () => {
+    if (!pendiente.current) return;
+    pendiente.current = false;
     setMsg('Guardando…');
-    await onGuardarCfg(patch);
+    const c = cfgRef.current;
+    await onGuardarCfg({
+      fondoPantallaUrl: c.fondoPantallaUrl, fondoUrl: c.fondoUrl, cartelUrl: c.cartelUrl,
+      botonImg: c.botonImg, velo: c.velo, arte: c.arte,
+    });
     setMsg('Guardado ✓');
   };
+  const persistRef = useRef(persist); persistRef.current = persist;
+  const autoguardar = () => {
+    pendiente.current = true;
+    window.clearTimeout(guardarT.current);
+    guardarT.current = window.setTimeout(() => persistRef.current(), 500);
+  };
+  useEffect(() => () => { window.clearTimeout(guardarT.current); void persistRef.current(); }, []);
+
+  const editar = (patch: Partial<SieteUdCfg>) => { setCfg((c) => ({ ...c, ...patch })); autoguardar(); };
+  const setArte = (k: ArteKey, patch: Partial<AjusteImg>) =>
+    setCfg((c) => { const n = { ...c, arte: { ...c.arte, [k]: { ...c.arte[k], ...patch } } }; autoguardar(); return n; });
+
   const subir = async (campo: keyof SieteUdCfg, file: File) => {
     const url = await subirArchivo(file, `sieteud/${juego.id}`);
-    if (url) set({ [campo]: url } as Partial<SieteUdCfg>);
+    if (url) { editar({ [campo]: url } as Partial<SieteUdCfg>); }
   };
 
-  const slot = (campo: 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 'botonImg', etiqueta: string, sub: string) => {
+  const slot = (
+    campo: 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 'botonImg',
+    arteKey: ArteKey, etiqueta: string, sub: string,
+    controles: ('pos' | 'zoom' | 'blur' | 'osc')[],
+  ) => {
     const url = cfg[campo] as string | null;
     return (
       <div style={{ marginBottom: 12 }}>
@@ -2540,12 +2603,20 @@ function SeccionArteSieteUd({ juego, onGuardarCfg }: {
             <b style={{ fontSize: 12.5, display: 'block' }}>{url ? 'cargado' : 'sin cargar'}</b>
             <span className="hint" style={{ margin: 0, fontSize: 10.5 }}>{sub}</span>
           </div>
+          {url && (
+            <button style={{ fontSize: 11 }} onClick={() => setAbierto((a) => (a === arteKey ? null : arteKey))}>
+              {abierto === arteKey ? 'Cerrar' : 'Retoque'}
+            </button>
+          )}
           <label className="add-sym" style={{ flexShrink: 0, fontSize: 11 }}>
             {url ? 'Cambiar' : 'Subir'}
             <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subir(campo, f); }} />
           </label>
-          {url && <button style={{ fontSize: 11, color: 'var(--danger)' }} onClick={() => set({ [campo]: null } as Partial<SieteUdCfg>)}>Quitar</button>}
+          {url && <button style={{ fontSize: 11, color: 'var(--danger)' }} onClick={() => editar({ [campo]: null } as Partial<SieteUdCfg>)}>Quitar</button>}
         </div>
+        {url && abierto === arteKey && (
+          <RetoqueImg a={cfg.arte[arteKey]} controles={controles} onSet={(p) => setArte(arteKey, p)} />
+        )}
       </div>
     );
   };
@@ -2554,21 +2625,21 @@ function SeccionArteSieteUd({ juego, onGuardarCfg }: {
     <div className="fade-in">
       <div className="card" style={{ marginBottom: 16 }}>
         <strong style={{ fontSize: 15 }}>Imágenes de 7 Up 7 Down</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Todo opcional. Sin nada cargado se ve el estilo del tema.</p>
-        {slot('fondoPantallaUrl', 'Fondo de pantalla', 'detrás de todo, ocupa la pantalla entera')}
-        {slot('fondoUrl', 'Fondo de la mesa (fieltro)', 'donde caen los dados; se le pone un velo del color del tema')}
+        <p className="hint" style={{ marginBottom: 12 }}>Todo opcional. Con una imagen cargada, tocá <b>Retoque</b> para el encuadre, la posición, el zoom, el desenfoque y el oscurecido. Se guarda solo.</p>
+        {slot('fondoPantallaUrl', 'pantalla', 'Fondo de pantalla', 'detrás de todo, ocupa la pantalla entera', ['pos', 'zoom', 'blur', 'osc'])}
+        {slot('fondoUrl', 'mesa', 'Fondo de la mesa (fieltro)', 'donde caen los dados', ['pos', 'zoom', 'blur', 'osc'])}
         <label style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
           Velo sobre el fieltro <b>{Math.round(cfg.velo * 100)}%</b>
-          <span className="hint" style={{ margin: 0 }}> — más velo = la imagen se ve menos y los dados se leen mejor</span>
+          <span className="hint" style={{ margin: 0 }}> — velo del color del tema; más velo = los dados se leen mejor</span>
         </label>
         <input type="range" min={10} max={95} step={1} value={Math.round(cfg.velo * 100)}
-          onChange={(e) => set({ velo: Number(e.target.value) / 100 })}
+          onChange={(e) => editar({ velo: Number(e.target.value) / 100 })}
           style={{ width: '100%', margin: '4px 0 14px' }} />
-        {slot('cartelUrl', 'Cartel de premio', 'aparece al ganar')}
-        {slot('botonImg', 'Imagen del botón de tirar', 'PNG apaisado; reemplaza el botón de color')}
+        {slot('cartelUrl', 'cartel', 'Cartel de premio', 'aparece al ganar — su posición y tamaño se ajustan en ⚙ Ajustar', ['blur', 'osc'])}
+        {slot('botonImg', 'boton', 'Imagen del botón de tirar', 'PNG apaisado; reemplaza el botón de color', [])}
         <p className="hint" style={{ margin: '4px 0 0' }}>{msg}</p>
       </div>
-      <p className="hint">La <b>portada</b> del catálogo y la <b>pantalla de carga</b> se suben en la tarjeta de abajo. Las posiciones y tamaños, en <b>⚙ Ajustar</b> dentro de la Vista previa.</p>
+      <p className="hint">La <b>portada</b> del catálogo y la <b>pantalla de carga</b> se suben en la tarjeta de abajo. Las posiciones de cada pieza, en <b>⚙ Ajustar</b> dentro de la Vista previa.</p>
     </div>
   );
 }
