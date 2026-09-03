@@ -13,7 +13,7 @@ import {
   tirar as _tirar,
   CFG_DEFAULT,
 } from '../../motor/sieteud.js';
-import type { Juego, SieteUdCfg, TiradaInstant, ZonaSieteUd } from '../types.ts';
+import type { Juego, PosControlesSieteUd, SieteUdCfg, TiradaInstant, ZonaSieteUd } from '../types.ts';
 import type { PaletaDados } from './dados3d.ts';
 
 export { CFG_DEFAULT };
@@ -60,8 +60,46 @@ const PALETAS: Record<string, PaletaDados> = {
   dorado: { feltA: '#2b2113', feltB: '#15100a', dieHi: '#2d323e', dieLo: '#191c24', pip: '#e6b354' },
   neon: { feltA: '#2a0d24', feltB: '#0a0712', dieHi: '#161125', dieLo: '#0e0a1c', pip: '#ff6bc0' },
   oceano: { feltA: '#0d2a37', feltB: '#08131d', dieHi: '#1c2942', dieLo: '#0f1626', pip: '#5ef0d0' },
+  casino: { feltA: '#1c3f2b', feltB: '#0d2016', dieHi: '#fdf9ef', dieLo: '#e3dbc3', pip: '#c8352f' },
+  rubi: { feltA: '#3b161a', feltB: '#1b0b0d', dieHi: '#ffffff', dieLo: '#e7d9db', pip: '#9e1f27' },
+  zafiro: { feltA: '#162c54', feltB: '#0a1430', dieHi: '#f1f5ff', dieLo: '#c6d3ef', pip: '#274079' },
+  amatista: { feltA: '#33204a', feltB: '#190f28', dieHi: '#f6f0fd', dieLo: '#d7c8ec', pip: '#5b3b86' },
+  grafito: { feltA: '#282b31', feltB: '#131417', dieHi: '#3b4048', dieLo: '#22262c', pip: '#eef1f5' },
+  arena: { feltA: '#3a2b1a', feltB: '#180f08', dieHi: '#4a4030', dieLo: '#2c2519', pip: '#f2e4c4' },
 };
 
 export function paletaDadosDe(temaId: string | undefined | null): PaletaDados {
   return PALETAS[temaId || 'clasico'] || PALETAS.clasico;
+}
+
+// ---------------- Posición de las piezas en la pantalla ----------------
+// Todo en % de la escena (relación 420 × 760). Se edita desde ⚙ Ajustar
+// y vive en sieteud_cfg.controles.
+
+export const CONTROLES_SIETEUD_DEFAULT: PosControlesSieteUd = {
+  saldo: { x: 20, y: 5 },
+  historial: { x: 72, y: 5 },
+  mesa: { x: 50, y: 29, w: 90, h: 34 },
+  cartel: { x: 50, y: 26, w: 78, h: 22 },
+  suma: { x: 50, y: 50 },
+  campana: { x: 50, y: 59, w: 66 },
+  zonas: { x: 50, y: 71, w: 94 },
+  apuesta: { x: 50, y: 83 },
+  boton: { x: 50, y: 93, w: 82 },
+};
+
+export function posControlesSieteUdDe(cfg: Partial<SieteUdCfg>): PosControlesSieteUd {
+  const g = (cfg.controles || {}) as Partial<PosControlesSieteUd>;
+  const d = CONTROLES_SIETEUD_DEFAULT;
+  return {
+    saldo: { ...d.saldo, ...g.saldo },
+    historial: { ...d.historial, ...g.historial },
+    mesa: { ...d.mesa, ...g.mesa },
+    cartel: { ...d.cartel, ...g.cartel },
+    suma: { ...d.suma, ...g.suma },
+    campana: { ...d.campana, ...g.campana },
+    zonas: { ...d.zonas, ...g.zonas },
+    apuesta: { ...d.apuesta, ...g.apuesta },
+    boton: { ...d.boton, ...g.boton },
+  };
 }

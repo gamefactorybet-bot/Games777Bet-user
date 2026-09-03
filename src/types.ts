@@ -798,8 +798,24 @@ export interface SieteUdCfg {
   fondoUrl: string | null;
   /** Imagen del cartel que aparece al ganar. */
   cartelUrl: string | null;
-  /** Posición de los controles / cartel (% de la pantalla). Reservado. */
-  controles: Record<string, unknown>;
+  /** Posición de cada pieza en la pantalla del juego (% de la escena). */
+  controles: Partial<PosControlesSieteUd>;
+}
+
+export interface CajaSieteUd { x: number; y: number; w: number; h: number; }
+export interface PuntoSieteUd { x: number; y: number; }
+export interface AnchoSieteUd { x: number; y: number; w: number; }
+
+export interface PosControlesSieteUd {
+  mesa: CajaSieteUd;
+  cartel: CajaSieteUd;
+  suma: PuntoSieteUd;
+  campana: AnchoSieteUd;
+  zonas: AnchoSieteUd;
+  apuesta: PuntoSieteUd;
+  boton: AnchoSieteUd;
+  saldo: PuntoSieteUd;
+  historial: PuntoSieteUd;
 }
 
 export interface PuntoKeno { x: number; y: number; }

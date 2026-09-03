@@ -52,6 +52,66 @@ export const TEMAS: TemaInstant[] = [
     },
     acento: '#38bdd8',
   },
+  {
+    id: 'casino', nombre: 'Casino', font: null,
+    stageBg: 'radial-gradient(130% 75% at 50% 0%, #10321f, #0a1c12 74%)',
+    vars: {
+      '--accent': '#3bb46e', '--accent-hover': '#5cd08a', '--accent-text': '#04160c', '--accent-soft': 'rgba(59,180,110,.16)',
+      '--border': 'rgba(59,180,110,.26)', '--surface-alt': 'rgba(255,255,255,.045)',
+      '--text': '#e9f3ec', '--text-dim': '#98b6a4', '--ok': '#4fd08a', '--danger': '#ff6a5f',
+    },
+    acento: '#3bb46e',
+  },
+  {
+    id: 'rubi', nombre: 'Rubí', font: null,
+    stageBg: 'radial-gradient(130% 75% at 50% 0%, #331116, #1a0a0d 74%)',
+    vars: {
+      '--accent': '#d64450', '--accent-hover': '#e8737c', '--accent-text': '#210306', '--accent-soft': 'rgba(214,68,80,.16)',
+      '--border': 'rgba(214,68,80,.26)', '--surface-alt': 'rgba(255,255,255,.05)',
+      '--text': '#f6e9eb', '--text-dim': '#c79aa0', '--ok': '#4fd08a', '--danger': '#ff8a5f',
+    },
+    acento: '#d64450',
+  },
+  {
+    id: 'zafiro', nombre: 'Zafiro', font: null,
+    stageBg: 'radial-gradient(130% 75% at 50% 0%, #142650, #0a1330 74%)',
+    vars: {
+      '--accent': '#4f7ff0', '--accent-hover': '#89a6ff', '--accent-text': '#040c22', '--accent-soft': 'rgba(79,127,240,.16)',
+      '--border': 'rgba(79,127,240,.26)', '--surface-alt': 'rgba(255,255,255,.05)',
+      '--text': '#e8eefc', '--text-dim': '#9aabca', '--ok': '#4fd0b0', '--danger': '#ff7a6a',
+    },
+    acento: '#4f7ff0',
+  },
+  {
+    id: 'amatista', nombre: 'Amatista', font: null,
+    stageBg: 'radial-gradient(130% 75% at 50% 0%, #2a1a45, #160b28 74%)',
+    vars: {
+      '--accent': '#9a6fe0', '--accent-hover': '#b895ec', '--accent-text': '#150324', '--accent-soft': 'rgba(154,111,224,.16)',
+      '--border': 'rgba(154,111,224,.26)', '--surface-alt': 'rgba(255,255,255,.05)',
+      '--text': '#efe8fb', '--text-dim': '#b3a3cc', '--ok': '#4fd0a0', '--danger': '#ff7a6a',
+    },
+    acento: '#9a6fe0',
+  },
+  {
+    id: 'grafito', nombre: 'Grafito', font: null,
+    stageBg: 'linear-gradient(180deg, #1c1e22, #101113 82%)',
+    vars: {
+      '--accent': '#9aa3b0', '--accent-hover': '#c2c9d4', '--accent-text': '#0d0f12', '--accent-soft': 'rgba(154,163,176,.16)',
+      '--border': 'rgba(255,255,255,.12)', '--surface-alt': 'rgba(255,255,255,.05)',
+      '--text': '#eceef2', '--text-dim': '#9aa0aa', '--ok': '#4fd08a', '--danger': '#ff6a5f',
+    },
+    acento: '#9aa3b0',
+  },
+  {
+    id: 'arena', nombre: 'Arena', font: null,
+    stageBg: 'radial-gradient(130% 75% at 50% 0%, #2a2013, #17100a 74%)',
+    vars: {
+      '--accent': '#c9a24a', '--accent-hover': '#ddbd74', '--accent-text': '#1c1305', '--accent-soft': 'rgba(201,162,74,.16)',
+      '--border': 'rgba(201,162,74,.26)', '--surface-alt': 'rgba(255,255,255,.045)',
+      '--text': '#f2ead9', '--text-dim': '#b6a888', '--ok': '#4fd08a', '--danger': '#ff6a5f',
+    },
+    acento: '#c9a24a',
+  },
 ];
 
 const POR_ID = new Map(TEMAS.map((t) => [t.id, t]));
