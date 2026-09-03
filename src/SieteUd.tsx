@@ -47,7 +47,10 @@ export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
 }
 
 // ---- Vista previa (plata de mentira + ⚙ Ajustar) ----
-export function PreviewSieteUd({ juego, onClose }: { juego: Juego; onClose: () => void }) {
+export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
+  juego: Juego; onClose: () => void;
+  onGuardarCfg?: (patch: Partial<SieteUdCfg>) => Promise<void>;
+}) {
   const cfg = useMemo(() => cfgSieteUdDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
@@ -82,7 +85,7 @@ export function PreviewSieteUd({ juego, onClose }: { juego: Juego; onClose: () =
 
       {ajustar && (
         <div style={{ position: 'absolute', top: 52, left: 12, zIndex: 60 }}>
-          <AjusteSieteUdControles juego={juego} pos={pos} elem={elem} onChange={setPos} onElem={setElem} />
+          <AjusteSieteUdControles juego={juego} pos={pos} elem={elem} onChange={setPos} onElem={setElem} onGuardar={onGuardarCfg} />
         </div>
       )}
     </InstantShell>

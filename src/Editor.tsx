@@ -334,6 +334,18 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     marcarGuardado();
   };
 
+  // 7 Up 7 Down: la jugabilidad y el editor de posiciones tocan partes
+  // distintas de sieteud_cfg. Se hace merge sobre lo último de la DB para
+  // que ninguno pise lo del otro.
+  const guardarSieteUdCfg = async (patch: Partial<SieteUdCfg>) => {
+    const { data } = await supabase.from('juegos').select('sieteud_cfg').eq('id', juego.id).single();
+    const base = (data?.sieteud_cfg || {}) as Record<string, unknown>;
+    const next = { ...base, ...patch };
+    await supabase.from('juegos').update({ sieteud_cfg: next }).eq('id', juego.id);
+    setJuego((j) => ({ ...j, sieteud_cfg: next }));
+    marcarGuardado();
+  };
+
   // ---------------- Sonidos / dígitos ----------------
   const subirSonido = async (tipo: string, archivo: File) => {
     const url = await subirArchivo(archivo, `sonidos/${juego.id}`);
@@ -706,7 +718,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionKeno juego={juego} onCampo={guardarCampoJuego} />
       )}
       {grupo === 'jugabilidad' && esSieteUd && (
-        <SeccionSieteUd juego={juego} onCampo={guardarCampoJuego} />
+        <SeccionSieteUd juego={juego} onGuardarCfg={guardarSieteUdCfg} />
       )}
       {grupo === 'jugabilidad' && esTorre && (
         <SeccionTorre juego={juego} onCampo={guardarCampoJuego} />
@@ -887,7 +899,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                     : esKeno
                       ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
                     : esSieteUd
-                      ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} />
+                      ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} onGuardarCfg={guardarSieteUdCfg} />
                     : esTorre
                       ? <PreviewTorre juego={juego} onClose={() => setPreviewAbierto(false)} />
                       : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
@@ -2376,19 +2388,41 @@ function SeccionDice({ juego, onCampo }: {
 
 // ---------------- 7 Up 7 Down ----------------
 
-function SeccionSieteUd({ juego, onCampo }: {
+function SeccionSieteUd({ juego, onGuardarCfg }: {
   juego: Juego;
-  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+  onGuardarCfg: (patch: Partial<SieteUdCfg>) => Promise<void>;
 }) {
   const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
-  useEffect(() => { setCfg(cfgSieteUdDe(juego)); }, [juego.id]);
+  useEffect(() => { setCfg(cfgSieteUdDe(juego)); setDirty(false); }, [juego.id]);
+  const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState('');
-  const guardar = (next: SieteUdCfg) => { setCfg(next); onCampo('sieteud_cfg', next); setMsg('Guardado ✓'); };
+
+  // edita en local; recién se persiste con "Guardar"
+  const edit = (next: SieteUdCfg) => { setCfg(next); setDirty(true); setMsg(''); };
+
+  const guardar = async () => {
+    setMsg('Guardando…');
+    // sólo los campos de jugabilidad — `controles` lo maneja el editor de posiciones
+    await onGuardarCfg({
+      rtp: cfg.rtp, caras: cfg.caras, pagos: cfg.pagos,
+      tema: cfg.tema, fondoUrl: cfg.fondoUrl, cartelUrl: cfg.cartelUrl,
+    });
+    setDirty(false); setMsg('Guardado ✓');
+  };
 
   const subirA = async (file: File, aplicar: (url: string) => void) => {
     const url = await subirArchivo(file, `sieteud/${juego.id}`);
     if (url) aplicar(url);
   };
+
+  const barra = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+      <button className={dirty ? 'primary' : undefined} disabled={!dirty} onClick={guardar} style={{ fontSize: 12 }}>
+        Guardar
+      </button>
+      <span className="hint" style={{ margin: 0 }}>{msg || (dirty ? 'hay cambios sin guardar' : '')}</span>
+    </div>
+  );
 
   const ZS: { id: ZonaSieteUd; nombre: string; rango: string }[] = [
     { id: 'abajo', nombre: '7 abajo', rango: '2–6' },
@@ -2400,9 +2434,9 @@ function SeccionSieteUd({ juego, onCampo }: {
     const n = parseFloat(val.replace(',', '.'));
     const pagos = { ...cfg.pagos };
     pagos[z] = (val.trim() === '' || Number.isNaN(n) || n <= 1) ? null : Math.round(n * 100) / 100;
-    guardar({ ...cfg, pagos });
+    edit({ ...cfg, pagos });
   };
-  const resetPagos = () => guardar({ ...cfg, pagos: { abajo: null, siete: null, arriba: null } });
+  const resetPagos = () => edit({ ...cfg, pagos: { abajo: null, siete: null, arriba: null } });
 
   return (
     <div className="fade-in">
@@ -2416,7 +2450,7 @@ function SeccionSieteUd({ juego, onCampo }: {
 
         <label style={{ fontSize: 12, display: 'block' }}>RTP objetivo <b>{(cfg.rtp * 100).toFixed(1)}%</b></label>
         <input type="range" min={85} max={99} step={0.5} value={cfg.rtp * 100}
-          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          onChange={(e) => edit({ ...cfg, rtp: Number(e.target.value) / 100 })}
           style={{ width: '100%', margin: '4px 0 14px' }} />
 
         <label style={{ fontSize: 12, display: 'block' }}>
@@ -2424,9 +2458,9 @@ function SeccionSieteUd({ juego, onCampo }: {
           <span className="hint" style={{ margin: 0 }}> — 6 = dado normal. Con menos de 6 puede no haber ningún 7.</span>
         </label>
         <input type="range" min={4} max={10} step={1} value={cfg.caras}
-          onChange={(e) => guardar({ ...cfg, caras: Number(e.target.value), pagos: { abajo: null, siete: null, arriba: null } })}
+          onChange={(e) => edit({ ...cfg, caras: Number(e.target.value), pagos: { abajo: null, siete: null, arriba: null } })}
           style={{ width: '100%', margin: '4px 0 8px' }} />
-        <p className="hint" style={{ margin: 0 }}>{msg}</p>
+        {barra}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -2458,9 +2492,15 @@ function SeccionSieteUd({ juego, onCampo }: {
         </div>
         <button className="linkbtn" style={{ marginTop: 10, background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
           onClick={resetPagos}>Volver a pagos exactos por RTP</button>
+        {barra}
       </div>
 
-      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+      <TemaInstantSelector valor={cfg.tema} onSet={(id) => edit({ ...cfg, tema: id })} />
+      {dirty && (
+        <p className="hint" style={{ margin: '8px 0 0' }}>
+          Cambiaste el tema — tocá <b>Guardar</b> en cualquiera de las tarjetas de arriba o abajo.
+        </p>
+      )}
 
       <div className="card" style={{ marginTop: 16 }}>
         <strong style={{ fontSize: 15 }}>Imágenes del juego</strong>
@@ -2475,10 +2515,10 @@ function SeccionSieteUd({ juego, onCampo }: {
               width: 80, height: 58, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
               background: cfg.fondoUrl ? `center/cover no-repeat url("${cfg.fondoUrl}")` : 'var(--bg)',
-            }} title="Imagen del fieltro" onContextMenu={(e) => { e.preventDefault(); if (cfg.fondoUrl) guardar({ ...cfg, fondoUrl: null }); }}>
+            }} title="Imagen del fieltro" onContextMenu={(e) => { e.preventDefault(); if (cfg.fondoUrl) edit({ ...cfg, fondoUrl: null }); }}>
               {!cfg.fondoUrl && '+'}
               <input type="file" accept="image/*" hidden onChange={(e) => {
-                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => guardar({ ...cfg, fondoUrl: url }));
+                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => edit({ ...cfg, fondoUrl: url }));
               }} />
             </label>
           </div>
@@ -2488,14 +2528,15 @@ function SeccionSieteUd({ juego, onCampo }: {
               width: 80, height: 58, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
               background: cfg.cartelUrl ? `center/cover no-repeat url("${cfg.cartelUrl}")` : 'var(--bg)',
-            }} title="Imagen del cartel al ganar" onContextMenu={(e) => { e.preventDefault(); if (cfg.cartelUrl) guardar({ ...cfg, cartelUrl: null }); }}>
+            }} title="Imagen del cartel al ganar" onContextMenu={(e) => { e.preventDefault(); if (cfg.cartelUrl) edit({ ...cfg, cartelUrl: null }); }}>
               {!cfg.cartelUrl && '+'}
               <input type="file" accept="image/*" hidden onChange={(e) => {
-                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => guardar({ ...cfg, cartelUrl: url }));
+                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => edit({ ...cfg, cartelUrl: url }));
               }} />
             </label>
           </div>
         </div>
+        {barra}
       </div>
     </div>
   );
