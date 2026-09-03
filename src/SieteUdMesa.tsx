@@ -60,10 +60,10 @@ export function SieteUdMesa({
     if (!canvasRef.current) return;
     let fondo: HTMLImageElement | null = null;
     if (cfg.fondoUrl) { fondo = new Image(); fondo.src = cfg.fondoUrl; }
-    const m = crearDados3D(canvasRef.current, { paleta: paletaDadosDe(cfg.tema), fondo, velo: 0.5 });
+    const m = crearDados3D(canvasRef.current, { paleta: paletaDadosDe(cfg.tema), fondo, velo: cfg.velo });
     motorRef.current = m;
     return () => { m.destruir(); motorRef.current = null; };
-  }, [cfg.tema, cfg.fondoUrl]);
+  }, [cfg.tema, cfg.fondoUrl, cfg.velo]);
 
   // re-medir el canvas cuando cambia el tamaño de su caja en ⚙ Ajustar
   useEffect(() => { motorRef.current?.resize(); }, [pos.mesa.w, pos.mesa.h, pos.mesa.escala]);
@@ -235,10 +235,15 @@ export function SieteUdMesa({
           onClick={() => { if (ajuste) return; if (fase === 'gano' || fase === 'perdio') otra(); else jugar(); }}
           disabled={fase === 'rolling' || saldo < apuesta}
           style={{
-            width: '100%', padding: '13px 0', border: 0, borderRadius: 12, cursor: ajuste ? 'move' : 'pointer',
+            width: '100%', minHeight: cfg.botonImg ? 48 : undefined, padding: cfg.botonImg ? 0 : '13px 0',
+            border: 0, borderRadius: 12, cursor: ajuste ? 'move' : 'pointer',
             fontFamily: 'var(--in-num, var(--in-body, inherit))', fontWeight: 800, letterSpacing: '.03em', fontSize: 16,
-            background: 'var(--accent)', color: 'var(--accent-text, #fff)',
-            boxShadow: '0 10px 26px -8px rgba(0,0,0,.35)', opacity: (fase === 'rolling' || saldo < apuesta) ? 0.55 : 1,
+            background: cfg.botonImg ? `center/100% 100% no-repeat url("${cfg.botonImg}")` : 'var(--accent)',
+            color: cfg.botonImg ? '#fff' : 'var(--accent-text, #fff)',
+            textShadow: cfg.botonImg ? '0 1px 4px rgba(0,0,0,.6)' : undefined,
+            aspectRatio: cfg.botonImg ? '5 / 1' : undefined,
+            boxShadow: cfg.botonImg ? 'none' : '0 10px 26px -8px rgba(0,0,0,.35)',
+            opacity: (fase === 'rolling' || saldo < apuesta) ? 0.55 : 1,
           }}>
           {fase === 'rolling' ? '…' : fase === 'idle' ? 'Tirar' : 'Tirar de nuevo'}
         </button>

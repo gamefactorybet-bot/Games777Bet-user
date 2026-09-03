@@ -17,4 +17,4 @@ alter table juegos
   add column if not exists sieteud_cfg jsonb not null default '{}'::jsonb;
 
 comment on column juegos.sieteud_cfg is
-  'Config del motor sieteud (7 Up 7 Down): { rtp, caras, pagos:{abajo,siete,arriba}, tema, fondoUrl, cartelUrl, controles }. Ver motor/sieteud.js';
+  'Config del motor sieteud (7 Up 7 Down): { rtp, caras, pagos:{abajo,siete,arriba}, tema, fondoPantallaUrl, fondoUrl, velo, cartelUrl, botonImg, controles }. Ver motor/sieteud.js';

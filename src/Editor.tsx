@@ -668,15 +668,19 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         </div>
       )}
 
+      {grupo === 'arte' && esSieteUd && (
+        <SeccionArteSieteUd juego={juego} onGuardarCfg={guardarSieteUdCfg} />
+      )}
+
       {grupo === 'arte' && (
         <div className="card fade-in">
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : (esRaspadita || esInstant || esTorre) ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />
-            <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />
-            <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />
-            <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />
+            {!esSieteUd && <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : (esRaspadita || esInstant || esTorre) ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />}
+            {!esSieteUd && <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />}
+            {!esSieteUd && <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />}
+            {!esSieteUd && <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />}
             <SubirImagen juego={juego} campo="portada_url" etiqueta="Portada (catálogo)" onSet={setImagen} />
             <SubirImagen juego={juego} campo="carga_url" etiqueta="Pantalla de carga" onSet={setImagen} />
           </div>
@@ -2402,17 +2406,9 @@ function SeccionSieteUd({ juego, onGuardarCfg }: {
 
   const guardar = async () => {
     setMsg('Guardando…');
-    // sólo los campos de jugabilidad — `controles` lo maneja el editor de posiciones
-    await onGuardarCfg({
-      rtp: cfg.rtp, caras: cfg.caras, pagos: cfg.pagos,
-      tema: cfg.tema, fondoUrl: cfg.fondoUrl, cartelUrl: cfg.cartelUrl,
-    });
+    // sólo los campos de jugabilidad — imágenes van en Arte, `controles` en el editor de posiciones
+    await onGuardarCfg({ rtp: cfg.rtp, caras: cfg.caras, pagos: cfg.pagos, tema: cfg.tema });
     setDirty(false); setMsg('Guardado ✓');
-  };
-
-  const subirA = async (file: File, aplicar: (url: string) => void) => {
-    const url = await subirArchivo(file, `sieteud/${juego.id}`);
-    if (url) aplicar(url);
   };
 
   const barra = (
@@ -2498,46 +2494,81 @@ function SeccionSieteUd({ juego, onGuardarCfg }: {
       <TemaInstantSelector valor={cfg.tema} onSet={(id) => edit({ ...cfg, tema: id })} />
       {dirty && (
         <p className="hint" style={{ margin: '8px 0 0' }}>
-          Cambiaste el tema — tocá <b>Guardar</b> en cualquiera de las tarjetas de arriba o abajo.
+          Cambiaste el tema — tocá <b>Guardar</b> en cualquiera de las tarjetas de arriba.
         </p>
       )}
+      <p className="hint" style={{ margin: '10px 0 0' }}>
+        Las imágenes (fondo, fieltro, cartel, botón) se suben en la pestaña <b>Arte</b>. Las posiciones y
+        tamaños, en <b>⚙ Ajustar</b> dentro de la Vista previa.
+      </p>
+    </div>
+  );
+}
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <strong style={{ fontSize: 15 }}>Imágenes del juego</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>
-          El fondo de <b>toda la pantalla</b> se sube en <b>Arte</b>. Acá va la imagen del fieltro (donde caen
-          los dados) y el cartel que aparece al ganar. Clic derecho para quitar.
-        </p>
-        <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', fontSize: 12 }}>
-          <div>
-            <div style={{ marginBottom: 6 }}>Fondo de la mesa</div>
-            <label style={{
-              width: 80, height: 58, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
-              background: cfg.fondoUrl ? `center/cover no-repeat url("${cfg.fondoUrl}")` : 'var(--bg)',
-            }} title="Imagen del fieltro" onContextMenu={(e) => { e.preventDefault(); if (cfg.fondoUrl) edit({ ...cfg, fondoUrl: null }); }}>
-              {!cfg.fondoUrl && '+'}
-              <input type="file" accept="image/*" hidden onChange={(e) => {
-                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => edit({ ...cfg, fondoUrl: url }));
-              }} />
-            </label>
+// Arte de 7 Up 7 Down: todas las imágenes en un lugar. Escribe en
+// sieteud_cfg (merge) salvo el fondo de pantalla que puede ir también
+// a la columna juego.fondo_url.
+function SeccionArteSieteUd({ juego, onGuardarCfg }: {
+  juego: Juego;
+  onGuardarCfg: (patch: Partial<SieteUdCfg>) => Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
+  useEffect(() => { setCfg(cfgSieteUdDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+
+  const set = async (patch: Partial<SieteUdCfg>) => {
+    setCfg((c) => ({ ...c, ...patch }));
+    setMsg('Guardando…');
+    await onGuardarCfg(patch);
+    setMsg('Guardado ✓');
+  };
+  const subir = async (campo: keyof SieteUdCfg, file: File) => {
+    const url = await subirArchivo(file, `sieteud/${juego.id}`);
+    if (url) set({ [campo]: url } as Partial<SieteUdCfg>);
+  };
+
+  const slot = (campo: 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 'botonImg', etiqueta: string, sub: string) => {
+    const url = cfg[campo] as string | null;
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 5 }}>{etiqueta}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, border: '1px dashed var(--border)', borderRadius: 10, background: 'var(--surface-alt)' }}>
+          <div style={{ width: 48, height: 40, borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0, background: url ? `center/cover no-repeat url("${url}")` : 'var(--bg)', display: 'grid', placeItems: 'center', fontSize: 15 }}>
+            {url ? '' : '🖼️'}
           </div>
-          <div>
-            <div style={{ marginBottom: 6 }}>Cartel de premio</div>
-            <label style={{
-              width: 80, height: 58, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
-              background: cfg.cartelUrl ? `center/cover no-repeat url("${cfg.cartelUrl}")` : 'var(--bg)',
-            }} title="Imagen del cartel al ganar" onContextMenu={(e) => { e.preventDefault(); if (cfg.cartelUrl) edit({ ...cfg, cartelUrl: null }); }}>
-              {!cfg.cartelUrl && '+'}
-              <input type="file" accept="image/*" hidden onChange={(e) => {
-                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => edit({ ...cfg, cartelUrl: url }));
-              }} />
-            </label>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 12.5, display: 'block' }}>{url ? 'cargado' : 'sin cargar'}</b>
+            <span className="hint" style={{ margin: 0, fontSize: 10.5 }}>{sub}</span>
           </div>
+          <label className="add-sym" style={{ flexShrink: 0, fontSize: 11 }}>
+            {url ? 'Cambiar' : 'Subir'}
+            <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subir(campo, f); }} />
+          </label>
+          {url && <button style={{ fontSize: 11, color: 'var(--danger)' }} onClick={() => set({ [campo]: null } as Partial<SieteUdCfg>)}>Quitar</button>}
         </div>
-        {barra}
       </div>
+    );
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Imágenes de 7 Up 7 Down</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>Todo opcional. Sin nada cargado se ve el estilo del tema.</p>
+        {slot('fondoPantallaUrl', 'Fondo de pantalla', 'detrás de todo, ocupa la pantalla entera')}
+        {slot('fondoUrl', 'Fondo de la mesa (fieltro)', 'donde caen los dados; se le pone un velo del color del tema')}
+        <label style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+          Velo sobre el fieltro <b>{Math.round(cfg.velo * 100)}%</b>
+          <span className="hint" style={{ margin: 0 }}> — más velo = la imagen se ve menos y los dados se leen mejor</span>
+        </label>
+        <input type="range" min={10} max={95} step={1} value={Math.round(cfg.velo * 100)}
+          onChange={(e) => set({ velo: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+        {slot('cartelUrl', 'Cartel de premio', 'aparece al ganar')}
+        {slot('botonImg', 'Imagen del botón de tirar', 'PNG apaisado; reemplaza el botón de color')}
+        <p className="hint" style={{ margin: '4px 0 0' }}>{msg}</p>
+      </div>
+      <p className="hint">La <b>portada</b> del catálogo y la <b>pantalla de carga</b> se suben en la tarjeta de abajo. Las posiciones y tamaños, en <b>⚙ Ajustar</b> dentro de la Vista previa.</p>
     </div>
   );
 }

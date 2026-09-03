@@ -22,8 +22,11 @@ export const CFG_DEFAULT = {
   // Pagos fijados a mano por el operador. null / ausente = exacto por RTP.
   pagos: { abajo: null, siete: null, arriba: null },
   tema: 'clasico',
-  fondoUrl: null,         // imagen de fondo del área de juego
+  fondoPantallaUrl: null, // imagen detrás de todo (fondo de pantalla)
+  fondoUrl: null,         // imagen del fieltro / mesa (donde caen los dados)
+  velo: 0.5,              // opacidad del velo del color del fieltro sobre esa imagen (0.1–0.9)
   cartelUrl: null,        // imagen del cartel que sale al ganar
+  botonImg: null,         // imagen del botón de tirar (opcional)
 };
 
 const ZONAS = ['abajo', 'siete', 'arriba'];
@@ -72,8 +75,11 @@ export function cfgConDefaults(cfg) {
     caras,
     pagos,
     tema: str(c.tema, D.tema),
+    fondoPantallaUrl: str(c.fondoPantallaUrl, null),
     fondoUrl: str(c.fondoUrl, null),
+    velo: clamp(num(c.velo, D.velo), 0.1, 0.95),
     cartelUrl: str(c.cartelUrl, null),
+    botonImg: str(c.botonImg, null),
     // Posición de los controles / cartel (solo la usa el frontend; se pasa tal cual).
     controles: obj(c.controles),
   };

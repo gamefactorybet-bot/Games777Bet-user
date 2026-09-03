@@ -795,9 +795,16 @@ export interface SieteUdCfg {
   /** Pagos fijados a mano por zona. null = exacto por RTP. */
   pagos: { abajo: number | null; siete: number | null; arriba: number | null };
   tema: string;
+  /** Imagen detrás de todo (fondo de pantalla). */
+  fondoPantallaUrl: string | null;
+  /** Imagen del fieltro / mesa (donde caen los dados). */
   fondoUrl: string | null;
+  /** Opacidad del velo del color del fieltro sobre esa imagen (0.1–0.95). */
+  velo: number;
   /** Imagen del cartel que aparece al ganar. */
   cartelUrl: string | null;
+  /** Imagen del botón de tirar (opcional). */
+  botonImg: string | null;
   /** Posición de cada pieza en la pantalla del juego (% de la escena). */
   controles: Partial<PosControlesSieteUd>;
 }

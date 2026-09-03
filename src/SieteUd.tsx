@@ -35,7 +35,7 @@ export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
 
   return (
     <InstantShell
-      nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || null} tema={tema}
+      nombre={juego.nombre} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} tema={tema}
       mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       cargaImagen={(juego.carga_url as string) || (juego.portada_url as string) || null}
     >
@@ -68,7 +68,7 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
   };
 
   return (
-    <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || null} tema={tema} demo onCerrar={onClose}>
+    <InstantShell nombre={juego.nombre} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} tema={tema} demo onCerrar={onClose}>
       <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 60 }}>
         <button onClick={() => setAjustar((v) => !v)}>{ajustar ? '✓ Listo' : '⚙ Ajustar'}</button>
       </div>
