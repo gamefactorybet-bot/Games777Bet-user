@@ -76,7 +76,7 @@ export function PreviewSieteUd({ juego, onClose }: { juego: Juego; onClose: () =
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar}
         ajusteElem={ajustar ? elem : null}
         onSelectPieza={setElem}
-        onDragPieza={(id, x, y) => setPos((p) => ({ ...p, [id]: { ...p[id], x, y } }))}
+        onPatchPieza={(id, patch) => setPos((p) => ({ ...p, [id]: { ...p[id], ...patch } }))}
         cartelDemo={ajustar && elem === 'cartel'}
       />
 

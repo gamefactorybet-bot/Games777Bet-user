@@ -19,6 +19,7 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
 ];
 const CON_ANCHO: ElemId[] = ['mesa', 'campana', 'zonas', 'boton', 'cartel'];
 const CON_ALTO: ElemId[] = ['mesa', 'cartel'];
+const CON_ESCALA: ElemId[] = ['saldo', 'historial', 'suma', 'campana', 'zonas', 'apuesta', 'boton'];
 
 // Panel para ubicar las piezas del 7 Up 7 Down. Se ven en vivo a la
 // izquierda y se pueden arrastrar. Guarda en sieteud_cfg.controles.
@@ -87,8 +88,13 @@ export function AjusteSieteUdControles({ juego, pos, elem, onChange, onElem }: {
       {CON_ALTO.includes(elem) && (
         <Rango etiqueta="Alto" min={10} max={70} unidad="%" valor={Math.round(actual.h)} onInput={(n) => set('h', n)} />
       )}
+      {CON_ESCALA.includes(elem) && (
+        <Rango etiqueta="Tamaño" min={50} max={200} unidad="%" valor={Math.round((actual.escala ?? 1) * 100)}
+          onInput={(n) => set('escala', n / 100)} />
+      )}
 
-      <button style={{ width: '100%', marginTop: 12, fontSize: 12 }} onClick={restablecer}>Restablecer posiciones</button>
+      <p className="hint" style={{ margin: '4px 0 0' }}>También podés arrastrar la esquina de la pieza seleccionada en la vista previa.</p>
+      <button style={{ width: '100%', marginTop: 10, fontSize: 12 }} onClick={restablecer}>Restablecer todo</button>
       <p className="hint" style={{ marginTop: 6 }}>{msg}</p>
     </div>
   );

@@ -14,6 +14,9 @@ export type JugarSieteUd = (zona: ZonaSieteUd, apuesta: number) =>
   Promise<{ resultado: TiradaInstant; premio: number; saldo: number }>;
 
 type ElemId = keyof PosControlesSieteUd;
+type Kind = 'box' | 'ancho' | 'punto';
+type PiezaVal = { x: number; y: number; escala: number; w?: number; h?: number };
+export type PatchPieza = Partial<{ x: number; y: number; w: number; h: number; escala: number }>;
 
 interface Props {
   cfg: SieteUdCfg;
@@ -24,17 +27,17 @@ interface Props {
   maxBet: number;
   paso: number;
   onJugar: JugarSieteUd;
-  /** ⚙ Ajustar: id de la pieza seleccionada (o null). Arrastrable en vivo. */
+  /** ⚙ Ajustar: id de la pieza seleccionada (o null). Arrastrable/redimensionable en vivo. */
   ajusteElem?: ElemId | null;
   onSelectPieza?: (id: ElemId) => void;
-  onDragPieza?: (id: ElemId, x: number, y: number) => void;
+  onPatchPieza?: (id: ElemId, patch: PatchPieza) => void;
   /** Preview: mostrar el cartel de premio aunque no se haya ganado, para ubicarlo. */
   cartelDemo?: boolean;
 }
 
 export function SieteUdMesa({
   cfg, pos, fichas, saldoInicial, minBet, maxBet, paso, onJugar,
-  ajusteElem, onSelectPieza, onDragPieza, cartelDemo,
+  ajusteElem, onSelectPieza, onPatchPieza, cartelDemo,
 }: Props) {
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
@@ -63,7 +66,7 @@ export function SieteUdMesa({
   }, [cfg.tema, cfg.fondoUrl]);
 
   // re-medir el canvas cuando cambia el tamaño de su caja en ⚙ Ajustar
-  useEffect(() => { motorRef.current?.resize(); }, [pos.mesa.w, pos.mesa.h]);
+  useEffect(() => { motorRef.current?.resize(); }, [pos.mesa.w, pos.mesa.h, pos.mesa.escala]);
 
   const jugar = async () => {
     if (fase === 'rolling' || saldo < apuesta || ajuste) return;
@@ -90,6 +93,8 @@ export function SieteUdMesa({
   const sumColor = fase === 'gano' ? 'var(--ok)' : fase === 'perdio' ? 'var(--danger)' : 'var(--accent)';
   const cartelVisible = cartelMonto != null || cartelDemo;
 
+  const comun = { ajusteElem, onSelectPieza, onPatchPieza, stageRef };
+
   return (
     <div ref={stageRef} style={{
       position: 'relative', width: '100%', maxWidth: 420, aspectRatio: '420 / 760',
@@ -97,7 +102,7 @@ export function SieteUdMesa({
       fontFamily: 'var(--in-body, inherit)',
     }}>
       {/* Saldo */}
-      <Pieza id="saldo" p={pos.saldo} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="saldo" kind="punto" v={pos.saldo} {...comun}>
         <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
           <span className="hint" style={{ margin: 0, fontSize: 9, textTransform: 'uppercase' }}>Saldo</span>
           <strong style={{ display: 'block', fontSize: 14, color: 'var(--text)' }}>{fmt(saldo)}</strong>
@@ -105,7 +110,7 @@ export function SieteUdMesa({
       </Pieza>
 
       {/* Historial */}
-      <Pieza id="historial" p={pos.historial} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="historial" kind="punto" v={pos.historial} {...comun}>
         <div style={{ display: 'flex', gap: 4, maxWidth: 180, overflow: 'hidden', flexWrap: 'nowrap' }}>
           {hist.length === 0 && <span className="hint" style={{ margin: 0, fontSize: 10 }}>historial</span>}
           {hist.map((h, i) => (
@@ -120,7 +125,7 @@ export function SieteUdMesa({
       </Pieza>
 
       {/* Mesa (dados 3D) */}
-      <Pieza id="mesa" p={pos.mesa} box={{ w: pos.mesa.w, h: pos.mesa.h }} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="mesa" kind="box" v={pos.mesa} {...comun}>
         <div style={{
           width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden',
           border: '1px solid var(--border)', boxShadow: 'inset 0 2px 12px rgba(0,0,0,.5)',
@@ -131,7 +136,7 @@ export function SieteUdMesa({
 
       {/* Cartel de premio */}
       {cartelVisible && (
-        <Pieza id="cartel" p={pos.cartel} box={{ w: pos.cartel.w, h: pos.cartel.h }} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+        <Pieza id="cartel" kind="box" v={pos.cartel} {...comun}>
           <div style={{
             width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', display: 'grid', placeItems: 'center',
             border: '1px solid var(--accent)', backgroundColor: 'var(--surface-alt)',
@@ -150,10 +155,10 @@ export function SieteUdMesa({
           </div>
         </Pieza>
       )}
-      <style>{'@keyframes sud-cartel{from{transform:translate(-50%,-50%) scale(.7);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}'}</style>
+      <style>{'@keyframes sud-cartel{from{opacity:0}to{opacity:1}}'}</style>
 
       {/* Suma */}
-      <Pieza id="suma" p={pos.suma} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="suma" kind="punto" v={pos.suma} {...comun}>
         <div style={{
           fontFamily: 'var(--in-num, monospace)', fontWeight: 600, fontSize: 32, lineHeight: 1,
           color: sumColor, transition: 'color .2s', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
@@ -168,7 +173,7 @@ export function SieteUdMesa({
       </Pieza>
 
       {/* Campana */}
-      <Pieza id="campana" p={pos.campana} box={{ w: pos.campana.w }} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="campana" kind="ancho" v={pos.campana} {...comun}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 40, width: '100%' }}>
           {barras.map((b) => (
             <div key={b.suma} style={{
@@ -182,7 +187,7 @@ export function SieteUdMesa({
       </Pieza>
 
       {/* Zonas */}
-      <Pieza id="zonas" p={pos.zonas} box={{ w: pos.zonas.w }} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="zonas" kind="ancho" v={pos.zonas} {...comun}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, width: '100%' }}>
           {ZONAS.map((z) => {
             const sel = zona === z;
@@ -207,7 +212,7 @@ export function SieteUdMesa({
       </Pieza>
 
       {/* Apuesta / fichas */}
-      <Pieza id="apuesta" p={pos.apuesta} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="apuesta" kind="punto" v={pos.apuesta} {...comun}>
         {fichas.length > 0 ? (
           <div style={{ pointerEvents: ajuste ? 'none' : 'auto' }}>
             <FichasStrip fichas={fichas} apuesta={apuesta} bloqueado={fase === 'rolling'} onElegir={setApuesta} />
@@ -225,7 +230,7 @@ export function SieteUdMesa({
       </Pieza>
 
       {/* Botón */}
-      <Pieza id="boton" p={pos.boton} box={{ w: pos.boton.w }} {...{ ajusteElem, onSelectPieza, onDragPieza, stageRef }}>
+      <Pieza id="boton" kind="ancho" v={pos.boton} {...comun}>
         <button
           onClick={() => { if (ajuste) return; if (fase === 'gano' || fase === 'perdio') otra(); else jugar(); }}
           disabled={fase === 'rolling' || saldo < apuesta}
@@ -242,37 +247,78 @@ export function SieteUdMesa({
   );
 }
 
-// ---------------- Pieza posicionable / arrastrable ----------------
+// ---------------- Pieza posicionable / redimensionable ----------------
 
 function Pieza({
-  id, p, box, children, ajusteElem, onSelectPieza, onDragPieza, stageRef,
+  id, kind, v, children, ajusteElem, onSelectPieza, onPatchPieza, stageRef,
 }: {
   id: ElemId;
-  p: { x: number; y: number };
-  box?: { w: number; h?: number };
+  kind: Kind;
+  v: PiezaVal;
   children: ReactNode;
   ajusteElem?: ElemId | null;
   onSelectPieza?: (id: ElemId) => void;
-  onDragPieza?: (id: ElemId, x: number, y: number) => void;
+  onPatchPieza?: (id: ElemId, patch: PatchPieza) => void;
   stageRef: RefObject<HTMLDivElement | null>;
 }) {
-  const drag = useRef(false);
+  const mode = useRef<'' | 'move' | 'resize'>('');
+  const start = useRef({ mx: 0, my: 0, w: 0, h: 0, escala: 1, offx: 0, offy: 0 });
   const ajuste = !!ajusteElem;
   const sel = ajusteElem === id;
+  const isBox = kind === 'box';
+  const isAncho = kind === 'ancho';
 
-  const mover = (e: ReactPointerEvent) => {
-    if (!drag.current || !stageRef.current) return;
-    const r = stageRef.current.getBoundingClientRect();
-    const x = clamp(((e.clientX - r.left) / r.width) * 100, 2, 98);
-    const y = clamp(((e.clientY - r.top) / r.height) * 100, 2, 98);
-    onDragPieza?.(id, Math.round(x * 10) / 10, Math.round(y * 10) / 10);
+  const stageRect = () => stageRef.current?.getBoundingClientRect() ?? null;
+
+  const onDown = (e: ReactPointerEvent) => {
+    if (!ajuste) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    onSelectPieza?.(id);
+    const r = stageRect();
+    mode.current = 'move';
+    const pxp = r ? ((e.clientX - r.left) / r.width) * 100 : v.x;
+    const pyp = r ? ((e.clientY - r.top) / r.height) * 100 : v.y;
+    start.current = { mx: e.clientX, my: e.clientY, w: v.w ?? 0, h: v.h ?? 0, escala: v.escala, offx: pxp - v.x, offy: pyp - v.y };
   };
+  const onDownHandle = (e: ReactPointerEvent) => {
+    if (!ajuste) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    onSelectPieza?.(id);
+    mode.current = 'resize';
+    start.current = { mx: e.clientX, my: e.clientY, w: v.w ?? 0, h: v.h ?? 0, escala: v.escala, offx: 0, offy: 0 };
+  };
+  const onMove = (e: ReactPointerEvent) => {
+    if (!ajuste || !mode.current) return;
+    const r = stageRect(); if (!r) return;
+    const dxp = ((e.clientX - start.current.mx) / r.width) * 100;
+    const dyp = ((e.clientY - start.current.my) / r.height) * 100;
+    if (mode.current === 'move') {
+      const x = clamp(((e.clientX - r.left) / r.width) * 100 - start.current.offx, 2, 98);
+      const y = clamp(((e.clientY - r.top) / r.height) * 100 - start.current.offy, 2, 98);
+      onPatchPieza?.(id, { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
+    } else if (isBox) {
+      onPatchPieza?.(id, {
+        w: clamp(Math.round(start.current.w + dxp * 2), 20, 100),
+        h: clamp(Math.round(start.current.h + dyp * 2), 8, 70),
+      });
+    } else if (isAncho) {
+      onPatchPieza?.(id, { w: clamp(Math.round(start.current.w + dxp * 2), 20, 100) });
+    } else {
+      const f = 1 + (dxp + dyp) / 60;
+      onPatchPieza?.(id, { escala: clamp(Math.round(start.current.escala * f * 20) / 20, 0.5, 2.2) });
+    }
+  };
+  const onUp = () => { mode.current = ''; };
 
+  const scale = kind === 'box' ? 1 : v.escala;
   const style: CSSProperties = {
-    position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%,-50%)',
-    width: box ? `${box.w}%` : undefined,
-    height: box?.h != null ? `${box.h}%` : undefined,
-    display: box ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', left: `${v.x}%`, top: `${v.y}%`,
+    transform: `translate(-50%,-50%) scale(${scale})`,
+    width: isBox || isAncho ? `${v.w}%` : undefined,
+    height: isBox ? `${v.h}%` : undefined,
+    display: isBox || isAncho ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
     touchAction: ajuste ? 'none' : undefined,
     cursor: ajuste ? 'move' : undefined,
     outline: sel ? '2px dashed var(--accent)' : ajuste ? '1px dashed rgba(255,255,255,.2)' : 'none',
@@ -283,21 +329,23 @@ function Pieza({
   return (
     <div
       style={style}
-      onPointerDown={ajuste ? (e) => {
-        e.stopPropagation();
-        drag.current = true;
-        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-        onSelectPieza?.(id);
-      } : undefined}
-      onPointerMove={ajuste ? mover : undefined}
-      onPointerUp={ajuste ? () => { drag.current = false; } : undefined}
-      onPointerCancel={ajuste ? () => { drag.current = false; } : undefined}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
     >
       {ajuste && (
         <span style={{
           position: 'absolute', top: -16, left: 0, fontFamily: 'var(--in-num, monospace)', fontSize: 9,
           color: '#fff', background: sel ? 'var(--accent)' : 'rgba(0,0,0,.55)', padding: '1px 5px', borderRadius: 5, whiteSpace: 'nowrap',
         }}>{id}</span>
+      )}
+      {ajuste && sel && (
+        <span
+          onPointerDown={onDownHandle} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+          title={isBox ? 'Ancho y alto' : isAncho ? 'Ancho' : 'Tamaño'}
+          style={{
+            position: 'absolute', right: -8, bottom: -8, width: 16, height: 16, borderRadius: 4,
+            background: 'var(--accent)', border: '2px solid var(--surface, #fff)', cursor: 'nwse-resize', zIndex: 9,
+          }}
+        />
       )}
       {children}
     </div>

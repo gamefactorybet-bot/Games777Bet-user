@@ -77,29 +77,36 @@ export function paletaDadosDe(temaId: string | undefined | null): PaletaDados {
 // y vive en sieteud_cfg.controles.
 
 export const CONTROLES_SIETEUD_DEFAULT: PosControlesSieteUd = {
-  saldo: { x: 20, y: 5 },
-  historial: { x: 72, y: 5 },
-  mesa: { x: 50, y: 29, w: 90, h: 34 },
-  cartel: { x: 50, y: 26, w: 78, h: 22 },
-  suma: { x: 50, y: 50 },
-  campana: { x: 50, y: 59, w: 66 },
-  zonas: { x: 50, y: 71, w: 94 },
-  apuesta: { x: 50, y: 83 },
-  boton: { x: 50, y: 93, w: 82 },
+  saldo: { x: 20, y: 5, escala: 1 },
+  historial: { x: 72, y: 5, escala: 1 },
+  mesa: { x: 50, y: 29, w: 90, h: 34, escala: 1 },
+  cartel: { x: 50, y: 26, w: 78, h: 22, escala: 1 },
+  suma: { x: 50, y: 50, escala: 1 },
+  campana: { x: 50, y: 59, w: 66, escala: 1 },
+  zonas: { x: 50, y: 71, w: 94, escala: 1 },
+  apuesta: { x: 50, y: 83, escala: 1 },
+  boton: { x: 50, y: 93, w: 82, escala: 1 },
 };
+
+const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 export function posControlesSieteUdDe(cfg: Partial<SieteUdCfg>): PosControlesSieteUd {
   const g = (cfg.controles || {}) as Partial<PosControlesSieteUd>;
   const d = CONTROLES_SIETEUD_DEFAULT;
+  const uno = <T extends { escala: number }>(base: T, over: Partial<T> | undefined): T => {
+    const m = { ...base, ...(over || {}) };
+    m.escala = num(m.escala, 1);
+    return m;
+  };
   return {
-    saldo: { ...d.saldo, ...g.saldo },
-    historial: { ...d.historial, ...g.historial },
-    mesa: { ...d.mesa, ...g.mesa },
-    cartel: { ...d.cartel, ...g.cartel },
-    suma: { ...d.suma, ...g.suma },
-    campana: { ...d.campana, ...g.campana },
-    zonas: { ...d.zonas, ...g.zonas },
-    apuesta: { ...d.apuesta, ...g.apuesta },
-    boton: { ...d.boton, ...g.boton },
+    saldo: uno(d.saldo, g.saldo),
+    historial: uno(d.historial, g.historial),
+    mesa: uno(d.mesa, g.mesa),
+    cartel: uno(d.cartel, g.cartel),
+    suma: uno(d.suma, g.suma),
+    campana: uno(d.campana, g.campana),
+    zonas: uno(d.zonas, g.zonas),
+    apuesta: uno(d.apuesta, g.apuesta),
+    boton: uno(d.boton, g.boton),
   };
 }

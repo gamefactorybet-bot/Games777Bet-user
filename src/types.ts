@@ -802,9 +802,9 @@ export interface SieteUdCfg {
   controles: Partial<PosControlesSieteUd>;
 }
 
-export interface CajaSieteUd { x: number; y: number; w: number; h: number; }
-export interface PuntoSieteUd { x: number; y: number; }
-export interface AnchoSieteUd { x: number; y: number; w: number; }
+export interface PuntoSieteUd { x: number; y: number; escala: number; }
+export interface AnchoSieteUd extends PuntoSieteUd { w: number; }
+export interface CajaSieteUd extends PuntoSieteUd { w: number; h: number; }
 
 export interface PosControlesSieteUd {
   mesa: CajaSieteUd;
