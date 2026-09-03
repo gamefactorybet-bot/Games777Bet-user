@@ -73,6 +73,9 @@ export interface Juego {
   /** Keno: su config (tablero, bolas, marcar, riesgo, tema, pagos…). */
   keno_cfg?: Partial<KenoCfg>;
 
+  /** 7 Up 7 Down: su config (rtp, caras, pagos por zona, tema, imágenes…). */
+  sieteud_cfg?: Partial<SieteUdCfg>;
+
   /** Torre: su config (rtp, dificultad, pisos, tema, imágenes, escalera…). */
   torre_cfg?: Partial<TorreCfg>;
 
@@ -783,6 +786,22 @@ export interface KenoCfg {
   controles: Partial<PosControlesKeno>;
 }
 
+export type ZonaSieteUd = 'abajo' | 'siete' | 'arriba';
+
+export interface SieteUdCfg {
+  rtp: number;
+  /** Caras por dado (2..12; base 6). */
+  caras: number;
+  /** Pagos fijados a mano por zona. null = exacto por RTP. */
+  pagos: { abajo: number | null; siete: number | null; arriba: number | null };
+  tema: string;
+  fondoUrl: string | null;
+  /** Imagen del cartel que aparece al ganar. */
+  cartelUrl: string | null;
+  /** Posición de los controles / cartel (% de la pantalla). Reservado. */
+  controles: Record<string, unknown>;
+}
+
 export interface PuntoKeno { x: number; y: number; }
 
 export interface PosControlesKeno {
@@ -802,7 +821,7 @@ export interface PosControlesKeno {
 
 /** Resultado de una jugada instantánea (lo decide el servidor). */
 export interface TiradaInstant {
-  tipo: 'limbo' | 'dice' | 'keno';
+  tipo: 'limbo' | 'dice' | 'keno' | 'sieteud';
   gano: boolean;
   mult: number;
   /** Limbo: el punto que salió. */
@@ -817,6 +836,11 @@ export interface TiradaInstant {
   sorteados?: number[];
   marcados?: number[];
   aciertos?: number;
+  /** 7 Up 7 Down: los dos dados, la suma y las zonas. */
+  dados?: [number, number];
+  suma?: number;
+  zona?: ZonaSieteUd;
+  zonaGanadora?: ZonaSieteUd;
 }
 
 /** Respuesta de `POST /api/jugar-instant`. */

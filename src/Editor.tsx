@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { analizar, analizarRuleta } from './motor.ts';
 import { cargarMotor, MOTORES_DISPONIBLES } from '../motor/registro.js';
@@ -39,15 +39,17 @@ import { SeccionFichas } from './SeccionFichas.tsx';
 import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
 import { PreviewDice, cfgDiceDe } from './Dice.tsx';
 import { PreviewKeno, cfgKenoDe } from './Keno.tsx';
+import { PreviewSieteUd, cfgSieteUdDe } from './SieteUd.tsx';
 import { PreviewTorre, cfgTorreDe } from './Torre.tsx';
 import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
 import { rtpDe as rtpDiceDe } from '../motor/dice.js';
+import { rtpDe as rtpSieteUdDe, rtpZona as rtpZonaSieteUd, probsZonas as probsSieteUd } from '../motor/sieteud.js';
 import { rtpDe as rtpKenoDe, rtpTabla as rtpKenoTabla, tablaBase as tablaKenoBase } from '../motor/keno.js';
 import { rtpDe as rtpTorreDe, multBase as multTorreBase, rtpPiso as rtpTorrePiso, chanceZafar as chanceTorre } from '../motor/torre.js';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
 import { TEMAS as TEMAS_TORRE } from './juego/torre-temas.ts';
-import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SimboloRaspa, TorreCfg } from './types.ts';
+import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SieteUdCfg, SimboloRaspa, TorreCfg, ZonaSieteUd } from './types.ts';
 import type {
   ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
   RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
@@ -107,8 +109,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esLimbo = juego.motor.startsWith('limbo');
   const esDice = juego.motor.startsWith('dice');
   const esKeno = juego.motor.startsWith('keno');
+  const esSieteUd = juego.motor.startsWith('sieteud');
   const esTorre = juego.motor.startsWith('torre');
-  const esInstant = esLimbo || esDice || esKeno;
+  const esInstant = esLimbo || esDice || esKeno || esSieteUd;
   const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esTorre;
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
@@ -240,7 +243,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const rtpLimbo = esLimbo ? (rtpLimboDe(juego.limbo_cfg || {}) as number) * 100 : 0;
   const rtpDice = esDice ? (rtpDiceDe(juego.dice_cfg || {}) as number) * 100 : 0;
   const rtpKeno = esKeno ? (rtpKenoDe(juego.keno_cfg || {}) as number) * 100 : 0;
-  const rtpInstant = esLimbo ? rtpLimbo : esDice ? rtpDice : rtpKeno;
+  const rtpSieteUd = esSieteUd ? (rtpSieteUdDe(juego.sieteud_cfg || {}) as number) * 100 : 0;
+  const rtpInstant = esLimbo ? rtpLimbo : esDice ? rtpDice : esSieteUd ? rtpSieteUd : rtpKeno;
   const rtpTorre = esTorre ? (rtpTorreDe(juego.torre_cfg || {}) as number) * 100 : 0;
   const rtpReal = esRuletaBotones
     ? rtpBotones
@@ -701,6 +705,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
       {grupo === 'jugabilidad' && esKeno && (
         <SeccionKeno juego={juego} onCampo={guardarCampoJuego} />
       )}
+      {grupo === 'jugabilidad' && esSieteUd && (
+        <SeccionSieteUd juego={juego} onCampo={guardarCampoJuego} />
+      )}
       {grupo === 'jugabilidad' && esTorre && (
         <SeccionTorre juego={juego} onCampo={guardarCampoJuego} />
       )}
@@ -773,7 +780,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionFichas
           juego={juego}
           onCampo={guardarCampoJuego}
-          ubicacion={(esLimbo || esDice) ? 'tira'
+          ubicacion={(esLimbo || esDice || esSieteUd) ? 'tira'
             : (esMines || esCrash || esPlinko || esRaspadita || esKeno || esTorre) ? 'arrastre'
             : 'grupo'}
         />
@@ -879,6 +886,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                       ? <PreviewDice juego={juego} onClose={() => setPreviewAbierto(false)} />
                     : esKeno
                       ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
+                    : esSieteUd
+                      ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} />
                     : esTorre
                       ? <PreviewTorre juego={juego} onClose={() => setPreviewAbierto(false)} />
                       : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
@@ -2361,6 +2370,133 @@ function SeccionDice({ juego, onCampo }: {
       </div>
 
       <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+    </div>
+  );
+}
+
+// ---------------- 7 Up 7 Down ----------------
+
+function SeccionSieteUd({ juego, onCampo }: {
+  juego: Juego;
+  onCampo: (campo: string, valor: unknown) => void | Promise<void>;
+}) {
+  const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
+  useEffect(() => { setCfg(cfgSieteUdDe(juego)); }, [juego.id]);
+  const [msg, setMsg] = useState('');
+  const guardar = (next: SieteUdCfg) => { setCfg(next); onCampo('sieteud_cfg', next); setMsg('Guardado ✓'); };
+
+  const subirA = async (file: File, aplicar: (url: string) => void) => {
+    const url = await subirArchivo(file, `sieteud/${juego.id}`);
+    if (url) aplicar(url);
+  };
+
+  const ZS: { id: ZonaSieteUd; nombre: string; rango: string }[] = [
+    { id: 'abajo', nombre: '7 abajo', rango: '2–6' },
+    { id: 'siete', nombre: 'Lucky 7', rango: '=7' },
+    { id: 'arriba', nombre: '7 arriba', rango: '8–12' },
+  ];
+  const probs = probsSieteUd(cfg.caras) as Record<ZonaSieteUd, number>;
+  const setPago = (z: ZonaSieteUd, val: string) => {
+    const n = parseFloat(val.replace(',', '.'));
+    const pagos = { ...cfg.pagos };
+    pagos[z] = (val.trim() === '' || Number.isNaN(n) || n <= 1) ? null : Math.round(n * 100) / 100;
+    guardar({ ...cfg, pagos });
+  };
+  const resetPagos = () => guardar({ ...cfg, pagos: { abajo: null, siete: null, arriba: null } });
+
+  return (
+    <div className="fade-in">
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Jugabilidad — 7 Up 7 Down</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          Dos dados; el jugador apuesta a que la suma cae <b>abajo</b> del 7, <b>justo</b> en 7 o <b>arriba</b>.
+          El <b>servidor</b> tira los dados. Pago por zona = <code>rtp ÷ P(zona)</code>: el retorno esperado es
+          el mismo elijas la zona que elijas.
+        </p>
+
+        <label style={{ fontSize: 12, display: 'block' }}>RTP objetivo <b>{(cfg.rtp * 100).toFixed(1)}%</b></label>
+        <input type="range" min={85} max={99} step={0.5} value={cfg.rtp * 100}
+          onChange={(e) => guardar({ ...cfg, rtp: Number(e.target.value) / 100 })}
+          style={{ width: '100%', margin: '4px 0 14px' }} />
+
+        <label style={{ fontSize: 12, display: 'block' }}>
+          Caras por dado <b>{cfg.caras}</b>
+          <span className="hint" style={{ margin: 0 }}> — 6 = dado normal. Con menos de 6 puede no haber ningún 7.</span>
+        </label>
+        <input type="range" min={4} max={10} step={1} value={cfg.caras}
+          onChange={(e) => guardar({ ...cfg, caras: Number(e.target.value), pagos: { abajo: null, siete: null, arriba: null } })}
+          style={{ width: '100%', margin: '4px 0 8px' }} />
+        <p className="hint" style={{ margin: 0 }}>{msg}</p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong style={{ fontSize: 15 }}>Pagos por zona</strong>
+        <p className="hint" style={{ marginBottom: 10 }}>
+          Vacío = exacto por RTP. Si tocás un pago a mano, mostramos el RTP real que queda en esa zona.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 88px 68px', gap: 8, alignItems: 'center', fontSize: 12, fontFamily: 'monospace' }}>
+          <span className="hint" style={{ margin: 0 }}>zona</span>
+          <span className="hint" style={{ margin: 0, textAlign: 'center' }}>pago ×</span>
+          <span className="hint" style={{ margin: 0, textAlign: 'right' }}>RTP real</span>
+          {ZS.map((z) => {
+            const p = probs[z.id] || 0;
+            return (
+              <Fragment key={z.id}>
+                <span>{z.nombre} <span className="hint" style={{ margin: 0 }}>· {z.rango} · {(p * 100).toFixed(1)}%</span></span>
+                <input
+                  key={`${z.id}-${cfg.caras}-${cfg.pagos[z.id] ?? 'x'}`}
+                  defaultValue={cfg.pagos[z.id] != null ? String(cfg.pagos[z.id]) : ''}
+                  placeholder={p > 0 ? (cfg.rtp / p).toFixed(2) : '—'}
+                  onBlur={(e) => setPago(z.id, e.target.value)}
+                  style={{ width: '100%', textAlign: 'center', fontSize: 12 }} />
+                <span style={{ textAlign: 'right', color: 'var(--ok)' }}>
+                  {p > 0 ? ((rtpZonaSieteUd(cfg, z.id) as number) * 100).toFixed(1) + '%' : '—'}
+                </span>
+              </Fragment>
+            );
+          })}
+        </div>
+        <button className="linkbtn" style={{ marginTop: 10, background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
+          onClick={resetPagos}>Volver a pagos exactos por RTP</button>
+      </div>
+
+      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <strong style={{ fontSize: 15 }}>Imágenes del juego</strong>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          El fondo de <b>toda la pantalla</b> se sube en <b>Arte</b>. Acá va la imagen del fieltro (donde caen
+          los dados) y el cartel que aparece al ganar. Clic derecho para quitar.
+        </p>
+        <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', fontSize: 12 }}>
+          <div>
+            <div style={{ marginBottom: 6 }}>Fondo de la mesa</div>
+            <label style={{
+              width: 80, height: 58, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
+              background: cfg.fondoUrl ? `center/cover no-repeat url("${cfg.fondoUrl}")` : 'var(--bg)',
+            }} title="Imagen del fieltro" onContextMenu={(e) => { e.preventDefault(); if (cfg.fondoUrl) guardar({ ...cfg, fondoUrl: null }); }}>
+              {!cfg.fondoUrl && '+'}
+              <input type="file" accept="image/*" hidden onChange={(e) => {
+                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => guardar({ ...cfg, fondoUrl: url }));
+              }} />
+            </label>
+          </div>
+          <div>
+            <div style={{ marginBottom: 6 }}>Cartel de premio</div>
+            <label style={{
+              width: 80, height: 58, borderRadius: 10, cursor: 'pointer', border: '1px dashed var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-dim)',
+              background: cfg.cartelUrl ? `center/cover no-repeat url("${cfg.cartelUrl}")` : 'var(--bg)',
+            }} title="Imagen del cartel al ganar" onContextMenu={(e) => { e.preventDefault(); if (cfg.cartelUrl) guardar({ ...cfg, cartelUrl: null }); }}>
+              {!cfg.cartelUrl && '+'}
+              <input type="file" accept="image/*" hidden onChange={(e) => {
+                const f = e.target.files?.[0]; e.target.value = ''; if (f) subirA(f, (url) => guardar({ ...cfg, cartelUrl: url }));
+              }} />
+            </label>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

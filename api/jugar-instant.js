@@ -2,6 +2,7 @@ import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import * as limbo from '../motor/limbo.js';
 import * as dice from '../motor/dice.js';
 import * as keno from '../motor/keno.js';
+import * as sieteud from '../motor/sieteud.js';
 import { apostar, premiar } from './_lib/proveedorCliente.js';
 
 // Endpoint único de los juegos "de una tirada": Limbo y Dice (y
@@ -13,7 +14,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
-    const { token, slug, apuesta, clientId, objetivo, umbral, direccion, marcados } = req.body || {};
+    const { token, slug, apuesta, clientId, objetivo, umbral, direccion, marcados, zona } = req.body || {};
     if (!token) return res.status(400).json({ error: 'Falta el token' });
     if (!clientId) return res.status(400).json({ error: 'Falta clientId' });
 
@@ -27,7 +28,8 @@ export default async function handler(req, res) {
     const esLimbo = motor.startsWith('limbo');
     const esDice = motor.startsWith('dice');
     const esKeno = motor.startsWith('keno');
-    if (!esLimbo && !esDice && !esKeno) {
+    const esSieteUd = motor.startsWith('sieteud');
+    if (!esLimbo && !esDice && !esKeno && !esSieteUd) {
       return res.status(400).json({ error: 'Este juego no es de una tirada' });
     }
 
@@ -68,6 +70,9 @@ export default async function handler(req, res) {
     } else if (esDice) {
       r = dice.tirar(juego.dice_cfg, umbral, direccion);
       resultado = { tipo: 'dice', roll: r.roll, umbral: r.umbral, direccion: r.direccion, gano: r.gano, mult: r.mult, prob: r.prob };
+    } else if (esSieteUd) {
+      r = sieteud.tirar(juego.sieteud_cfg, zona);
+      resultado = { tipo: 'sieteud', dados: r.dados, suma: r.suma, zona: r.zona, zonaGanadora: r.zonaGanadora, gano: r.gano, mult: r.mult };
     } else {
       r = keno.tirar(juego.keno_cfg, marcados);
       resultado = { tipo: 'keno', sorteados: r.sorteados, marcados: r.marcados, aciertos: r.aciertos, gano: r.gano, mult: r.mult };

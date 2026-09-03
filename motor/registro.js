@@ -39,6 +39,7 @@ export const MOTORES_DISPONIBLES = [
   { valor: 'dice-clasico', etiqueta: 'Dice — mayor o menor' },
   { valor: 'keno-clasico', etiqueta: 'Keno — marcá y que salgan' },
   { valor: 'torre-clasica', etiqueta: 'Torre — subí esquivando trampas' },
+  { valor: 'sieteud-clasico', etiqueta: '7 Up 7 Down — dos dados, abajo/7/arriba' },
 ];
 
 /**
