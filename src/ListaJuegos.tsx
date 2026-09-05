@@ -289,7 +289,11 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
       )}
 
       {filtrados.length === 0 ? (
-        <div className="card"><p className="hint">Ningún juego coincide con el filtro.</p></div>
+        <div className="empty-state">
+          <div className="empty-icon">⌕</div>
+          <strong>No encontramos juegos</strong>
+          <p className="hint">Probá ajustar la búsqueda o los filtros para ver otros resultados.</p>
+        </div>
       ) : vista === 'tabla' ? (
         <div className="jt-wrap">
           <table className="jt">

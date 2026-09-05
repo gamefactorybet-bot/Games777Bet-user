@@ -81,29 +81,29 @@ export function Catalogo() {
       {cargando && <p className="hint">Cargando...</p>}
       {error && <p className="hint error">{error}</p>}
       {!cargando && !error && juegos.length === 0 && (
-        <p className="hint">Todavía no tenés ningún juego marcado como "Listo".</p>
+        <div className="empty-state">
+          <div className="empty-icon">✦</div>
+          <strong>Tu vitrina todavía está vacía</strong>
+          <p className="hint">Cuando un juego pase a “Listo”, aparecerá acá para probarlo como cliente.</p>
+        </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 14 }}>
+      <div className="catalog-grid">
         {juegos.map((j) => (
           <button
             key={j.id}
             onClick={() => abrir(j)}
-            style={{ padding: 0, overflow: 'hidden', textAlign: 'left', display: 'block', borderRadius: 15 }}
+            className="catalog-card"
           >
             <div
+              className="catalog-art"
               style={{
-                // Portadas verticales 600×800 (3:4), al tono del resto del panel.
-                aspectRatio: '3 / 4',
                 background: j.portada_url ? `center/cover url('${j.portada_url}')` : 'var(--surface-alt)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
               }}
             >
               {!j.portada_url && <span className="hint" style={{ fontSize: 11 }}>Sin portada</span>}
             </div>
-            <p style={{ margin: '8px 10px', fontSize: 13, fontWeight: 500 }}>{j.nombre}</p>
+            <p>{j.nombre}</p>
           </button>
         ))}
       </div>

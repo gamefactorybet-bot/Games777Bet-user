@@ -42,9 +42,10 @@ export function Login({ onEntrar }: LoginProps) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="card" style={{ maxWidth: 340, width: '100%' }}>
-        <h2 style={{ marginTop: 0 }}>gameswin777</h2>
+    <div className="login-page">
+      <div className="card login-card">
+        <div className="login-brand"><div className="logo">g7</div><b>gameswin777</b></div>
+        <h2 style={{ margin: 0 }}>Bienvenido</h2>
         <p className="hint" style={{ marginBottom: 16 }}>Ensamblador de juegos. Acceso solo para vos.</p>
 
         <label>

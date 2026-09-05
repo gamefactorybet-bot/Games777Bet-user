@@ -70,9 +70,10 @@ button {
   color: var(--text);
   padding: 9px 15px;
   cursor: pointer;
-  transition: background .15s ease, border-color .15s ease;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
 }
 button:hover { background: var(--border-soft); border-color: var(--border); }
+button:active { transform: translateY(1px); }
 
 button.primary {
   background: var(--accent);
@@ -81,12 +82,14 @@ button.primary {
   font-weight: 500;
 }
 button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+button.primary:hover { box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 25%, transparent); }
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: 22px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.12);
 }
 
 .hint { color: var(--text-dim); font-size: 13px; margin: 4px 0 0; }
@@ -230,6 +233,7 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
 .side-brand .logo {
   width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
   background: linear-gradient(140deg, var(--accent), #9b7bff);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 34%, transparent);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; color: #fff;
 }
@@ -246,7 +250,7 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
 }
 .side-item svg { width: 17px; height: 17px; flex-shrink: 0; }
 .side-item:hover { background: var(--surface-alt); color: var(--text); border-color: transparent; }
-.side-item.on { background: var(--accent-soft); color: var(--accent); }
+.side-item.on { background: var(--accent-soft); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
 .side-item .side-count { margin-left: auto; font-size: 11px; color: var(--text-dim); }
 .side-item.on .side-count { color: var(--accent); }
 .side-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-soft); }
@@ -265,9 +269,10 @@ button.primary:hover { background: var(--accent-hover); border-color: var(--acce
 
 .page-head {
   display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 16px; margin-bottom: 16px;
+  gap: 16px; margin-bottom: 18px; padding: 2px 0 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
 }
-.page-head h2 { margin: 0; font-size: 20px; }
+.page-head h2 { margin: 0; font-size: 22px; letter-spacing: -.025em; }
 .page-head .sub { margin: 4px 0 0; color: var(--text-dim); font-size: 13px; }
 
 .crumbs {
@@ -339,6 +344,7 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
   overflow-x: auto;
   background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
   backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: 0 16px 38px rgba(0,0,0,.12);
 }
 .jt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .jt thead th {
@@ -348,10 +354,10 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
 }
 .jt thead th.orden { cursor: pointer; }
 .jt thead th.orden:hover { color: var(--text); }
-.jt tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+.jt tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
 .jt tbody tr:last-child td { border-bottom: 0; }
 .jt tbody tr { cursor: pointer; transition: background .1s ease; }
-.jt tbody tr:hover { background: var(--surface); }
+.jt tbody tr:hover { background: color-mix(in srgb, var(--surface-alt) 78%, transparent); }
 .jt tbody tr.pub td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 .jt tbody tr.sel { background: var(--accent-soft); }
 .jt .c-check { width: 34px; }
@@ -390,9 +396,9 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
   background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
   backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
   cursor: pointer; padding: 0; text-align: left;
-  transition: border-color .13s ease, transform .13s ease;
+  transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
 }
-.jcard:hover { border-color: var(--border); transform: translateY(-2px); }
+.jcard:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); transform: translateY(-4px); box-shadow: 0 15px 28px rgba(0,0,0,.24); }
 .jcard::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   opacity: var(--gota-op); transition: opacity .35s ease;
@@ -407,6 +413,10 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
   aspect-ratio: 1; background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center; position: relative;
 }
+.jcard .art::after, .catalog-card .catalog-art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.35));
+}
 .jcard .art .flag {
   position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
@@ -416,6 +426,39 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
 .jcard .meta .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 7px; }
 .jcard .meta .row .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
 .jcard .meta .row .badge { flex-shrink: 0; }
+
+/* Estados vacíos y fichas de contenido: informan sin dejar huecos muertos. */
+.empty-state {
+  display: grid; place-items: center; text-align: center; min-height: 210px; padding: 28px;
+  border: 1px dashed var(--border); border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+}
+.empty-state .empty-icon {
+  display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 10px;
+  border-radius: 13px; color: var(--accent); font-size: 20px; background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.empty-state strong { font-size: 14px; font-weight: 600; }
+.empty-state .hint { max-width: 330px; margin: 4px 0 0; }
+
+/* Catálogo: las portadas pasan a sentirse como piezas de una vitrina. */
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(165px,1fr)); gap: 16px; }
+.catalog-card {
+  position: relative; overflow: hidden; padding: 0; text-align: left; display: block;
+  border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface) var(--glass-pct), transparent);
+  border: 1px solid var(--border-soft); transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.catalog-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 15px 28px rgba(0,0,0,.25); }
+.catalog-art { position: relative; aspect-ratio: 3 / 4; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
+.catalog-card p { position: relative; margin: 0; padding: 10px 11px 11px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Acceso: misma identidad que el resto del producto, sin modificar el flujo. */
+.login-page { position: relative; isolation: isolate; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden; }
+.login-page::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 18% 15%, var(--accent-soft), transparent 32%), radial-gradient(circle at 84% 86%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 36%); }
+.login-card { max-width: 360px; width: 100%; padding: 28px; border-color: color-mix(in srgb, var(--accent) 20%, var(--border-soft)); }
+.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.login-brand .logo { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; font-size: 14px; font-weight: 700; color: #fff; background: linear-gradient(140deg, var(--accent), #9b7bff); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 33%, transparent); }
+.login-brand b { font-size: 16px; letter-spacing: -.02em; }
 
 /* ---- Paginado ---- */
 .pager {

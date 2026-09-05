@@ -66,7 +66,11 @@ export function Clientes() {
         {cargando && <p className="hint">Cargando...</p>}
         {error && <p className="hint error">{error}</p>}
         {!cargando && !error && lista.length === 0 && (
-          <p className="hint">Todavía no conectaste ningún cliente.</p>
+          <div className="empty-state">
+            <div className="empty-icon">⌘</div>
+            <strong>No hay clientes conectados</strong>
+            <p className="hint">Agregá el primer casino para empezar a servirle tus juegos.</p>
+          </div>
         )}
         {lista.map((c) => (
           <div
