@@ -13,6 +13,8 @@ export interface EdicionMesa {
   seleccion: ElemId | null;
   onSelect: (id: ElemId) => void;
   onPatch: (id: ElemId, patch: PatchPieza) => void;
+  bloqueadas: ElemId[];
+  snap: boolean;
 }
 
 interface Props {
@@ -47,15 +49,26 @@ export function SieteUdMesa({
   const cartelVisible = est.cartel != null || cartelDemo;
 
   const P = (id: ElemId, children: ReactNode, zBase?: number) => (
+    cfg.editor.ocultas.includes(id) ? null :
     <Pieza
       id={id} tipo={TIPO[id]} v={pos[id] as ValPieza} seleccion={seleccion}
       onSelect={edicion?.onSelect} onPatch={edicion?.onPatch} stageRef={stageRef}
-      zBase={zBase}
+      zBase={zBase} bloqueada={edicion?.bloqueadas.includes(id)} snap={edicion?.snap}
     >{children}</Pieza>
   );
 
   return (
     <div ref={stageRef} style={{ position: 'absolute', inset: 0, touchAction: editando ? 'none' : undefined, fontFamily: 'var(--in-body, inherit)' }}>
+      {editando && (
+        <div aria-hidden style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
+          backgroundImage: 'linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)',
+          backgroundSize: '10% 10%',
+        }}>
+          <i style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '1px dashed rgba(107,138,253,.75)' }} />
+          <i style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px dashed rgba(107,138,253,.75)' }} />
+        </div>
+      )}
 
       {P('saldo', (
         <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', textShadow: '0 1px 5px rgba(0,0,0,.5)' }}>

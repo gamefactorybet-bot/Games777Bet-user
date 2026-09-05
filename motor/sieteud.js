@@ -27,6 +27,7 @@ export const CFG_DEFAULT = {
   velo: 0.5,              // opacidad del velo del color del fieltro sobre esa imagen (0.1–0.9)
   cartelUrl: null,        // imagen del cartel que sale al ganar
   botonImg: null,         // imagen del botón de tirar (opcional)
+  editor: { ocultas: [], bloqueadas: [], snap: true },
   // Retoque de cada imagen: encuadre, posición, zoom, desenfoque y oscurecido.
   arte: {
     pantalla: { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
@@ -100,6 +101,11 @@ export function cfgConDefaults(cfg) {
     velo: clamp(num(c.velo, D.velo), 0.1, 0.95),
     cartelUrl: str(c.cartelUrl, null),
     botonImg: str(c.botonImg, null),
+    editor: {
+      ocultas: Array.isArray(obj(c.editor).ocultas) ? obj(c.editor).ocultas.filter((x) => typeof x === 'string') : [],
+      bloqueadas: Array.isArray(obj(c.editor).bloqueadas) ? obj(c.editor).bloqueadas.filter((x) => typeof x === 'string') : [],
+      snap: obj(c.editor).snap !== false,
+    },
     arte: {
       pantalla: ajusteImg(obj(c.arte).pantalla, D.arte.pantalla),
       mesa: ajusteImg(obj(c.arte).mesa, D.arte.mesa),

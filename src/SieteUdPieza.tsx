@@ -14,6 +14,7 @@ export type PatchPieza = Partial<{ x: number; y: number; w: number; h: number; e
  */
 export function Pieza<ID extends string = string>({
   id, tipo, v, seleccion, onSelect, onPatch, stageRef, zBase = 4, children,
+  bloqueada = false, snap = true,
 }: {
   id: ID;
   tipo: TipoPieza;
@@ -24,6 +25,8 @@ export function Pieza<ID extends string = string>({
   onPatch?: (id: ID, patch: PatchPieza) => void;
   stageRef: RefObject<HTMLDivElement | null>;
   zBase?: number;
+  bloqueada?: boolean;
+  snap?: boolean;
   children: ReactNode;
 }) {
   const modo = useRef<'' | 'move' | 'resize'>('');
@@ -36,7 +39,7 @@ export function Pieza<ID extends string = string>({
   const rect = () => stageRef.current?.getBoundingClientRect() ?? null;
 
   const empezar = (m: 'move' | 'resize') => (e: RPointerEvent) => {
-    if (!editando) return;
+    if (!editando || bloqueada) return;
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     onSelect?.(id);
@@ -53,10 +56,11 @@ export function Pieza<ID extends string = string>({
     const dxp = ((e.clientX - inicio.current.mx) / r.width) * 100;
     const dyp = ((e.clientY - inicio.current.my) / r.height) * 100;
     const red = (n: number) => Math.round(n * 10) / 10;
+    const ajustar = (n: number) => snap ? Math.round(n / 2.5) * 2.5 : red(n);
     if (modo.current === 'move') {
       onPatch?.(id, {
-        x: red(clamp(((e.clientX - r.left) / r.width) * 100 - inicio.current.offx, 2, 98)),
-        y: red(clamp(((e.clientY - r.top) / r.height) * 100 - inicio.current.offy, 2, 98)),
+        x: ajustar(clamp(((e.clientX - r.left) / r.width) * 100 - inicio.current.offx, 2, 98)),
+        y: ajustar(clamp(((e.clientY - r.top) / r.height) * 100 - inicio.current.offy, 2, 98)),
       });
     } else if (esCaja) {
       onPatch?.(id, {
@@ -80,7 +84,7 @@ export function Pieza<ID extends string = string>({
     height: esCaja ? `${v.h}%` : undefined,
     display: esCaja || esAncho ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
     touchAction: editando ? 'none' : undefined,
-    cursor: editando ? 'move' : undefined,
+    cursor: editando ? (bloqueada ? 'not-allowed' : 'move') : undefined,
     outline: sel ? '2px dashed var(--accent)' : editando ? '1px dashed rgba(255,255,255,.2)' : 'none',
     outlineOffset: 3, borderRadius: 6,
     zIndex: sel ? zBase + 4 : zBase,
@@ -89,7 +93,7 @@ export function Pieza<ID extends string = string>({
   return (
     <div
       style={style}
-      onPointerDown={empezar('move')} onPointerMove={mover}
+      onPointerDown={(e) => { if (editando) onSelect?.(id); empezar('move')(e); }} onPointerMove={mover}
       onPointerUp={soltar} onPointerCancel={soltar}
     >
       {editando && (
@@ -99,7 +103,7 @@ export function Pieza<ID extends string = string>({
           padding: '1px 5px', borderRadius: 5, whiteSpace: 'nowrap',
         }}>{id}</span>
       )}
-      {editando && sel && (
+      {editando && sel && !bloqueada && (
         <span
           onPointerDown={empezar('resize')} onPointerMove={mover}
           onPointerUp={soltar} onPointerCancel={soltar}

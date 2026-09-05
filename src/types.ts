@@ -814,6 +814,8 @@ export interface SieteUdCfg {
   };
   /** Posición de cada pieza en la pantalla del juego (% de la escena). */
   controles: Partial<PosControlesSieteUd>;
+  /** Preferencias del editor y visibilidad de las piezas en el juego. */
+  editor: { ocultas: string[]; bloqueadas: string[]; snap: boolean };
 }
 
 export interface AjusteImg {

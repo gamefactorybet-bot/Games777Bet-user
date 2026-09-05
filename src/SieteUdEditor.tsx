@@ -20,6 +20,7 @@ const CAMPO_IMG: Record<ImgKey, 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 
 // Toda la edición de 7 Up 7 Down en un panel, dentro de la Vista previa.
 export function SieteUdEditor({
   juego, cfg, pos, seleccion, onSelPieza, onCfg, onArte, onPos,
+  puedeDeshacer, puedeRehacer, onDeshacer, onRehacer,
 }: {
   juego: Juego;
   cfg: SieteUdCfg;
@@ -29,6 +30,10 @@ export function SieteUdEditor({
   onCfg: (patch: Partial<SieteUdCfg>) => void;
   onArte: (k: ImgKey, patch: Partial<AjusteImg>) => void;
   onPos: (pos: PosControlesSieteUd) => void;
+  puedeDeshacer: boolean;
+  puedeRehacer: boolean;
+  onDeshacer: () => void;
+  onRehacer: () => void;
 }) {
   const [tab, setTab] = useState<Pestana>('piezas');
   const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
@@ -52,6 +57,8 @@ export function SieteUdEditor({
         <TabPiezas
           pos={pos} seleccion={seleccion} onSelPieza={onSelPieza} onPos={onPos}
           mostrarNombre={mostrarNombre} onToggleNombre={toggleNombre}
+          editor={cfg.editor} onEditor={(editor) => onCfg({ editor })}
+          puedeDeshacer={puedeDeshacer} puedeRehacer={puedeRehacer} onDeshacer={onDeshacer} onRehacer={onRehacer}
         />
       )}
       {tab === 'imagenes' && <TabImagenes juego={juego} cfg={cfg} onCfg={onCfg} onArte={onArte} />}
@@ -64,6 +71,7 @@ export function SieteUdEditor({
 
 function TabPiezas({
   pos, seleccion, onSelPieza, onPos, mostrarNombre, onToggleNombre,
+  editor, onEditor, puedeDeshacer, puedeRehacer, onDeshacer, onRehacer,
 }: {
   pos: PosControlesSieteUd;
   seleccion: ElemId;
@@ -71,23 +79,50 @@ function TabPiezas({
   onPos: (pos: PosControlesSieteUd) => void;
   mostrarNombre: boolean;
   onToggleNombre: (v: boolean) => void;
+  editor: SieteUdCfg['editor'];
+  onEditor: (editor: SieteUdCfg['editor']) => void;
+  puedeDeshacer: boolean;
+  puedeRehacer: boolean;
+  onDeshacer: () => void;
+  onRehacer: () => void;
 }) {
   const meta = PIEZAS_SIETEUD.find((p) => p.id === seleccion)!;
   const v = pos[seleccion] as unknown as Record<string, number>;
   const set = (prop: string, n: number) => onPos({ ...pos, [seleccion]: { ...(pos[seleccion] as object), [prop]: n } });
+  const alternar = (clave: 'ocultas' | 'bloqueadas', id: ElemId) => {
+    const actual = editor[clave];
+    onEditor({ ...editor, [clave]: actual.includes(id) ? actual.filter((x) => x !== id) : [...actual, id] });
+  };
+  const alinear = (eje: 'x' | 'y') => set(eje, 50);
 
   return (
     <>
-      <p className="hint" style={{ margin: '0 0 8px' }}>Arrastrá cada pieza en el teléfono o usá los deslizadores. La esquina cambia el tamaño. Se guarda solo.</p>
+      <p className="hint" style={{ margin: '0 0 8px' }}>Arrastrá las piezas sobre la grilla. Los cambios se guardan solos.</p>
+      <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+        <button title="Deshacer" disabled={!puedeDeshacer} onClick={onDeshacer} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>↶ Deshacer</button>
+        <button title="Rehacer" disabled={!puedeRehacer} onClick={onRehacer} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Rehacer ↷</button>
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, marginBottom: 10 }}>
+        <input type="checkbox" checked={editor.snap} onChange={(e) => onEditor({ ...editor, snap: e.target.checked })} />
+        Ajustar a la grilla
+      </label>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 10 }}>
         <input type="checkbox" checked={mostrarNombre} onChange={(e) => onToggleNombre(e.target.checked)} />
         Mostrar el nombre del juego arriba
       </label>
-      <div className="grupo-nav" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, margin: '10px 0 5px' }}>Capas</div>
+      <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
         {PIEZAS_SIETEUD.map((p) => (
-          <button key={p.id} className={`grupo-btn ${p.id === seleccion ? 'on' : ''}`}
-            style={{ flex: '1 1 30%', fontSize: 11, justifyContent: 'center' }} onClick={() => onSelPieza(p.id)}>{p.etiqueta}</button>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 3, borderRadius: 7, background: p.id === seleccion ? 'var(--accent-soft)' : 'var(--surface-alt)', border: `1px solid ${p.id === seleccion ? 'var(--accent)' : 'var(--border-soft)'}` }}>
+            <button onClick={() => onSelPieza(p.id)} style={{ flex: 1, textAlign: 'left', padding: '5px 6px', border: 0, background: 'transparent', fontSize: 11, color: p.id === seleccion ? 'var(--accent)' : 'var(--text)' }}>{p.etiqueta}</button>
+            <button title={editor.ocultas.includes(p.id) ? 'Mostrar capa' : 'Ocultar capa'} onClick={() => alternar('ocultas', p.id)} style={{ padding: '4px 5px', border: 0, background: 'transparent', fontSize: 12 }}>{editor.ocultas.includes(p.id) ? '○' : '◉'}</button>
+            <button title={editor.bloqueadas.includes(p.id) ? 'Desbloquear capa' : 'Bloquear capa'} onClick={() => alternar('bloqueadas', p.id)} style={{ padding: '4px 5px', border: 0, background: 'transparent', fontSize: 12 }}>{editor.bloqueadas.includes(p.id) ? '🔒' : '🔓'}</button>
+          </div>
         ))}
+      </div>
+      <div style={{ display: 'flex', gap: 5, marginBottom: 9 }}>
+        <button onClick={() => alinear('x')} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Centrar X</button>
+        <button onClick={() => alinear('y')} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Centrar Y</button>
       </div>
       <Rango etiqueta="Posición X" min={0} max={100} valor={Math.round(v.x)} onInput={(n) => set('x', n)} />
       <Rango etiqueta="Posición Y" min={0} max={100} valor={Math.round(v.y)} onInput={(n) => set('y', n)} />

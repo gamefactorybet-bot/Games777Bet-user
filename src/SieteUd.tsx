@@ -111,6 +111,9 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
   const [pos, setPos] = useState<PosControlesSieteUd>(() => posControlesSieteUdDe(cfgSieteUdDe(juego)));
   const [ajustar, setAjustar] = useState(false);
   const [sel, setSel] = useState<ElemId>('mesa');
+  const historialRef = useRef<PosControlesSieteUd[]>([pos]);
+  const indiceHistorial = useRef(0);
+  const [estadoHistorial, setEstadoHistorial] = useState({ atras: false, adelante: false });
   const saldoRef = useRef(10000);
 
   // Fuente de verdad síncrona: evita que dos ediciones seguidas se pisen
@@ -144,11 +147,35 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
     bump((c) => _cfg({ ...c, arte }) as SieteUdCfg);
     guardar({ arte });
   }, [bump, guardar]);
-  const onPos = useCallback((next: PosControlesSieteUd) => {
+  const actualizarEstadoHistorial = useCallback(() => {
+    setEstadoHistorial({ atras: indiceHistorial.current > 0, adelante: indiceHistorial.current < historialRef.current.length - 1 });
+  }, []);
+  const aplicarPos = useCallback((next: PosControlesSieteUd, registrar = true) => {
     setPos(next);
     bump((c) => ({ ...c, controles: next }));
     guardar({ controles: next });
-  }, [bump, guardar]);
+    if (registrar) {
+      const anterior = historialRef.current[indiceHistorial.current];
+      if (JSON.stringify(anterior) !== JSON.stringify(next)) {
+        historialRef.current = [...historialRef.current.slice(0, indiceHistorial.current + 1), next];
+        indiceHistorial.current = historialRef.current.length - 1;
+        actualizarEstadoHistorial();
+      }
+    }
+  }, [actualizarEstadoHistorial, bump, guardar]);
+  const onPos = useCallback((next: PosControlesSieteUd) => aplicarPos(next), [aplicarPos]);
+  const deshacer = useCallback(() => {
+    if (indiceHistorial.current === 0) return;
+    indiceHistorial.current -= 1;
+    aplicarPos(historialRef.current[indiceHistorial.current], false);
+    actualizarEstadoHistorial();
+  }, [actualizarEstadoHistorial, aplicarPos]);
+  const rehacer = useCallback(() => {
+    if (indiceHistorial.current >= historialRef.current.length - 1) return;
+    indiceHistorial.current += 1;
+    aplicarPos(historialRef.current[indiceHistorial.current], false);
+    actualizarEstadoHistorial();
+  }, [actualizarEstadoHistorial, aplicarPos]);
 
   const jugar: JugarSieteUdFn = async (zona, apuesta) => {
     const r = _tirarLocal(cfg, zona) as TiradaInstant & { mult: number };
@@ -158,7 +185,7 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
   };
 
   const edicion: EdicionMesa | null = ajustar
-    ? { seleccion: sel, onSelect: setSel, onPatch: (id, patch) => onPos({ ...pos, [id]: { ...pos[id], ...patch } }) }
+    ? { seleccion: sel, onSelect: setSel, onPatch: (id, patch) => onPos({ ...pos, [id]: { ...pos[id], ...patch } }), bloqueadas: cfg.editor.bloqueadas as ElemId[], snap: cfg.editor.snap }
     : null;
 
   const overlay = (
@@ -186,7 +213,8 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
 
       {ajustar && (
         <SieteUdEditor juego={juego} cfg={cfg} pos={pos} seleccion={sel}
-          onSelPieza={setSel} onCfg={onCfg} onArte={onArte} onPos={onPos} />
+          onSelPieza={setSel} onCfg={onCfg} onArte={onArte} onPos={onPos}
+          puedeDeshacer={estadoHistorial.atras} puedeRehacer={estadoHistorial.adelante} onDeshacer={deshacer} onRehacer={rehacer} />
       )}
     </div>
   );
