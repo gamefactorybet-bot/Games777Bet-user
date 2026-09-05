@@ -13,8 +13,8 @@ export type PatchPieza = Partial<{ x: number; y: number; w: number; h: number; e
  * (ancho/alto en cajas, ancho en 'ancho', escala en 'punto').
  */
 export function Pieza<ID extends string = string>({
-  id, tipo, v, seleccion, onSelect, onPatch, stageRef, zBase = 4, children,
-  bloqueada = false, snap = true,
+  id, tipo, v, seleccion, onSelect, onPatch, onPatchFin, stageRef, zBase = 4, children,
+  bloqueada = false, snap = true, oculta = false,
 }: {
   id: ID;
   tipo: TipoPieza;
@@ -22,15 +22,23 @@ export function Pieza<ID extends string = string>({
   /** id de la pieza seleccionada, o null si no se está editando. */
   seleccion: ID | null;
   onSelect?: (id: ID) => void;
+  /** Se llama en cada movimiento (actualiza posición y guarda, sin historial). */
   onPatch?: (id: ID, patch: PatchPieza) => void;
+  /** Se llama una sola vez al soltar, con la posición final (registra deshacer). */
+  onPatchFin?: (id: ID, patch: PatchPieza) => void;
   stageRef: RefObject<HTMLDivElement | null>;
   zBase?: number;
   bloqueada?: boolean;
   snap?: boolean;
+  /** Oculta visualmente (display:none) sin desmontar — algunos hijos (ej. el
+   * canvas de la mesa) llevan un motor que no se reconecta si se remonta. */
+  oculta?: boolean;
   children: ReactNode;
 }) {
   const modo = useRef<'' | 'move' | 'resize'>('');
   const inicio = useRef({ mx: 0, my: 0, w: 0, h: 0, escala: 0, offx: 0, offy: 0 });
+  const rectCache = useRef<DOMRect | null>(null);
+  const ultimoPatch = useRef<PatchPieza | null>(null);
   const editando = seleccion !== null;
   const sel = seleccion === id;
   const esCaja = tipo === 'caja';
@@ -44,37 +52,48 @@ export function Pieza<ID extends string = string>({
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     onSelect?.(id);
     const r = rect();
+    rectCache.current = r;
     const pxp = r && m === 'move' ? ((e.clientX - r.left) / r.width) * 100 : v.x;
     const pyp = r && m === 'move' ? ((e.clientY - r.top) / r.height) * 100 : v.y;
     modo.current = m;
+    ultimoPatch.current = null;
     inicio.current = { mx: e.clientX, my: e.clientY, w: v.w ?? 0, h: v.h ?? 0, escala: v.escala, offx: pxp - v.x, offy: pyp - v.y };
   };
 
   const mover = (e: RPointerEvent) => {
     if (!editando || !modo.current) return;
-    const r = rect(); if (!r) return;
+    const r = rectCache.current; if (!r) return;
     const dxp = ((e.clientX - inicio.current.mx) / r.width) * 100;
     const dyp = ((e.clientY - inicio.current.my) / r.height) * 100;
     const red = (n: number) => Math.round(n * 10) / 10;
     const ajustar = (n: number) => snap ? Math.round(n / 2.5) * 2.5 : red(n);
+    let patch: PatchPieza;
     if (modo.current === 'move') {
-      onPatch?.(id, {
+      patch = {
         x: ajustar(clamp(((e.clientX - r.left) / r.width) * 100 - inicio.current.offx, 2, 98)),
         y: ajustar(clamp(((e.clientY - r.top) / r.height) * 100 - inicio.current.offy, 2, 98)),
-      });
+      };
     } else if (esCaja) {
-      onPatch?.(id, {
-        w: clamp(Math.round(inicio.current.w + dxp * 2), 20, 100),
-        h: clamp(Math.round(inicio.current.h + dyp * 2), 8, 80),
-      });
+      patch = {
+        w: ajustar(clamp(inicio.current.w + dxp * 2, 20, 100)),
+        h: ajustar(clamp(inicio.current.h + dyp * 2, 8, 80)),
+      };
     } else if (esAncho) {
-      onPatch?.(id, { w: clamp(Math.round(inicio.current.w + dxp * 2), 20, 100) });
+      patch = { w: ajustar(clamp(inicio.current.w + dxp * 2, 20, 100)) };
     } else {
       const f = 1 + (dxp + dyp) / 60;
-      onPatch?.(id, { escala: clamp(Math.round(inicio.current.escala * f * 20) / 20, 0.5, 2.2) });
+      const paso = snap ? 0.1 : 0.05;
+      patch = { escala: clamp(Math.round((inicio.current.escala * f) / paso) * paso, 0.5, 2.2) };
     }
+    ultimoPatch.current = patch;
+    onPatch?.(id, patch);
   };
-  const soltar = () => { modo.current = ''; };
+  const moverEnHandle = (e: RPointerEvent) => { e.stopPropagation(); mover(e); };
+  const soltar = () => {
+    modo.current = '';
+    rectCache.current = null;
+    if (ultimoPatch.current) { onPatchFin?.(id, ultimoPatch.current); ultimoPatch.current = null; }
+  };
 
   const escala = esCaja ? 1 : v.escala;
   const style: CSSProperties = {
@@ -82,7 +101,7 @@ export function Pieza<ID extends string = string>({
     transform: `translate(-50%,-50%) scale(${escala})`,
     width: esCaja || esAncho ? `${v.w}%` : undefined,
     height: esCaja ? `${v.h}%` : undefined,
-    display: esCaja || esAncho ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
+    display: oculta ? 'none' : esCaja || esAncho ? 'block' : 'flex', alignItems: 'center', justifyContent: 'center',
     touchAction: editando ? 'none' : undefined,
     cursor: editando ? (bloqueada ? 'not-allowed' : 'move') : undefined,
     outline: sel ? '2px dashed var(--accent)' : editando ? '1px dashed rgba(255,255,255,.2)' : 'none',
@@ -105,7 +124,7 @@ export function Pieza<ID extends string = string>({
       )}
       {editando && sel && !bloqueada && (
         <span
-          onPointerDown={empezar('resize')} onPointerMove={mover}
+          onPointerDown={empezar('resize')} onPointerMove={moverEnHandle}
           onPointerUp={soltar} onPointerCancel={soltar}
           title={esCaja ? 'Ancho y alto' : esAncho ? 'Ancho' : 'Tamaño'}
           style={{

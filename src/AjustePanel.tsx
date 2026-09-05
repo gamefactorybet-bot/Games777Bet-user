@@ -69,16 +69,16 @@ const CLAVES_BOTON = [
 
 // ---------------- Slider genérico ----------------
 
-export function Rango({ etiqueta, min, max, step = 1, valor, unidad = '%', onInput }: {
+export function Rango({ etiqueta, min, max, step = 1, valor, unidad = '%', onInput, disabled }: {
   etiqueta: string; min: number; max: number; step?: number; valor: number; unidad?: string;
-  onInput: (n: number) => void;
+  onInput: (n: number) => void; disabled?: boolean;
 }) {
   const [v, setV] = useState(valor);
   useEffect(() => { setV(valor); }, [valor]);
   return (
-    <label style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
+    <label style={{ display: 'block', marginBottom: 8, fontSize: 12, opacity: disabled ? 0.5 : 1 }}>
       {etiqueta} <span className="hint">{v}{unidad}</span>
-      <input type="range" min={min} max={max} step={step} value={v}
+      <input type="range" min={min} max={max} step={step} value={v} disabled={disabled}
         onChange={(e) => { const n = Number(e.target.value); setV(n); onInput(n); }} />
     </label>
   );

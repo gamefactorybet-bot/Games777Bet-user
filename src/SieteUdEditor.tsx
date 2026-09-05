@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import { supabase } from './supabase.ts';
+import { useMemo, useState } from 'react';
 import { subirArchivo } from './juego/subir.ts';
 import { Rango } from './AjustePanel.tsx';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { probsZonas as _probs, rtpZona as _rtpZona, pagoRaw as _pagoRaw } from '../motor/sieteud.js';
 import {
-  PIEZAS_SIETEUD, CONTROLES_SIETEUD_DEFAULT, FIT_OPC, ZONA_INFO, ZONAS,
+  PIEZAS_SIETEUD, CONTROLES_SIETEUD_DEFAULT, FIT_OPC, ZONA_INFO, ZONAS, CFG_DEFAULT,
 } from './juego/sieteud.ts';
 import type { AjusteImg, Juego, PosControlesSieteUd, SieteUdCfg, SieteUdPreset, SieteUdVisualCfg, ZonaSieteUd } from './types.ts';
 
@@ -19,7 +18,8 @@ const CAMPO_IMG: Record<ImgKey, 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 
 
 // Toda la edición de 7 Up 7 Down en un panel, dentro de la Vista previa.
 export function SieteUdEditor({
-  juego, cfg, pos, seleccion, onSelPieza, onCfg, onArte, onPos,
+  juego, cfg, pos, seleccion, onSelPieza, onCfg, onArte, onPos, cfgActual,
+  mostrarNombre, onToggleNombre,
   puedeDeshacer, puedeRehacer, onDeshacer, onRehacer,
   onAplicarVisual,
 }: {
@@ -31,6 +31,10 @@ export function SieteUdEditor({
   onCfg: (patch: Partial<SieteUdCfg>) => void;
   onArte: (k: ImgKey, patch: Partial<AjusteImg>) => void;
   onPos: (pos: PosControlesSieteUd) => void;
+  /** Lectura síncrona del cfg más reciente (evita pisadas entre ediciones seguidas). */
+  cfgActual: () => SieteUdCfg;
+  mostrarNombre: boolean;
+  onToggleNombre: (v: boolean) => void;
   puedeDeshacer: boolean;
   puedeRehacer: boolean;
   onDeshacer: () => void;
@@ -38,13 +42,6 @@ export function SieteUdEditor({
   onAplicarVisual: (visual: SieteUdVisualCfg) => void;
 }) {
   const [tab, setTab] = useState<Pestana>('piezas');
-  const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
-
-  const toggleNombre = async (v: boolean) => {
-    setMostrarNombre(v);
-    await supabase.from('juegos').update({ mostrar_nombre: v }).eq('id', juego.id);
-    (juego as { mostrar_nombre?: boolean }).mostrar_nombre = v;
-  };
 
   return (
     <div className="card" style={{ width: 270, maxWidth: '92vw', maxHeight: 'min(860px, 92vh)', overflow: 'auto', position: 'relative', zIndex: 50 }}>
@@ -58,14 +55,14 @@ export function SieteUdEditor({
       {tab === 'piezas' && (
         <TabPiezas
           pos={pos} seleccion={seleccion} onSelPieza={onSelPieza} onPos={onPos}
-          mostrarNombre={mostrarNombre} onToggleNombre={toggleNombre}
+          mostrarNombre={mostrarNombre} onToggleNombre={onToggleNombre}
           editor={cfg.editor} onEditor={(editor) => onCfg({ editor })}
           puedeDeshacer={puedeDeshacer} puedeRehacer={puedeRehacer} onDeshacer={onDeshacer} onRehacer={onRehacer}
         />
       )}
       {tab === 'imagenes' && <TabImagenes juego={juego} cfg={cfg} onCfg={onCfg} onArte={onArte} />}
       {tab === 'estilo' && <TabEstilo cfg={cfg} onCfg={onCfg} />}
-      {tab === 'presets' && <TabPresets cfg={cfg} pos={pos} onCfg={onCfg} onAplicarVisual={onAplicarVisual} />}
+      {tab === 'presets' && <TabPresets cfg={cfg} pos={pos} cfgActual={cfgActual} onCfg={onCfg} onAplicarVisual={onAplicarVisual} />}
       {tab === 'juego' && <TabJuego cfg={cfg} onCfg={onCfg} />}
     </div>
   );
@@ -109,6 +106,7 @@ function presetsBase(cfg: SieteUdCfg, pos: PosControlesSieteUd): SieteUdPreset[]
     visual.arte = copiar(ARTE_CLASICO);
     visual.estilos = copiar(ESTILOS_CLASICOS);
     visual.tema = p.tema;
+    visual.velo = CFG_DEFAULT.velo;
     visual.fondoPantallaUrl = null; visual.fondoUrl = null; visual.cartelUrl = null; visual.botonImg = null;
     visual.estilos.zonas = { ...visual.estilos.zonas, fondo: p.fondo, borde: p.borde, acento: p.acento, seleccionado: p.seleccionado, gana: p.gana, pierde: p.pierde };
     visual.estilos.boton = { ...visual.estilos.boton, fondo: p.boton, borde: p.boton, texto: p.id === 'minimalista' ? '#15171a' : '#ffffff' };
@@ -116,19 +114,25 @@ function presetsBase(cfg: SieteUdCfg, pos: PosControlesSieteUd): SieteUdPreset[]
   });
 }
 
-function TabPresets({ cfg, pos, onCfg, onAplicarVisual }: {
+function TabPresets({ cfg, pos, cfgActual, onCfg, onAplicarVisual }: {
   cfg: SieteUdCfg; pos: PosControlesSieteUd;
+  cfgActual: () => SieteUdCfg;
   onCfg: (patch: Partial<SieteUdCfg>) => void;
   onAplicarVisual: (visual: SieteUdVisualCfg) => void;
 }) {
   const [nombre, setNombre] = useState('');
-  const base = presetsBase(cfg, pos);
+  // Sólo para mostrar la lista: se recalcula cuando cambia cfg/pos, no en
+  // cada tecla del campo "Nombre" (nombre no forma parte de las deps).
+  const base = useMemo(() => presetsBase(cfg, pos), [cfg, pos]);
   const propios = cfg.presets || [];
+  // Las escrituras leen cfgActual() (ref síncrona), no el `cfg` de este
+  // render, para que dos guardados seguidos no se pisen entre sí.
   const guardar = () => {
     const limpio = nombre.trim();
     if (!limpio) return;
     const id = globalThis.crypto?.randomUUID?.() || `preset-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    onCfg({ presets: [...propios, { id, nombre: limpio, visual: visualActual(cfg, pos) }] });
+    const ahora = cfgActual();
+    onCfg({ presets: [...(ahora.presets || []), { id, nombre: limpio, visual: visualActual(ahora, ahora.controles as PosControlesSieteUd) }] });
     setNombre('');
   };
   const aplicar = (preset: SieteUdPreset) => {
@@ -138,23 +142,30 @@ function TabPresets({ cfg, pos, onCfg, onAplicarVisual }: {
   };
   const actualizar = (preset: SieteUdPreset) => {
     if (!window.confirm(`¿Actualizar “${preset.nombre}” con el diseño actual?`)) return;
-    onCfg({ presets: propios.map((p) => p.id === preset.id ? { ...p, visual: visualActual(cfg, pos) } : p) });
+    const ahora = cfgActual();
+    const visual = visualActual(ahora, ahora.controles as PosControlesSieteUd);
+    onCfg({ presets: (ahora.presets || []).map((p) => p.id === preset.id ? { ...p, visual } : p) });
   };
   const renombrar = (preset: SieteUdPreset) => {
     const nombreNuevo = window.prompt('Nombre del preset', preset.nombre)?.trim();
     if (!nombreNuevo || nombreNuevo === preset.nombre) return;
-    onCfg({ presets: propios.map((p) => p.id === preset.id ? { ...p, nombre: nombreNuevo.slice(0, 60) } : p) });
+    const ahora = cfgActual();
+    onCfg({ presets: (ahora.presets || []).map((p) => p.id === preset.id ? { ...p, nombre: nombreNuevo.slice(0, 60) } : p) });
   };
   const borrar = (preset: SieteUdPreset) => {
-    if (window.confirm(`¿Eliminar el preset “${preset.nombre}”?`)) onCfg({ presets: propios.filter((p) => p.id !== preset.id) });
+    if (!window.confirm(`¿Eliminar el preset “${preset.nombre}”?`)) return;
+    const ahora = cfgActual();
+    onCfg({ presets: (ahora.presets || []).filter((p) => p.id !== preset.id) });
   };
   const resetear = (seccion: 'piezas' | 'imagenes' | 'estilo') => {
-    const clasico = base[0].visual;
-    const visual = visualActual(cfg, pos);
+    if (!window.confirm(`¿Restablecer ${seccion} al diseño clásico?`)) return;
+    const ahora = cfgActual();
+    const clasico = presetsBase(ahora, ahora.controles as PosControlesSieteUd)[0].visual;
+    const visual = visualActual(ahora, ahora.controles as PosControlesSieteUd);
     if (seccion === 'piezas') { visual.controles = clasico.controles; visual.editor = clasico.editor; }
     if (seccion === 'imagenes') { visual.fondoPantallaUrl = null; visual.fondoUrl = null; visual.cartelUrl = null; visual.botonImg = null; visual.arte = clasico.arte; visual.velo = clasico.velo; }
     if (seccion === 'estilo') { visual.tema = clasico.tema; visual.estilos = clasico.estilos; }
-    if (window.confirm(`¿Restablecer ${seccion} al diseño clásico?`)) onAplicarVisual(visual);
+    onAplicarVisual(visual);
   };
   const fila = (preset: SieteUdPreset, propio: boolean) => (
     <div key={preset.id} style={{ padding: 8, border: '1px solid var(--border-soft)', borderRadius: 9, background: 'var(--surface-alt)', marginBottom: 6 }}>
@@ -260,12 +271,19 @@ function TabPiezas({
 }) {
   const meta = PIEZAS_SIETEUD.find((p) => p.id === seleccion)!;
   const v = pos[seleccion] as unknown as Record<string, number>;
-  const set = (prop: string, n: number) => onPos({ ...pos, [seleccion]: { ...(pos[seleccion] as object), [prop]: n } });
+  const bloqueada = editor.bloqueadas.includes(seleccion);
+  const set = (prop: string, n: number) => {
+    if (bloqueada) return;
+    onPos({ ...pos, [seleccion]: { ...(pos[seleccion] as object), [prop]: n } });
+  };
   const alternar = (clave: 'ocultas' | 'bloqueadas', id: ElemId) => {
     const actual = editor[clave];
     onEditor({ ...editor, [clave]: actual.includes(id) ? actual.filter((x) => x !== id) : [...actual, id] });
   };
   const alinear = (eje: 'x' | 'y') => set(eje, 50);
+  const restablecer = () => onPos(Object.fromEntries(
+    PIEZAS_SIETEUD.map((p) => [p.id, editor.bloqueadas.includes(p.id) ? pos[p.id] : CONTROLES_SIETEUD_DEFAULT[p.id]]),
+  ) as unknown as PosControlesSieteUd);
 
   return (
     <>
@@ -287,28 +305,28 @@ function TabPiezas({
         {PIEZAS_SIETEUD.map((p) => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 3, borderRadius: 7, background: p.id === seleccion ? 'var(--accent-soft)' : 'var(--surface-alt)', border: `1px solid ${p.id === seleccion ? 'var(--accent)' : 'var(--border-soft)'}` }}>
             <button onClick={() => onSelPieza(p.id)} style={{ flex: 1, textAlign: 'left', padding: '5px 6px', border: 0, background: 'transparent', fontSize: 11, color: p.id === seleccion ? 'var(--accent)' : 'var(--text)' }}>{p.etiqueta}</button>
-            <button title={editor.ocultas.includes(p.id) ? 'Mostrar capa' : 'Ocultar capa'} onClick={() => alternar('ocultas', p.id)} style={{ padding: '4px 5px', border: 0, background: 'transparent', fontSize: 12 }}>{editor.ocultas.includes(p.id) ? '○' : '◉'}</button>
-            <button title={editor.bloqueadas.includes(p.id) ? 'Desbloquear capa' : 'Bloquear capa'} onClick={() => alternar('bloqueadas', p.id)} style={{ padding: '4px 5px', border: 0, background: 'transparent', fontSize: 12 }}>{editor.bloqueadas.includes(p.id) ? '🔒' : '🔓'}</button>
+            <button aria-label={editor.ocultas.includes(p.id) ? 'Mostrar capa' : 'Ocultar capa'} title={editor.ocultas.includes(p.id) ? 'Mostrar capa' : 'Ocultar capa'} onClick={() => alternar('ocultas', p.id)} style={{ padding: '4px 5px', border: 0, background: 'transparent', fontSize: 12 }}>{editor.ocultas.includes(p.id) ? '○' : '◉'}</button>
+            <button aria-label={editor.bloqueadas.includes(p.id) ? 'Desbloquear capa' : 'Bloquear capa'} title={editor.bloqueadas.includes(p.id) ? 'Desbloquear capa' : 'Bloquear capa'} onClick={() => alternar('bloqueadas', p.id)} style={{ padding: '4px 5px', border: 0, background: 'transparent', fontSize: 12 }}>{editor.bloqueadas.includes(p.id) ? '🔒' : '🔓'}</button>
           </div>
         ))}
       </div>
+      {bloqueada && <p className="hint" style={{ margin: '0 0 8px' }}>🔒 Esta pieza está bloqueada — desbloqueala en Capas para moverla.</p>}
       <div style={{ display: 'flex', gap: 5, marginBottom: 9 }}>
-        <button onClick={() => alinear('x')} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Centrar X</button>
-        <button onClick={() => alinear('y')} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Centrar Y</button>
+        <button disabled={bloqueada} onClick={() => alinear('x')} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Centrar X</button>
+        <button disabled={bloqueada} onClick={() => alinear('y')} style={{ flex: 1, padding: '6px 3px', fontSize: 11 }}>Centrar Y</button>
       </div>
-      <Rango etiqueta="Posición X" min={0} max={100} valor={Math.round(v.x)} onInput={(n) => set('x', n)} />
-      <Rango etiqueta="Posición Y" min={0} max={100} valor={Math.round(v.y)} onInput={(n) => set('y', n)} />
+      <Rango etiqueta="Posición X" min={0} max={100} valor={Math.round(v.x)} onInput={(n) => set('x', n)} disabled={bloqueada} />
+      <Rango etiqueta="Posición Y" min={0} max={100} valor={Math.round(v.y)} onInput={(n) => set('y', n)} disabled={bloqueada} />
       {(meta.tipo === 'caja' || meta.tipo === 'ancho') && (
-        <Rango etiqueta="Ancho" min={20} max={100} unidad="%" valor={Math.round(v.w)} onInput={(n) => set('w', n)} />
+        <Rango etiqueta="Ancho" min={20} max={100} unidad="%" valor={Math.round(v.w)} onInput={(n) => set('w', n)} disabled={bloqueada} />
       )}
       {meta.tipo === 'caja' && (
-        <Rango etiqueta="Alto" min={10} max={80} unidad="%" valor={Math.round(v.h)} onInput={(n) => set('h', n)} />
+        <Rango etiqueta="Alto" min={10} max={80} unidad="%" valor={Math.round(v.h)} onInput={(n) => set('h', n)} disabled={bloqueada} />
       )}
       {meta.tipo !== 'caja' && (
-        <Rango etiqueta="Tamaño" min={50} max={220} unidad="%" valor={Math.round((v.escala ?? 1) * 100)} onInput={(n) => set('escala', n / 100)} />
+        <Rango etiqueta="Tamaño" min={50} max={220} unidad="%" valor={Math.round((v.escala ?? 1) * 100)} onInput={(n) => set('escala', n / 100)} disabled={bloqueada} />
       )}
-      <button style={{ width: '100%', marginTop: 12, fontSize: 12 }}
-        onClick={() => onPos({ ...CONTROLES_SIETEUD_DEFAULT })}>Restablecer posiciones</button>
+      <button style={{ width: '100%', marginTop: 12, fontSize: 12 }} onClick={restablecer}>Restablecer posiciones</button>
     </>
   );
 }

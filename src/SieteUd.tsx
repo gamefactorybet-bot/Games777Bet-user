@@ -30,6 +30,8 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const motorRef = useRef<Dados3D | null>(null);
+  // Al editar, se puede ubicar el cartel de premio sin haber ganado.
+  const cartelDemo = edicion?.seleccion === 'cartel';
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -43,13 +45,22 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
 
   useEffect(() => { motorRef.current?.setPaleta(paletaDadosDe(cfg.tema)); }, [cfg.tema]);
 
+  // Se cachea la imagen por URL: retocar (posición/zoom/blur/oscurecer) no
+  // debe recrearla ni recargarla, o parpadea un frame sin fondo hasta que
+  // vuelve a cargar.
+  const fondoImgRef = useRef<{ url: string; img: HTMLImageElement } | null>(null);
   const arteMesaKey = JSON.stringify(cfg.arte.mesa);
   useEffect(() => {
     const m = motorRef.current; if (!m) return;
-    if (!cfg.fondoUrl) { m.setFondo(null, null, cfg.velo); return; }
-    const img = new Image();
-    img.src = cfg.fondoUrl;
-    m.setFondo(img, cfg.arte.mesa, cfg.velo);
+    if (!cfg.fondoUrl) { fondoImgRef.current = null; m.setFondo(null, null, cfg.velo); return; }
+    let entry = fondoImgRef.current;
+    if (!entry || entry.url !== cfg.fondoUrl) {
+      const img = new Image();
+      img.src = cfg.fondoUrl;
+      entry = { url: cfg.fondoUrl, img };
+      fondoImgRef.current = entry;
+    }
+    m.setFondo(entry.img, cfg.arte.mesa, cfg.velo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.fondoUrl, cfg.velo, arteMesaKey]);
 
@@ -69,7 +80,7 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
         cfg={cfg} pos={pos} est={g.est} fichas={fichas}
         minBet={minBet} maxBet={maxBet} paso={paso} canvasRef={canvasRef}
         onApuesta={g.setApuesta} onZona={g.setZona} onJugar={g.jugar} onOtra={g.reset}
-        edicion={edicion}
+        edicion={edicion} cartelDemo={cartelDemo}
       />
     </SieteUdShell>
   );
@@ -103,10 +114,20 @@ export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
 
 // ---- Vista previa: marco de teléfono + panel de edición al costado ----
 
-export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
+export function PreviewSieteUd({ juego: juegoProp, onClose, onGuardarCfg, onGuardarJuego }: {
   juego: Juego; onClose: () => void;
   onGuardarCfg?: (patch: Partial<SieteUdCfg>) => Promise<void>;
+  onGuardarJuego?: (patch: Record<string, unknown>) => Promise<void>;
 }) {
+  // Estado propio para que un toggle acá (ej. "mostrar el nombre") se
+  // refleje al instante en la mesa, sin depender de que el padre re-renderice.
+  const [juego, setJuego] = useState(juegoProp);
+  useEffect(() => setJuego(juegoProp), [juegoProp]);
+  const onJuego = useCallback(async (patch: Record<string, unknown>) => {
+    setJuego((j) => ({ ...j, ...patch }));
+    if (onGuardarJuego) await onGuardarJuego(patch);
+  }, [onGuardarJuego]);
+
   const [cfg, setCfg] = useState<SieteUdCfg>(() => cfgSieteUdDe(juego));
   const [pos, setPos] = useState<PosControlesSieteUd>(() => posControlesSieteUdDe(cfgSieteUdDe(juego)));
   const [ajustar, setAjustar] = useState(false);
@@ -200,8 +221,18 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
     return { resultado: { ...r, tipo: 'sieteud' as const }, premio, saldo: saldoRef.current };
   };
 
+  const cfgActual = useCallback(() => cfgRef.current, []);
+
   const edicion: EdicionMesa | null = ajustar
-    ? { seleccion: sel, onSelect: setSel, onPatch: (id, patch) => onPos({ ...pos, [id]: { ...pos[id], ...patch } }), bloqueadas: cfg.editor.bloqueadas as ElemId[], snap: cfg.editor.snap }
+    ? {
+        seleccion: sel, onSelect: setSel,
+        // Mientras se arrastra: actualiza y guarda, sin anotar el historial
+        // (si no, cada pointermove del arrastre sería un paso de deshacer).
+        onPatch: (id, patch) => aplicarPos({ ...pos, [id]: { ...pos[id], ...patch } }, false),
+        // Al soltar: un solo paso de deshacer con la posición final.
+        onPatchFin: (id, patch) => onPos({ ...pos, [id]: { ...pos[id], ...patch } }),
+        bloqueadas: cfg.editor.bloqueadas as ElemId[], snap: cfg.editor.snap,
+      }
     : null;
 
   const overlay = (
@@ -228,8 +259,10 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
       </div>
 
       {ajustar && (
-        <SieteUdEditor juego={juego} cfg={cfg} pos={pos} seleccion={sel}
+        <SieteUdEditor juego={juego} cfg={cfg} pos={pos} seleccion={sel} cfgActual={cfgActual}
           onSelPieza={setSel} onCfg={onCfg} onArte={onArte} onPos={onPos}
+          mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
+          onToggleNombre={(v) => onJuego({ mostrar_nombre: v })}
           puedeDeshacer={estadoHistorial.atras} puedeRehacer={estadoHistorial.adelante} onDeshacer={deshacer} onRehacer={rehacer}
           onAplicarVisual={aplicarVisual} />
       )}

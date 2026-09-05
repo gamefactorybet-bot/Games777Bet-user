@@ -111,20 +111,26 @@ export function estiloFondo(url: string | null | undefined, a: AjusteImg): CSSPr
   };
 }
 
-/** Imagen de contenido (cartel, botón): respeta el encuadre elegido. */
+/**
+ * Imagen de contenido (cartel, botón): respeta el encuadre elegido y el
+ * zoom en los tres modos. Pensada para una capa dedicada `position:absolute;
+ * inset:0` (no para aplicarse directo al elemento interactivo): el zoom se
+ * hace con `transform:scale()` sobre esa capa, igual que `estiloFondo`, para
+ * no reescalar el botón/cartel entero (texto, borde) junto con la imagen.
+ */
 export function estiloImg(url: string | null | undefined, a: AjusteImg): CSSProperties {
   if (!url) return {};
-  const size = a.fit === 'fill'
-    ? '100% 100%'
-    : a.zoom === 100
-      ? a.fit
-      : `${a.zoom}% ${a.zoom}%`;
+  const size = a.fit === 'fill' ? '100% 100%' : a.fit;
+  const z = Math.max(1, a.zoom / 100);
   const f = filtroDe(a);
   return {
+    position: 'absolute', inset: 0, pointerEvents: 'none',
     backgroundImage: `url("${url}")`,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: `${a.x}% ${a.y}%`,
     backgroundSize: size,
+    transform: z !== 1 ? `scale(${z.toFixed(3)})` : undefined,
+    transformOrigin: `${a.x}% ${a.y}%`,
     ...(f ? { filter: f } : {}),
   };
 }

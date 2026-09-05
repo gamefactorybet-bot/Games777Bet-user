@@ -336,14 +336,22 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
   // 7 Up 7 Down: la jugabilidad y el editor de posiciones tocan partes
   // distintas de sieteud_cfg. Se hace merge sobre lo último de la DB para
-  // que ninguno pise lo del otro.
-  const guardarSieteUdCfg = async (patch: Partial<SieteUdCfg>) => {
-    const { data } = await supabase.from('juegos').select('sieteud_cfg').eq('id', juego.id).single();
-    const base = (data?.sieteud_cfg || {}) as Record<string, unknown>;
-    const next = { ...base, ...patch };
-    await supabase.from('juegos').update({ sieteud_cfg: next }).eq('id', juego.id);
-    setJuego((j) => ({ ...j, sieteud_cfg: next }));
-    marcarGuardado();
+  // que ninguno pise lo del otro. Las llamadas se encadenan (sieteUdGuardado)
+  // para que el SELECT de una nunca lea antes de que el UPDATE de la
+  // anterior haya terminado — si no, dos guardados casi seguidos podrían
+  // pisarse (el segundo parte de una foto vieja).
+  const sieteUdGuardado = useRef(Promise.resolve());
+  const guardarSieteUdCfg = (patch: Partial<SieteUdCfg>) => {
+    const tanda = sieteUdGuardado.current.then(async () => {
+      const { data } = await supabase.from('juegos').select('sieteud_cfg').eq('id', juego.id).single();
+      const base = (data?.sieteud_cfg || {}) as Record<string, unknown>;
+      const next = { ...base, ...patch };
+      await supabase.from('juegos').update({ sieteud_cfg: next }).eq('id', juego.id);
+      setJuego((j) => ({ ...j, sieteud_cfg: next }));
+      marcarGuardado();
+    });
+    sieteUdGuardado.current = tanda.catch(() => {});
+    return tanda;
   };
 
   // ---------------- Sonidos / dígitos ----------------
@@ -907,7 +915,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                     : esKeno
                       ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
                     : esSieteUd
-                      ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} onGuardarCfg={guardarSieteUdCfg} />
+                      ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} onGuardarCfg={guardarSieteUdCfg} onGuardarJuego={guardarCamposJuego} />
                     : esTorre
                       ? <PreviewTorre juego={juego} onClose={() => setPreviewAbierto(false)} />
                       : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />

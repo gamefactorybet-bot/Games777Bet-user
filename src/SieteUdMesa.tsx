@@ -13,6 +13,8 @@ export interface EdicionMesa {
   seleccion: ElemId | null;
   onSelect: (id: ElemId) => void;
   onPatch: (id: ElemId, patch: PatchPieza) => void;
+  /** Igual que onPatch, pero se llama una sola vez al soltar (para el historial). */
+  onPatchFin: (id: ElemId, patch: PatchPieza) => void;
   bloqueadas: ElemId[];
   snap: boolean;
 }
@@ -51,11 +53,11 @@ export function SieteUdMesa({
   const estiloBoton = cfg.estilos.boton;
 
   const P = (id: ElemId, children: ReactNode, zBase?: number) => (
-    cfg.editor.ocultas.includes(id) ? null :
     <Pieza
       id={id} tipo={TIPO[id]} v={pos[id] as ValPieza} seleccion={seleccion}
-      onSelect={edicion?.onSelect} onPatch={edicion?.onPatch} stageRef={stageRef}
+      onSelect={edicion?.onSelect} onPatch={edicion?.onPatch} onPatchFin={edicion?.onPatchFin} stageRef={stageRef}
       zBase={zBase} bloqueada={edicion?.bloqueadas.includes(id)} snap={edicion?.snap}
+      oculta={cfg.editor.ocultas.includes(id)}
     >{children}</Pieza>
   );
 
@@ -99,13 +101,13 @@ export function SieteUdMesa({
 
       {cartelVisible && P('cartel', (
         <div style={{
-          width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden', display: 'grid', placeItems: 'center',
+          width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden', position: 'relative', display: 'grid', placeItems: 'center',
           border: '1px solid var(--accent)', backgroundColor: 'var(--surface-alt)',
-          ...estiloImg(cfg.cartelUrl, cfg.arte.cartel),
           boxShadow: '0 22px 55px -14px rgba(0,0,0,.6)',
           animation: est.cartel != null ? 'sud-cartel .4s cubic-bezier(.2,1.35,.4,1)' : undefined,
         }}>
-          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 12, background: 'linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.6))' }}>
+          {cfg.cartelUrl && <span aria-hidden style={estiloImg(cfg.cartelUrl, cfg.arte.cartel)} />}
+          <div style={{ position: 'relative', width: '100%', height: '100%', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 12, background: 'linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.6))' }}>
             <div>
               <b style={{ display: 'block', fontWeight: 800, color: '#fff', fontSize: 'clamp(16px,5vw,28px)', textShadow: '0 2px 12px rgba(0,0,0,.65)' }}>¡GANASTE!</b>
               <span style={{ fontFamily: 'var(--in-num, monospace)', fontSize: 'clamp(12px,3.4vw,17px)', color: 'var(--ok)' }}>
@@ -145,16 +147,16 @@ export function SieteUdMesa({
       ))}
 
       {P('zonas', (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, width: '100%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, width: '100%', pointerEvents: editando ? 'none' : 'auto' }}>
           {ZONAS.map((z) => {
             const selZ = est.zona === z;
             const win = (fase === 'gano' || fase === 'perdio') && zg === z;
             const lost = fase === 'perdio' && selZ && !win;
             return (
-              <button key={z} disabled={rolling || editando} onClick={() => !editando && fase === 'idle' && onZona(z)} style={zonaBtn(win, selZ, lost, fase, estiloZonas)}>
+              <button key={z} disabled={rolling} onClick={() => fase === 'idle' && onZona(z)} style={zonaBtn(win, selZ, lost, fase, estiloZonas)}>
                 <div style={{ fontWeight: 700, fontSize: `${11.5 * estiloZonas.escala / 100}px`, color: z === 'siete' ? estiloZonas.acento : estiloZonas.texto }}>{ZONA_INFO[z].nombre}</div>
                 <div style={{ fontFamily: 'var(--in-num, monospace)', fontSize: 9.5, color: 'var(--text-dim)', margin: '2px 0 5px' }}>{ZONA_INFO[z].rango}</div>
-                <div style={{ fontFamily: 'var(--in-num, monospace)', fontSize: `${14 * estiloZonas.escala / 100}px`, color: win ? '#fff' : lost ? '#fff' : estiloZonas.acento }}>{pagoDe(cfg, z).toFixed(2)}×</div>
+                <div style={{ fontFamily: 'var(--in-num, monospace)', fontSize: `${14 * estiloZonas.escala / 100}px`, color: win || lost ? estiloZonas.texto : estiloZonas.acento }}>{pagoDe(cfg, z).toFixed(2)}×</div>
               </button>
             );
           })}
@@ -183,14 +185,16 @@ export function SieteUdMesa({
           onClick={() => { if (editando) return; if (fase === 'gano' || fase === 'perdio') onOtra(); else onJugar(); }}
           disabled={rolling || est.saldo < est.apuesta}
           style={{
+            position: 'relative', overflow: 'hidden',
             width: '100%', border: `1px solid ${estiloBoton.borde}`, borderRadius: estiloBoton.radio, cursor: editando ? 'move' : 'pointer',
             fontFamily: 'var(--in-num, var(--in-body, inherit))', fontWeight: 800, letterSpacing: '.03em', fontSize: `${16 * estiloBoton.escala / 100}px`, color: estiloBoton.texto,
             ...(cfg.botonImg
-              ? { ...estiloImg(cfg.botonImg, cfg.arte.boton), aspectRatio: '5 / 1', textShadow: '0 1px 4px rgba(0,0,0,.6)' }
+              ? { aspectRatio: '5 / 1', textShadow: '0 1px 4px rgba(0,0,0,.6)' }
               : { padding: '13px 0', background: (rolling || est.saldo < est.apuesta) ? estiloBoton.bloqueado : estiloBoton.fondo, boxShadow: `0 10px 26px -8px rgba(0,0,0,${estiloBoton.sombra / 100})` }),
             opacity: (rolling || est.saldo < est.apuesta) ? 0.72 : 1,
           }}>
-          {rolling ? '…' : fase === 'idle' ? 'Tirar' : 'Tirar de nuevo'}
+          {cfg.botonImg && <span aria-hidden style={estiloImg(cfg.botonImg, cfg.arte.boton)} />}
+          <span style={{ position: 'relative' }}>{rolling ? '…' : fase === 'idle' ? 'Tirar' : 'Tirar de nuevo'}</span>
         </button>
       ))}
     </div>

@@ -73,13 +73,43 @@ function estilos(v, d) {
   };
 }
 
+const urlPreset = (v, max = 2000) => (typeof v === 'string' && v && v.length <= max ? v : null);
+
+/** Misma forma que la parte visual de `cfgConDefaults`, pero acotada:
+ * cada campo se revalida (nunca se guarda `visual` tal cual llegó). */
+function visualConDefaults(v) {
+  const o = obj(v);
+  return {
+    tema: str(o.tema, CFG_DEFAULT.tema),
+    fondoPantallaUrl: urlPreset(o.fondoPantallaUrl),
+    fondoUrl: urlPreset(o.fondoUrl),
+    velo: clamp(num(o.velo, CFG_DEFAULT.velo), 0.1, 0.95),
+    cartelUrl: urlPreset(o.cartelUrl),
+    botonImg: urlPreset(o.botonImg),
+    arte: {
+      pantalla: ajusteImg(obj(o.arte).pantalla, CFG_DEFAULT.arte.pantalla),
+      mesa: ajusteImg(obj(o.arte).mesa, CFG_DEFAULT.arte.mesa),
+      cartel: ajusteImg(obj(o.arte).cartel, CFG_DEFAULT.arte.cartel),
+      boton: ajusteImg(obj(o.arte).boton, CFG_DEFAULT.arte.boton),
+    },
+    controles: obj(o.controles),
+    editor: {
+      ocultas: Array.isArray(obj(o.editor).ocultas) ? obj(o.editor).ocultas.filter((x) => typeof x === 'string') : [],
+      bloqueadas: Array.isArray(obj(o.editor).bloqueadas) ? obj(o.editor).bloqueadas.filter((x) => typeof x === 'string') : [],
+      snap: obj(o.editor).snap !== false,
+    },
+    estilos: estilos(o.estilos, CFG_DEFAULT.estilos),
+  };
+}
+
 function presets(v) {
   if (!Array.isArray(v)) return [];
-  // Se conserva el contenido visual tal cual para que el frontend pueda
-  // evolucionar sus presets; se limita cantidad y se descartan filas inválidas.
+  // Cada preset se revalida campo por campo (visualConDefaults) — nunca se
+  // guarda el `visual` tal cual llegó; se limita cantidad y se descartan
+  // filas inválidas.
   return v.slice(0, 30).flatMap((p) => {
-    if (!p || typeof p !== 'object' || typeof p.id !== 'string' || typeof p.nombre !== 'string' || !p.nombre.trim() || !obj(p.visual)) return [];
-    return [{ id: p.id.slice(0, 80), nombre: p.nombre.trim().slice(0, 60), visual: p.visual }];
+    if (!p || typeof p !== 'object' || typeof p.id !== 'string' || typeof p.nombre !== 'string' || !p.nombre.trim()) return [];
+    return [{ id: p.id.slice(0, 80), nombre: p.nombre.trim().slice(0, 60), visual: visualConDefaults(p.visual) }];
   });
 }
 
