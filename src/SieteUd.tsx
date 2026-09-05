@@ -9,7 +9,7 @@ import { SieteUdMesa, type EdicionMesa } from './SieteUdMesa.tsx';
 import { SieteUdEditor } from './SieteUdEditor.tsx';
 import { useSieteUd, type JugarSieteUdFn } from './juego/useSieteUd.ts';
 import { cfgConDefaults as _cfg, tirar as _tirarLocal } from '../motor/sieteud.js';
-import { posControlesSieteUdDe, paletaDadosDe } from './juego/sieteud.ts';
+import { posControlesSieteUdDe, paletaDadosDe, ESCENA_W, ESCENA_H } from './juego/sieteud.ts';
 import type {
   DatosJuego, Juego, PosControlesSieteUd, ResultadoInstant, SieteUdCfg, SieteUdVisualCfg, TiradaInstant,
 } from './types.ts';
@@ -17,6 +17,31 @@ import type {
 type ElemId = keyof PosControlesSieteUd;
 
 export const cfgSieteUdDe = (juego: Juego): SieteUdCfg => _cfg(juego.sieteud_cfg) as SieteUdCfg;
+
+// Todas las posiciones (y tamaños en px: fuentes, bordes, radios) están
+// pensadas para una escena fija de 420×860. En la pantalla real del
+// jugador el celular casi nunca tiene esa proporción exacta, así que se
+// escala la escena entera de forma uniforme (como una "letterbox") en vez
+// de estirarla — si no, lo que se ubica en el editor queda corrido en
+// cada celular. Es la misma técnica que ya usa `crearEscenario()` para
+// Keno/Torre/Crash/etc., adaptada a un componente React puro.
+function useEscalaEscena(): number {
+  const calcular = () => (typeof window === 'undefined' ? 1
+    : Math.min(window.innerWidth / ESCENA_W, window.innerHeight / ESCENA_H));
+  const [escala, setEscala] = useState(calcular);
+  useEffect(() => {
+    const recalcular = () => setEscala(calcular());
+    recalcular();
+    window.addEventListener('resize', recalcular);
+    window.addEventListener('orientationchange', recalcular);
+    return () => {
+      window.removeEventListener('resize', recalcular);
+      window.removeEventListener('orientationchange', recalcular);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return escala;
+}
 
 // ---- Núcleo: motor de dados 3D + hook de partida + shell + mesa ----
 
@@ -94,6 +119,7 @@ export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
   const juego = datos.juego;
   const cfg = useMemo(() => cfgSieteUdDe(juego), [juego]);
   const pos = useRef(posControlesSieteUdDe(cfg)).current;
+  const escala = useEscalaEscena();
 
   const jugar: JugarSieteUdFn = async (zona, apuesta) => {
     const r = await fetchJson<ResultadoInstant>('/api/jugar-instant', {
@@ -104,10 +130,15 @@ export function JugarSieteUd({ datos, saldoInicial, slug, token }: {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
-      <SieteUdGame juego={juego} cfg={cfg} pos={pos} saldoInicial={Number(saldoInicial)}
-        minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
+    <div style={{
+      position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--bg)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{ position: 'relative', flexShrink: 0, width: ESCENA_W, height: ESCENA_H, transform: `scale(${escala})` }}>
+        <SieteUdGame juego={juego} cfg={cfg} pos={pos} saldoInicial={Number(saldoInicial)}
+          minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
+          paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
+      </div>
     </div>
   );
 }
