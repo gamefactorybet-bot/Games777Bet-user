@@ -47,6 +47,8 @@ export function SieteUdMesa({
   const barras = campana(cfg.caras);
   const sumColor = fase === 'gano' ? 'var(--ok)' : fase === 'perdio' ? 'var(--danger)' : 'var(--accent)';
   const cartelVisible = est.cartel != null || cartelDemo;
+  const estiloZonas = cfg.estilos.zonas;
+  const estiloBoton = cfg.estilos.boton;
 
   const P = (id: ElemId, children: ReactNode, zBase?: number) => (
     cfg.editor.ocultas.includes(id) ? null :
@@ -149,10 +151,10 @@ export function SieteUdMesa({
             const win = (fase === 'gano' || fase === 'perdio') && zg === z;
             const lost = fase === 'perdio' && selZ && !win;
             return (
-              <button key={z} disabled={rolling || editando} onClick={() => !editando && fase === 'idle' && onZona(z)} style={zonaBtn(win, selZ, lost, fase)}>
-                <div style={{ fontWeight: 700, fontSize: 11.5, color: z === 'siete' ? 'var(--accent)' : 'var(--text)' }}>{ZONA_INFO[z].nombre}</div>
+              <button key={z} disabled={rolling || editando} onClick={() => !editando && fase === 'idle' && onZona(z)} style={zonaBtn(win, selZ, lost, fase, estiloZonas)}>
+                <div style={{ fontWeight: 700, fontSize: `${11.5 * estiloZonas.escala / 100}px`, color: z === 'siete' ? estiloZonas.acento : estiloZonas.texto }}>{ZONA_INFO[z].nombre}</div>
                 <div style={{ fontFamily: 'var(--in-num, monospace)', fontSize: 9.5, color: 'var(--text-dim)', margin: '2px 0 5px' }}>{ZONA_INFO[z].rango}</div>
-                <div style={{ fontFamily: 'var(--in-num, monospace)', fontSize: 14, color: win ? 'var(--ok)' : lost ? 'var(--danger)' : 'var(--accent)' }}>{pagoDe(cfg, z).toFixed(2)}×</div>
+                <div style={{ fontFamily: 'var(--in-num, monospace)', fontSize: `${14 * estiloZonas.escala / 100}px`, color: win ? '#fff' : lost ? '#fff' : estiloZonas.acento }}>{pagoDe(cfg, z).toFixed(2)}×</div>
               </button>
             );
           })}
@@ -181,12 +183,12 @@ export function SieteUdMesa({
           onClick={() => { if (editando) return; if (fase === 'gano' || fase === 'perdio') onOtra(); else onJugar(); }}
           disabled={rolling || est.saldo < est.apuesta}
           style={{
-            width: '100%', border: 0, borderRadius: 12, cursor: editando ? 'move' : 'pointer',
-            fontFamily: 'var(--in-num, var(--in-body, inherit))', fontWeight: 800, letterSpacing: '.03em', fontSize: 16, color: '#fff',
+            width: '100%', border: `1px solid ${estiloBoton.borde}`, borderRadius: estiloBoton.radio, cursor: editando ? 'move' : 'pointer',
+            fontFamily: 'var(--in-num, var(--in-body, inherit))', fontWeight: 800, letterSpacing: '.03em', fontSize: `${16 * estiloBoton.escala / 100}px`, color: estiloBoton.texto,
             ...(cfg.botonImg
               ? { ...estiloImg(cfg.botonImg, cfg.arte.boton), aspectRatio: '5 / 1', textShadow: '0 1px 4px rgba(0,0,0,.6)' }
-              : { padding: '13px 0', background: 'var(--accent)', color: 'var(--accent-text, #fff)', boxShadow: '0 10px 26px -8px rgba(0,0,0,.35)' }),
-            opacity: (rolling || est.saldo < est.apuesta) ? 0.55 : 1,
+              : { padding: '13px 0', background: (rolling || est.saldo < est.apuesta) ? estiloBoton.bloqueado : estiloBoton.fondo, boxShadow: `0 10px 26px -8px rgba(0,0,0,${estiloBoton.sombra / 100})` }),
+            opacity: (rolling || est.saldo < est.apuesta) ? 0.72 : 1,
           }}>
           {rolling ? '…' : fase === 'idle' ? 'Tirar' : 'Tirar de nuevo'}
         </button>
@@ -195,11 +197,13 @@ export function SieteUdMesa({
   );
 }
 
-function zonaBtn(win: boolean, sel: boolean, lost: boolean, fase: string): CSSProperties {
+function zonaBtn(win: boolean, sel: boolean, lost: boolean, fase: string, e: SieteUdCfg['estilos']['zonas']): CSSProperties {
+  const fondo = win ? e.gana : lost ? e.pierde : sel ? e.seleccionado : e.fondo;
+  const borde = win ? e.gana : lost ? e.pierde : sel ? e.acento : e.borde;
   return {
-    padding: '9px 4px', borderRadius: 11, textAlign: 'center', cursor: fase === 'idle' ? 'pointer' : 'default',
-    border: `1px solid ${win ? 'var(--ok)' : sel ? 'var(--accent)' : 'var(--border)'}`,
-    background: win || sel ? 'var(--accent-soft)' : 'var(--surface-alt)',
+    padding: '9px 4px', borderRadius: e.radio, textAlign: 'center', cursor: fase === 'idle' ? 'pointer' : 'default',
+    border: `1px solid ${borde}`, background: fondo,
+    boxShadow: sel || win ? `0 7px 18px rgba(0,0,0,${e.sombra / 100})` : undefined,
     opacity: (fase === 'gano' || fase === 'perdio') && !win && !lost ? 0.4 : 1,
   };
 }

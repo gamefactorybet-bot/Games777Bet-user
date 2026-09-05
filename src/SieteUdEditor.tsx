@@ -11,7 +11,7 @@ import type { AjusteImg, Juego, PosControlesSieteUd, SieteUdCfg, ZonaSieteUd } f
 
 type ElemId = keyof PosControlesSieteUd;
 type ImgKey = 'pantalla' | 'mesa' | 'cartel' | 'boton';
-type Pestana = 'piezas' | 'imagenes' | 'juego';
+type Pestana = 'piezas' | 'imagenes' | 'estilo' | 'juego';
 
 const CAMPO_IMG: Record<ImgKey, 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 'botonImg'> = {
   pantalla: 'fondoPantallaUrl', mesa: 'fondoUrl', cartel: 'cartelUrl', boton: 'botonImg',
@@ -47,7 +47,7 @@ export function SieteUdEditor({
   return (
     <div className="card" style={{ width: 270, maxWidth: '92vw', maxHeight: 'min(860px, 92vh)', overflow: 'auto', position: 'relative', zIndex: 50 }}>
       <div className="grupo-nav" style={{ marginBottom: 12 }}>
-        {([['piezas', 'Piezas'], ['imagenes', 'Imágenes'], ['juego', 'Juego']] as const).map(([id, t]) => (
+        {([['piezas', 'Piezas'], ['imagenes', 'Imágenes'], ['estilo', 'Estilo'], ['juego', 'Juego']] as const).map(([id, t]) => (
           <button key={id} className={`grupo-btn ${tab === id ? 'on' : ''}`}
             style={{ flex: 1, fontSize: 12, justifyContent: 'center' }} onClick={() => setTab(id)}>{t}</button>
         ))}
@@ -62,8 +62,55 @@ export function SieteUdEditor({
         />
       )}
       {tab === 'imagenes' && <TabImagenes juego={juego} cfg={cfg} onCfg={onCfg} onArte={onArte} />}
+      {tab === 'estilo' && <TabEstilo cfg={cfg} onCfg={onCfg} />}
       {tab === 'juego' && <TabJuego cfg={cfg} onCfg={onCfg} />}
     </div>
+  );
+}
+
+// ---------------- Pestaña Estilo ----------------
+
+function Color({ etiqueta, valor, onCambio }: { etiqueta: string; valor: string; onCambio: (v: string) => void }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 7, fontSize: 11 }}>
+      <span>{etiqueta}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <input aria-label={etiqueta} type="color" value={valor} onChange={(e) => onCambio(e.target.value)} style={{ width: 28, height: 24, padding: 2, borderRadius: 5 }} />
+        <code style={{ fontSize: 10, color: 'var(--text-dim)' }}>{valor}</code>
+      </span>
+    </label>
+  );
+}
+
+function TabEstilo({ cfg, onCfg }: { cfg: SieteUdCfg; onCfg: (patch: Partial<SieteUdCfg>) => void }) {
+  const { zonas, boton } = cfg.estilos;
+  const setZonas = (patch: Partial<typeof zonas>) => onCfg({ estilos: { ...cfg.estilos, zonas: { ...zonas, ...patch } } });
+  const setBoton = (patch: Partial<typeof boton>) => onCfg({ estilos: { ...cfg.estilos, boton: { ...boton, ...patch } } });
+  return (
+    <>
+      <p className="hint" style={{ margin: '0 0 10px' }}>Definí el carácter de los controles. Los colores se ven al instante y no cambian las reglas ni los pagos.</p>
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 7 }}>Zonas de apuesta</div>
+      <Color etiqueta="Fondo normal" valor={zonas.fondo} onCambio={(fondo) => setZonas({ fondo })} />
+      <Color etiqueta="Borde normal" valor={zonas.borde} onCambio={(borde) => setZonas({ borde })} />
+      <Color etiqueta="Texto" valor={zonas.texto} onCambio={(texto) => setZonas({ texto })} />
+      <Color etiqueta="Acento / Lucky 7" valor={zonas.acento} onCambio={(acento) => setZonas({ acento })} />
+      <Color etiqueta="Seleccionada" valor={zonas.seleccionado} onCambio={(seleccionado) => setZonas({ seleccionado })} />
+      <Color etiqueta="Ganadora" valor={zonas.gana} onCambio={(gana) => setZonas({ gana })} />
+      <Color etiqueta="Perdedora" valor={zonas.pierde} onCambio={(pierde) => setZonas({ pierde })} />
+      <Rango etiqueta="Redondez" min={0} max={30} unidad=" px" valor={zonas.radio} onInput={(radio) => setZonas({ radio })} />
+      <Rango etiqueta="Sombra activa" min={0} max={100} unidad="%" valor={zonas.sombra} onInput={(sombra) => setZonas({ sombra })} />
+      <Rango etiqueta="Escala de texto" min={70} max={145} valor={zonas.escala} onInput={(escala) => setZonas({ escala })} />
+
+      <div style={{ borderTop: '1px solid var(--border-soft)', margin: '14px 0 10px' }} />
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 7 }}>Botón de tirar</div>
+      <Color etiqueta="Fondo activo" valor={boton.fondo} onCambio={(fondo) => setBoton({ fondo })} />
+      <Color etiqueta="Texto" valor={boton.texto} onCambio={(texto) => setBoton({ texto })} />
+      <Color etiqueta="Borde" valor={boton.borde} onCambio={(borde) => setBoton({ borde })} />
+      <Color etiqueta="Bloqueado" valor={boton.bloqueado} onCambio={(bloqueado) => setBoton({ bloqueado })} />
+      <Rango etiqueta="Redondez" min={0} max={30} unidad=" px" valor={boton.radio} onInput={(radio) => setBoton({ radio })} />
+      <Rango etiqueta="Sombra" min={0} max={100} unidad="%" valor={boton.sombra} onInput={(sombra) => setBoton({ sombra })} />
+      <Rango etiqueta="Escala de texto" min={70} max={145} valor={boton.escala} onInput={(escala) => setBoton({ escala })} />
+    </>
   );
 }
 

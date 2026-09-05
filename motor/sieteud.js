@@ -28,6 +28,10 @@ export const CFG_DEFAULT = {
   cartelUrl: null,        // imagen del cartel que sale al ganar
   botonImg: null,         // imagen del botón de tirar (opcional)
   editor: { ocultas: [], bloqueadas: [], snap: true },
+  estilos: {
+    zonas: { fondo: '#1b1f27', borde: '#262b34', texto: '#e7eaef', acento: '#6b8afd', seleccionado: '#26345d', gana: '#175c3c', pierde: '#632b32', radio: 11, sombra: 28, escala: 100 },
+    boton: { fondo: '#6b8afd', texto: '#ffffff', borde: '#6b8afd', bloqueado: '#3a4050', radio: 12, sombra: 38, escala: 100 },
+  },
   // Retoque de cada imagen: encuadre, posición, zoom, desenfoque y oscurecido.
   arte: {
     pantalla: { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
@@ -47,6 +51,24 @@ function ajusteImg(v, def) {
     zoom: clamp(num(o.zoom, def.zoom), 20, 400),
     blur: clamp(num(o.blur, def.blur), 0, 30),
     osc: clamp(num(o.osc, def.osc), 0, 90),
+  };
+}
+
+function color(v, d) { return typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d; }
+function estilos(v, d) {
+  const o = obj(v), z = obj(o.zonas), b = obj(o.boton);
+  const zona = (k) => color(z[k], d.zonas[k]);
+  const boton = (k) => color(b[k], d.boton[k]);
+  return {
+    zonas: {
+      fondo: zona('fondo'), borde: zona('borde'), texto: zona('texto'), acento: zona('acento'),
+      seleccionado: zona('seleccionado'), gana: zona('gana'), pierde: zona('pierde'),
+      radio: clamp(num(z.radio, d.zonas.radio), 0, 30), sombra: clamp(num(z.sombra, d.zonas.sombra), 0, 100), escala: clamp(num(z.escala, d.zonas.escala), 70, 145),
+    },
+    boton: {
+      fondo: boton('fondo'), texto: boton('texto'), borde: boton('borde'), bloqueado: boton('bloqueado'),
+      radio: clamp(num(b.radio, d.boton.radio), 0, 30), sombra: clamp(num(b.sombra, d.boton.sombra), 0, 100), escala: clamp(num(b.escala, d.boton.escala), 70, 145),
+    },
   };
 }
 
@@ -106,6 +128,7 @@ export function cfgConDefaults(cfg) {
       bloqueadas: Array.isArray(obj(c.editor).bloqueadas) ? obj(c.editor).bloqueadas.filter((x) => typeof x === 'string') : [],
       snap: obj(c.editor).snap !== false,
     },
+    estilos: estilos(c.estilos, D.estilos),
     arte: {
       pantalla: ajusteImg(obj(c.arte).pantalla, D.arte.pantalla),
       mesa: ajusteImg(obj(c.arte).mesa, D.arte.mesa),

@@ -816,6 +816,11 @@ export interface SieteUdCfg {
   controles: Partial<PosControlesSieteUd>;
   /** Preferencias del editor y visibilidad de las piezas en el juego. */
   editor: { ocultas: string[]; bloqueadas: string[]; snap: boolean };
+  /** Estilo de controles interactivos; no altera pagos ni probabilidades. */
+  estilos: {
+    zonas: { fondo: string; borde: string; texto: string; acento: string; seleccionado: string; gana: string; pierde: string; radio: number; sombra: number; escala: number };
+    boton: { fondo: string; texto: string; borde: string; bloqueado: string; radio: number; sombra: number; escala: number };
+  };
 }
 
 export interface AjusteImg {
