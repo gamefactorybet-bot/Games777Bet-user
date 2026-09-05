@@ -28,6 +28,7 @@ export const CFG_DEFAULT = {
   cartelUrl: null,        // imagen del cartel que sale al ganar
   botonImg: null,         // imagen del botón de tirar (opcional)
   editor: { ocultas: [], bloqueadas: [], snap: true },
+  presets: [],
   estilos: {
     zonas: { fondo: '#1b1f27', borde: '#262b34', texto: '#e7eaef', acento: '#6b8afd', seleccionado: '#26345d', gana: '#175c3c', pierde: '#632b32', radio: 11, sombra: 28, escala: 100 },
     boton: { fondo: '#6b8afd', texto: '#ffffff', borde: '#6b8afd', bloqueado: '#3a4050', radio: 12, sombra: 38, escala: 100 },
@@ -70,6 +71,16 @@ function estilos(v, d) {
       radio: clamp(num(b.radio, d.boton.radio), 0, 30), sombra: clamp(num(b.sombra, d.boton.sombra), 0, 100), escala: clamp(num(b.escala, d.boton.escala), 70, 145),
     },
   };
+}
+
+function presets(v) {
+  if (!Array.isArray(v)) return [];
+  // Se conserva el contenido visual tal cual para que el frontend pueda
+  // evolucionar sus presets; se limita cantidad y se descartan filas inválidas.
+  return v.slice(0, 30).flatMap((p) => {
+    if (!p || typeof p !== 'object' || typeof p.id !== 'string' || typeof p.nombre !== 'string' || !p.nombre.trim() || !obj(p.visual)) return [];
+    return [{ id: p.id.slice(0, 80), nombre: p.nombre.trim().slice(0, 60), visual: p.visual }];
+  });
 }
 
 const ZONAS = ['abajo', 'siete', 'arriba'];
@@ -128,6 +139,7 @@ export function cfgConDefaults(cfg) {
       bloqueadas: Array.isArray(obj(c.editor).bloqueadas) ? obj(c.editor).bloqueadas.filter((x) => typeof x === 'string') : [],
       snap: obj(c.editor).snap !== false,
     },
+    presets: presets(c.presets),
     estilos: estilos(c.estilos, D.estilos),
     arte: {
       pantalla: ajusteImg(obj(c.arte).pantalla, D.arte.pantalla),

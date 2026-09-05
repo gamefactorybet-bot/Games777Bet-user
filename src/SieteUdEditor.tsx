@@ -7,11 +7,11 @@ import { probsZonas as _probs, rtpZona as _rtpZona, pagoRaw as _pagoRaw } from '
 import {
   PIEZAS_SIETEUD, CONTROLES_SIETEUD_DEFAULT, FIT_OPC, ZONA_INFO, ZONAS,
 } from './juego/sieteud.ts';
-import type { AjusteImg, Juego, PosControlesSieteUd, SieteUdCfg, ZonaSieteUd } from './types.ts';
+import type { AjusteImg, Juego, PosControlesSieteUd, SieteUdCfg, SieteUdPreset, SieteUdVisualCfg, ZonaSieteUd } from './types.ts';
 
 type ElemId = keyof PosControlesSieteUd;
 type ImgKey = 'pantalla' | 'mesa' | 'cartel' | 'boton';
-type Pestana = 'piezas' | 'imagenes' | 'estilo' | 'juego';
+type Pestana = 'piezas' | 'imagenes' | 'estilo' | 'presets' | 'juego';
 
 const CAMPO_IMG: Record<ImgKey, 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 'botonImg'> = {
   pantalla: 'fondoPantallaUrl', mesa: 'fondoUrl', cartel: 'cartelUrl', boton: 'botonImg',
@@ -21,6 +21,7 @@ const CAMPO_IMG: Record<ImgKey, 'fondoPantallaUrl' | 'fondoUrl' | 'cartelUrl' | 
 export function SieteUdEditor({
   juego, cfg, pos, seleccion, onSelPieza, onCfg, onArte, onPos,
   puedeDeshacer, puedeRehacer, onDeshacer, onRehacer,
+  onAplicarVisual,
 }: {
   juego: Juego;
   cfg: SieteUdCfg;
@@ -34,6 +35,7 @@ export function SieteUdEditor({
   puedeRehacer: boolean;
   onDeshacer: () => void;
   onRehacer: () => void;
+  onAplicarVisual: (visual: SieteUdVisualCfg) => void;
 }) {
   const [tab, setTab] = useState<Pestana>('piezas');
   const [mostrarNombre, setMostrarNombre] = useState((juego.mostrar_nombre ?? true) as boolean);
@@ -47,7 +49,7 @@ export function SieteUdEditor({
   return (
     <div className="card" style={{ width: 270, maxWidth: '92vw', maxHeight: 'min(860px, 92vh)', overflow: 'auto', position: 'relative', zIndex: 50 }}>
       <div className="grupo-nav" style={{ marginBottom: 12 }}>
-        {([['piezas', 'Piezas'], ['imagenes', 'Imágenes'], ['estilo', 'Estilo'], ['juego', 'Juego']] as const).map(([id, t]) => (
+        {([['piezas', 'Piezas'], ['imagenes', 'Imágenes'], ['estilo', 'Estilo'], ['presets', 'Presets'], ['juego', 'Juego']] as const).map(([id, t]) => (
           <button key={id} className={`grupo-btn ${tab === id ? 'on' : ''}`}
             style={{ flex: 1, fontSize: 12, justifyContent: 'center' }} onClick={() => setTab(id)}>{t}</button>
         ))}
@@ -63,9 +65,132 @@ export function SieteUdEditor({
       )}
       {tab === 'imagenes' && <TabImagenes juego={juego} cfg={cfg} onCfg={onCfg} onArte={onArte} />}
       {tab === 'estilo' && <TabEstilo cfg={cfg} onCfg={onCfg} />}
+      {tab === 'presets' && <TabPresets cfg={cfg} pos={pos} onCfg={onCfg} onAplicarVisual={onAplicarVisual} />}
       {tab === 'juego' && <TabJuego cfg={cfg} onCfg={onCfg} />}
     </div>
   );
+}
+
+// ---------------- Pestaña Presets ----------------
+
+const copiar = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+function visualActual(cfg: SieteUdCfg, pos: PosControlesSieteUd): SieteUdVisualCfg {
+  return copiar({
+    tema: cfg.tema, fondoPantallaUrl: cfg.fondoPantallaUrl, fondoUrl: cfg.fondoUrl, velo: cfg.velo,
+    cartelUrl: cfg.cartelUrl, botonImg: cfg.botonImg, arte: cfg.arte, controles: pos,
+    editor: cfg.editor, estilos: cfg.estilos,
+  });
+}
+
+const PALETAS_PRESET = [
+  { id: 'clasico', nombre: 'Clásico', tema: 'clasico', fondo: '#1b1f27', borde: '#262b34', acento: '#6b8afd', seleccionado: '#26345d', gana: '#175c3c', pierde: '#632b32', boton: '#6b8afd' },
+  { id: 'neon', nombre: 'Neón', tema: 'neon', fondo: '#21142b', borde: '#ff5fc8', acento: '#ff78d1', seleccionado: '#57294f', gana: '#16664f', pierde: '#6d284a', boton: '#e337a3' },
+  { id: 'casino', nombre: 'Casino', tema: 'casino', fondo: '#173827', borde: '#cda44b', acento: '#f1cb6b', seleccionado: '#355d37', gana: '#297346', pierde: '#7b2929', boton: '#b8822d' },
+  { id: 'minimalista', nombre: 'Minimalista', tema: 'grafito', fondo: '#25282d', borde: '#454b54', acento: '#f3f5f7', seleccionado: '#3a4049', gana: '#2f714b', pierde: '#803a42', boton: '#f3f5f7' },
+] as const;
+
+const ARTE_CLASICO: SieteUdVisualCfg['arte'] = {
+  pantalla: { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+  mesa: { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+  cartel: { fit: 'cover', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+  boton: { fit: 'fill', x: 50, y: 50, zoom: 100, blur: 0, osc: 0 },
+};
+const ESTILOS_CLASICOS: SieteUdVisualCfg['estilos'] = {
+  zonas: { fondo: '#1b1f27', borde: '#262b34', texto: '#e7eaef', acento: '#6b8afd', seleccionado: '#26345d', gana: '#175c3c', pierde: '#632b32', radio: 11, sombra: 28, escala: 100 },
+  boton: { fondo: '#6b8afd', texto: '#ffffff', borde: '#6b8afd', bloqueado: '#3a4050', radio: 12, sombra: 38, escala: 100 },
+};
+
+function presetsBase(cfg: SieteUdCfg, pos: PosControlesSieteUd): SieteUdPreset[] {
+  return PALETAS_PRESET.map((p) => {
+    const visual = visualActual(cfg, pos);
+    visual.controles = copiar(CONTROLES_SIETEUD_DEFAULT);
+    visual.editor = { ocultas: [], bloqueadas: [], snap: true };
+    visual.arte = copiar(ARTE_CLASICO);
+    visual.estilos = copiar(ESTILOS_CLASICOS);
+    visual.tema = p.tema;
+    visual.fondoPantallaUrl = null; visual.fondoUrl = null; visual.cartelUrl = null; visual.botonImg = null;
+    visual.estilos.zonas = { ...visual.estilos.zonas, fondo: p.fondo, borde: p.borde, acento: p.acento, seleccionado: p.seleccionado, gana: p.gana, pierde: p.pierde };
+    visual.estilos.boton = { ...visual.estilos.boton, fondo: p.boton, borde: p.boton, texto: p.id === 'minimalista' ? '#15171a' : '#ffffff' };
+    return { id: `base-${p.id}`, nombre: p.nombre, visual };
+  });
+}
+
+function TabPresets({ cfg, pos, onCfg, onAplicarVisual }: {
+  cfg: SieteUdCfg; pos: PosControlesSieteUd;
+  onCfg: (patch: Partial<SieteUdCfg>) => void;
+  onAplicarVisual: (visual: SieteUdVisualCfg) => void;
+}) {
+  const [nombre, setNombre] = useState('');
+  const base = presetsBase(cfg, pos);
+  const propios = cfg.presets || [];
+  const guardar = () => {
+    const limpio = nombre.trim();
+    if (!limpio) return;
+    const id = globalThis.crypto?.randomUUID?.() || `preset-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    onCfg({ presets: [...propios, { id, nombre: limpio, visual: visualActual(cfg, pos) }] });
+    setNombre('');
+  };
+  const aplicar = (preset: SieteUdPreset) => {
+    if (window.confirm(`¿Aplicar el preset “${preset.nombre}”? Reemplazará la apariencia y la composición actuales, pero no las reglas del juego.`)) {
+      onAplicarVisual(copiar(preset.visual));
+    }
+  };
+  const actualizar = (preset: SieteUdPreset) => {
+    if (!window.confirm(`¿Actualizar “${preset.nombre}” con el diseño actual?`)) return;
+    onCfg({ presets: propios.map((p) => p.id === preset.id ? { ...p, visual: visualActual(cfg, pos) } : p) });
+  };
+  const renombrar = (preset: SieteUdPreset) => {
+    const nombreNuevo = window.prompt('Nombre del preset', preset.nombre)?.trim();
+    if (!nombreNuevo || nombreNuevo === preset.nombre) return;
+    onCfg({ presets: propios.map((p) => p.id === preset.id ? { ...p, nombre: nombreNuevo.slice(0, 60) } : p) });
+  };
+  const borrar = (preset: SieteUdPreset) => {
+    if (window.confirm(`¿Eliminar el preset “${preset.nombre}”?`)) onCfg({ presets: propios.filter((p) => p.id !== preset.id) });
+  };
+  const resetear = (seccion: 'piezas' | 'imagenes' | 'estilo') => {
+    const clasico = base[0].visual;
+    const visual = visualActual(cfg, pos);
+    if (seccion === 'piezas') { visual.controles = clasico.controles; visual.editor = clasico.editor; }
+    if (seccion === 'imagenes') { visual.fondoPantallaUrl = null; visual.fondoUrl = null; visual.cartelUrl = null; visual.botonImg = null; visual.arte = clasico.arte; visual.velo = clasico.velo; }
+    if (seccion === 'estilo') { visual.tema = clasico.tema; visual.estilos = clasico.estilos; }
+    if (window.confirm(`¿Restablecer ${seccion} al diseño clásico?`)) onAplicarVisual(visual);
+  };
+  const fila = (preset: SieteUdPreset, propio: boolean) => (
+    <div key={preset.id} style={{ padding: 8, border: '1px solid var(--border-soft)', borderRadius: 9, background: 'var(--surface-alt)', marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span aria-label="Muestra de colores" title="Muestra de colores" style={{ display: 'flex', overflow: 'hidden', width: 22, height: 13, flexShrink: 0, borderRadius: 99, border: `1px solid ${preset.visual.estilos.zonas.borde}` }}>
+          <i style={{ flex: 1, background: preset.visual.estilos.zonas.fondo }} /><i style={{ flex: 1, background: preset.visual.estilos.zonas.acento }} /><i style={{ flex: 1, background: preset.visual.estilos.boton.fondo }} />
+        </span>
+        <b style={{ flex: 1, fontSize: 12 }}>{preset.nombre}</b>
+        <button onClick={() => aplicar(preset)} style={{ fontSize: 11, padding: '4px 7px' }}>Aplicar</button>
+      </div>
+      {propio && <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+        <button onClick={() => actualizar(preset)} style={{ flex: 1, fontSize: 10, padding: '4px' }}>Actualizar</button>
+        <button onClick={() => renombrar(preset)} style={{ fontSize: 10, padding: '4px' }}>Renombrar</button>
+        <button onClick={() => borrar(preset)} style={{ fontSize: 10, padding: '4px', color: 'var(--danger)' }}>Eliminar</button>
+      </div>}
+    </div>
+  );
+  return <>
+    <p className="hint" style={{ margin: '0 0 10px' }}>Los presets guardan sólo el diseño: piezas, imágenes, retoques y estilos. RTP, caras y pagos no se modifican.</p>
+    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Diseños base</div>
+    {base.map((p) => fila(p, false))}
+    <div style={{ borderTop: '1px solid var(--border-soft)', margin: '12px 0 10px' }} />
+    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Mis presets</div>
+    <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+      <input aria-label="Nombre del preset" value={nombre} maxLength={60} placeholder="Nombre del diseño" onChange={(e) => setNombre(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') guardar(); }} style={{ minWidth: 0, flex: 1, fontSize: 11 }} />
+      <button className="primary" onClick={guardar} disabled={!nombre.trim()} style={{ fontSize: 11 }}>Guardar actual</button>
+    </div>
+    {propios.length ? propios.map((p) => fila(p, true)) : <p className="hint" style={{ margin: '0 0 10px' }}>Todavía no guardaste un diseño propio.</p>}
+    <div style={{ borderTop: '1px solid var(--border-soft)', margin: '12px 0 10px' }} />
+    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Restablecer una sección</div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+      <button onClick={() => resetear('piezas')} style={{ fontSize: 10, padding: '5px 2px' }}>Piezas</button>
+      <button onClick={() => resetear('imagenes')} style={{ fontSize: 10, padding: '5px 2px' }}>Imágenes</button>
+      <button onClick={() => resetear('estilo')} style={{ fontSize: 10, padding: '5px 2px' }}>Estilo</button>
+    </div>
+  </>;
 }
 
 // ---------------- Pestaña Estilo ----------------

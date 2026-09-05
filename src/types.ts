@@ -788,39 +788,43 @@ export interface KenoCfg {
 
 export type ZonaSieteUd = 'abajo' | 'siete' | 'arriba';
 
-export interface SieteUdCfg {
-  rtp: number;
-  /** Caras por dado (2..12; base 6). */
-  caras: number;
-  /** Pagos fijados a mano por zona. null = exacto por RTP. */
-  pagos: { abajo: number | null; siete: number | null; arriba: number | null };
+/** La porción estética de 7 Up 7 Down que se puede reutilizar entre diseños.
+ * No contiene RTP, caras ni pagos: aplicar un preset nunca altera el juego. */
+export interface SieteUdVisualCfg {
   tema: string;
-  /** Imagen detrás de todo (fondo de pantalla). */
   fondoPantallaUrl: string | null;
-  /** Imagen del fieltro / mesa (donde caen los dados). */
   fondoUrl: string | null;
-  /** Opacidad del velo del color del fieltro sobre esa imagen (0.1–0.95). */
   velo: number;
-  /** Imagen del cartel que aparece al ganar. */
   cartelUrl: string | null;
-  /** Imagen del botón de tirar (opcional). */
   botonImg: string | null;
-  /** Retoque de cada imagen (encuadre, posición, zoom, desenfoque, oscurecido). */
   arte: {
     pantalla: AjusteImg;
     mesa: AjusteImg;
     cartel: AjusteImg;
     boton: AjusteImg;
   };
-  /** Posición de cada pieza en la pantalla del juego (% de la escena). */
   controles: Partial<PosControlesSieteUd>;
-  /** Preferencias del editor y visibilidad de las piezas en el juego. */
   editor: { ocultas: string[]; bloqueadas: string[]; snap: boolean };
-  /** Estilo de controles interactivos; no altera pagos ni probabilidades. */
   estilos: {
     zonas: { fondo: string; borde: string; texto: string; acento: string; seleccionado: string; gana: string; pierde: string; radio: number; sombra: number; escala: number };
     boton: { fondo: string; texto: string; borde: string; bloqueado: string; radio: number; sombra: number; escala: number };
   };
+}
+
+export interface SieteUdPreset {
+  id: string;
+  nombre: string;
+  visual: SieteUdVisualCfg;
+}
+
+export interface SieteUdCfg extends SieteUdVisualCfg {
+  rtp: number;
+  /** Caras por dado (2..12; base 6). */
+  caras: number;
+  /** Pagos fijados a mano por zona. null = exacto por RTP. */
+  pagos: { abajo: number | null; siete: number | null; arriba: number | null };
+  /** Diseños reutilizables creados por el operador. */
+  presets: SieteUdPreset[];
 }
 
 export interface AjusteImg {

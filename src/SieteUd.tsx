@@ -11,7 +11,7 @@ import { useSieteUd, type JugarSieteUdFn } from './juego/useSieteUd.ts';
 import { cfgConDefaults as _cfg, tirar as _tirarLocal } from '../motor/sieteud.js';
 import { posControlesSieteUdDe, paletaDadosDe } from './juego/sieteud.ts';
 import type {
-  DatosJuego, Juego, PosControlesSieteUd, ResultadoInstant, SieteUdCfg, TiradaInstant,
+  DatosJuego, Juego, PosControlesSieteUd, ResultadoInstant, SieteUdCfg, SieteUdVisualCfg, TiradaInstant,
 } from './types.ts';
 
 type ElemId = keyof PosControlesSieteUd;
@@ -164,6 +164,22 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
     }
   }, [actualizarEstadoHistorial, bump, guardar]);
   const onPos = useCallback((next: PosControlesSieteUd) => aplicarPos(next), [aplicarPos]);
+  const aplicarVisual = useCallback((visual: SieteUdVisualCfg) => {
+    // Los presets nunca incluyen parámetros matemáticos. Se normaliza el
+    // resultado, se actualiza la mesa al instante y se guarda en un solo patch.
+    const siguiente = _cfg({ ...cfgRef.current, ...visual }) as SieteUdCfg;
+    const siguientePos = posControlesSieteUdDe(siguiente);
+    cfgRef.current = siguiente;
+    setCfg(siguiente);
+    setPos(siguientePos);
+    guardar({ ...visual, controles: siguientePos });
+    const anterior = historialRef.current[indiceHistorial.current];
+    if (JSON.stringify(anterior) !== JSON.stringify(siguientePos)) {
+      historialRef.current = [...historialRef.current.slice(0, indiceHistorial.current + 1), siguientePos];
+      indiceHistorial.current = historialRef.current.length - 1;
+      actualizarEstadoHistorial();
+    }
+  }, [actualizarEstadoHistorial, guardar]);
   const deshacer = useCallback(() => {
     if (indiceHistorial.current === 0) return;
     indiceHistorial.current -= 1;
@@ -214,7 +230,8 @@ export function PreviewSieteUd({ juego, onClose, onGuardarCfg }: {
       {ajustar && (
         <SieteUdEditor juego={juego} cfg={cfg} pos={pos} seleccion={sel}
           onSelPieza={setSel} onCfg={onCfg} onArte={onArte} onPos={onPos}
-          puedeDeshacer={estadoHistorial.atras} puedeRehacer={estadoHistorial.adelante} onDeshacer={deshacer} onRehacer={rehacer} />
+          puedeDeshacer={estadoHistorial.atras} puedeRehacer={estadoHistorial.adelante} onDeshacer={deshacer} onRehacer={rehacer}
+          onAplicarVisual={aplicarVisual} />
       )}
     </div>
   );
