@@ -81,6 +81,7 @@ interface KenoJuegoProps {
   pos: PosControlesKeno;
   fichas: Ficha[];
   sinCaja: boolean;
+  modoFichas?: 'fila' | 'abanico';
   saldoInicial: number;
   minBet: number;
   maxBet: number;
@@ -94,7 +95,7 @@ interface KenoJuegoProps {
 
 // El juego completo montado sobre el escenario: tablero + mesa + fichas.
 export function KenoJuego({
-  escenario, juego, cfg, tema, pos, fichas, sinCaja, saldoInicial, minBet, maxBet, paso, onJugar,
+  escenario, juego, cfg, tema, pos, fichas, sinCaja, modoFichas, saldoInicial, minBet, maxBet, paso, onJugar,
   fichasEditables, onMoverFicha, premioDemo,
 }: KenoJuegoProps) {
   const inicial = fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000));
@@ -117,7 +118,8 @@ export function KenoJuego({
           bloqueado={p.estado.fase === 'rolling'}
           editable={fichasEditables}
           onElegir={p.setApuesta}
-          onMover={onMoverFicha} />
+          onMover={onMoverFicha}
+          modo={modoFichas} />
       )}
     </>
   );

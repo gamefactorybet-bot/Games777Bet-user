@@ -10,12 +10,16 @@
 // el juego usa sus controles de siempre.
 // =========================================================
 
-export const FICHAS_DEFAULT = { fichas: [], sinCaja: false, modo: 'abanico' };
+export const FICHAS_DEFAULT = { fichas: [], sinCaja: false, modo: 'fila' };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const str = (v, d) => (typeof v === 'string' && v ? v : d);
 
+/**
+ * @param {{fichas?: unknown[], sinCaja?: boolean, modo?: string}} [cfg]
+ * @returns {{sinCaja: boolean, modo: 'fila'|'abanico', fichas: Array<{valor:number, imagen_url:string|null, x:number, y:number, tam:number, imgTam:number}>}}
+ */
 export function fichasConDefaults(cfg) {
   const arr = Array.isArray(cfg && cfg.fichas) ? cfg.fichas : [];
   return {
@@ -24,7 +28,7 @@ export function fichasConDefaults(cfg) {
     sinCaja: !!(cfg && cfg.sinCaja),
     // 'abanico': se ve solo la ficha activa y las demás se abren al
     // tocarla. La posición de la ficha 0 hace de ancla del abanico.
-    modo: cfg && cfg.modo === 'fila' ? 'fila' : 'abanico',
+    modo: cfg && cfg.modo === 'abanico' ? 'abanico' : 'fila',
     fichas: arr
       .map((f) => {
         const o = f && typeof f === 'object' ? f : {};
@@ -52,7 +56,10 @@ export function fichasSinCajaDe(juego) {
   return c.fichas.length > 0 && c.sinCaja;
 }
 
-/** 'fila' | 'abanico' — cómo se muestran las fichas de este juego. */
+/**
+ * 'fila' | 'abanico' — cómo se muestran las fichas de este juego.
+ * @returns {'fila'|'abanico'}
+ */
 export function fichasModoDe(juego) {
   return fichasConDefaults(juego && juego.fichas_cfg).modo;
 }

@@ -124,6 +124,7 @@ interface TorreJuegoProps {
   pos: PosControlesTorre;
   fichas: Ficha[];
   sinCaja: boolean;
+  modoFichas?: 'fila' | 'abanico';
   saldoInicial: number;
   minBet: number;
   maxBet: number;
@@ -136,7 +137,7 @@ interface TorreJuegoProps {
 }
 
 export function TorreJuego({
-  escenario, juego, cfg, tema, pos, fichas, sinCaja, saldoInicial, minBet, maxBet, paso, contadorMs,
+  escenario, juego, cfg, tema, pos, fichas, sinCaja, modoFichas, saldoInicial, minBet, maxBet, paso, contadorMs,
   api, fichasEditables, onMoverFicha, premioDemo,
 }: TorreJuegoProps) {
   const inicial = useMemo(
@@ -156,7 +157,7 @@ export function TorreJuego({
         premioDemo={premioDemo} />
       {fichas.length > 0 && p.estado.fase === 'idle' && (
         <Fichas host={escenario.el} fichas={fichas} apuesta={p.estado.apuesta}
-          editable={fichasEditables} onElegir={p.setApuesta} onMover={onMoverFicha} />
+          editable={fichasEditables} onElegir={p.setApuesta} onMover={onMoverFicha} modo={modoFichas} />
       )}
     </>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { crearEscenario } from './juego/escenario.ts';
 import { TorreJuego, type TorreApi } from './TorreJuego.tsx';
-import { fichasDe, fichasConDefaults } from '../motor/fichas.js';
+import { fichasDe, fichasConDefaults, fichasModoDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, posControlesTorreDe } from './juego/torre.ts';
@@ -22,6 +22,7 @@ export function JugarTorre({ datos, saldoInicial, slug, token }: {
   const tema = useMemo(() => temaTorreDe(cfg.tema), [cfg.tema]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
   const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
+  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
   const pos = useRef(posControlesTorreDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
   const maxBet = Number(juego.max_bet) || 100000;
@@ -102,7 +103,7 @@ export function JugarTorre({ datos, saldoInicial, slug, token }: {
       {listo && escRef.current && (
         <TorreJuego
           escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={pos}
-          fichas={fichas} sinCaja={sinCaja} saldoInicial={Number(saldoInicial)}
+          fichas={fichas} sinCaja={sinCaja} modoFichas={modoFichas} saldoInicial={Number(saldoInicial)}
           minBet={minBet} maxBet={maxBet} paso={paso} contadorMs={contadorMs} api={api}
         />
       )}

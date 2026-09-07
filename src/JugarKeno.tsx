@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { crearEscenario } from './juego/escenario.ts';
 import { KenoJuego, type JugarKenoFn } from './KenoJuego.tsx';
-import { fichasDe, fichasConDefaults } from '../motor/fichas.js';
+import { fichasDe, fichasConDefaults, fichasModoDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, posControlesKenoDe } from './juego/keno.ts';
@@ -22,6 +22,7 @@ export function JugarKeno({ datos, saldoInicial, slug, token }: {
   const tema = useMemo(() => temaKenoDe(cfg.tema), [cfg.tema]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
   const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
+  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
   const pos = useRef(posControlesKenoDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
   const maxBet = Number(juego.max_bet) || 100000;
@@ -85,7 +86,7 @@ export function JugarKeno({ datos, saldoInicial, slug, token }: {
       {listo && escRef.current && (
         <KenoJuego
           escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={pos}
-          fichas={fichas} sinCaja={sinCaja} saldoInicial={Number(saldoInicial)}
+          fichas={fichas} sinCaja={sinCaja} modoFichas={modoFichas} saldoInicial={Number(saldoInicial)}
           minBet={minBet} maxBet={maxBet} paso={paso} onJugar={jugar}
         />
       )}

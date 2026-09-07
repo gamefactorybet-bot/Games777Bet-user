@@ -37,9 +37,10 @@ export function PreviewTorre({ juego, onClose }: { juego: Juego; onClose: () => 
   const [ajusteElem, setAjusteElem] = useState('torre');
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
   const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
+  const modoFichas = fichasConDefaults(juego.fichas_cfg).modo;
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
-    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja };
+    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja, modo: fichasConDefaults(juego.fichas_cfg).modo };
     supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
     (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
@@ -121,7 +122,7 @@ export function PreviewTorre({ juego, onClose }: { juego: Juego; onClose: () => 
       {listo && escRef.current && (
         <TorreJuego
           escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={posCtl}
-          fichas={fichas} sinCaja={sinCaja} saldoInicial={SALDO_DEMO}
+          fichas={fichas} sinCaja={sinCaja} modoFichas={modoFichas} saldoInicial={SALDO_DEMO}
           minBet={minBet} maxBet={maxBet} paso={paso} contadorMs={contadorMs} api={api}
           fichasEditables={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
           onMoverFicha={(i, x, y) => guardarFichas(fichas.map((ff, k) => (k === i ? { ...ff, x, y } : ff)))}

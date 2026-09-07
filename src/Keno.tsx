@@ -36,9 +36,10 @@ export function PreviewKeno({ juego, onClose }: { juego: Juego; onClose: () => v
   const [ajusteElem, setAjusteElem] = useState('tablero');
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
   const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
+  const modoFichas = fichasConDefaults(juego.fichas_cfg).modo;
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
-    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja };
+    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja, modo: fichasConDefaults(juego.fichas_cfg).modo };
     supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
     (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
@@ -89,7 +90,7 @@ export function PreviewKeno({ juego, onClose }: { juego: Juego; onClose: () => v
       {listo && escRef.current && (
         <KenoJuego
           escenario={escRef.current} juego={juego} cfg={cfg} tema={tema} pos={posCtl}
-          fichas={fichas} sinCaja={sinCaja} saldoInicial={SALDO_DEMO}
+          fichas={fichas} sinCaja={sinCaja} modoFichas={modoFichas} saldoInicial={SALDO_DEMO}
           minBet={minBet} maxBet={maxBet} paso={paso} onJugar={jugarLocal}
           fichasEditables={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
           onMoverFicha={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}

@@ -145,6 +145,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
               editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
               onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
               onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+              modo={modoFichas}
             />
           )}
         </>

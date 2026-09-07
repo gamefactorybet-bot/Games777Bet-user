@@ -283,9 +283,9 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
     : { position: 'relative', width: activa.tam, height: activa.tam };
 
   return (
-    <>
+    <div style={raiz}>
       <style>{`
-        .gw-abanico-velo { inset:0; background:rgba(5,6,10,.5); z-index:11; pointer-events:auto; }
+        .gw-abanico-velo { position:fixed; inset:0; background:rgba(5,6,10,.5); z-index:11; }
         .gw-abanico-ficha {
           position:absolute; left:50%; top:50%; border:0; padding:0; border-radius:50%;
           background:radial-gradient(circle at 32% 28%, #2b3140, #171a22);
@@ -310,48 +310,46 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
         @media (prefers-reduced-motion: reduce){ .gw-abanico-ficha { transition:none } }
       `}</style>
 
-      {abierto && <div className="gw-abanico-velo" style={{ position: host ? 'absolute' : 'fixed' }} onClick={() => setAbierto(false)} />}
+      {abierto && <div className="gw-abanico-velo" onClick={() => setAbierto(false)} />}
 
-      <div style={raiz}>
-        <button
-          type="button"
-          className="gw-abanico-ficha gw-abanico-principal"
-          aria-haspopup="true" aria-expanded={abierto}
-          aria-label={`Ficha activa: ${fmt(activa.valor)}. Tocar para elegir otra.`}
-          disabled={bloqueado && !editable}
-          style={{ width: activa.tam, height: activa.tam, transform: 'translate(-50%,-50%)', opacity: bloqueado && !editable ? 0.55 : 1 }}
-          {...anclaProps}
-        >
-          <FichaContenido f={activa} />
-        </button>
+      <button
+        type="button"
+        className="gw-abanico-ficha gw-abanico-principal"
+        aria-haspopup="true" aria-expanded={abierto}
+        aria-label={`Ficha activa: ${fmt(activa.valor)}. Tocar para elegir otra.`}
+        disabled={bloqueado && !editable}
+        style={{ width: activa.tam, height: activa.tam, transform: 'translate(-50%,-50%)', opacity: bloqueado && !editable ? 0.55 : 1 }}
+        {...anclaProps}
+      >
+        <FichaContenido f={activa} />
+      </button>
 
-        {resto.map((f, k) => {
-          const ang = n === 1 ? 90 : 158 + (22 - 158) * (k / (n - 1));
-          const rad = (ang * Math.PI) / 180;
-          const tx = Math.cos(rad) * radio, ty = -Math.sin(rad) * radio;
-          return (
-            <button
-              key={f.valor}
-              type="button"
-              className="gw-abanico-ficha gw-abanico-secundaria"
-              aria-label={fmt(f.valor)}
-              style={{
-                width: f.tam, height: f.tam,
-                transform: abierto
-                  ? `translate(calc(-50% + ${tx.toFixed(1)}px), calc(-50% + ${ty.toFixed(1)}px)) scale(1)`
-                  : 'translate(-50%,-50%) scale(.3)',
-                opacity: abierto ? 1 : 0,
-                pointerEvents: abierto ? 'auto' : 'none',
-                transitionDelay: abierto ? `${k * 26}ms` : '0ms',
-              }}
-              onClick={() => elegir(f.valor)}
-            >
-              <FichaContenido f={f} />
-            </button>
-          );
-        })}
-      </div>
-    </>
+      {resto.map((f, k) => {
+        const ang = n === 1 ? 90 : 158 + (22 - 158) * (k / (n - 1));
+        const rad = (ang * Math.PI) / 180;
+        const tx = Math.cos(rad) * radio, ty = -Math.sin(rad) * radio;
+        return (
+          <button
+            key={f.valor}
+            type="button"
+            className="gw-abanico-ficha gw-abanico-secundaria"
+            aria-label={fmt(f.valor)}
+            style={{
+              width: f.tam, height: f.tam,
+              transform: abierto
+                ? `translate(calc(-50% + ${tx.toFixed(1)}px), calc(-50% + ${ty.toFixed(1)}px)) scale(1)`
+                : 'translate(-50%,-50%) scale(.3)',
+              opacity: abierto ? 1 : 0,
+              pointerEvents: abierto ? 'auto' : 'none',
+              transitionDelay: abierto ? `${k * 26}ms` : '0ms',
+            }}
+            onClick={() => elegir(f.valor)}
+          >
+            <FichaContenido f={f} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
