@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchJson } from './juego/recursos.ts';
-import { fichasDe } from '../motor/fichas.js';
+import { fichasDe, fichasModoDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
 import { crearDados3D, type Dados3D } from './juego/dados3d.ts';
 import { SieteUdShell } from './SieteUdShell.tsx';
@@ -52,6 +52,7 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
   edicion?: EdicionMesa | null;
 }) {
   const fichas = useMemo(() => fichasDe(juego), [juego]);
+  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const motorRef = useRef<Dados3D | null>(null);
@@ -102,7 +103,7 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
       tema={tema} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} fondoAjuste={cfg.arte.pantalla}
     >
       <SieteUdMesa
-        cfg={cfg} pos={pos} est={g.est} fichas={fichas}
+        cfg={cfg} pos={pos} est={g.est} fichas={fichas} modoFichas={modoFichas}
         minBet={minBet} maxBet={maxBet} paso={paso} canvasRef={canvasRef}
         onApuesta={g.setApuesta} onZona={g.setZona} onJugar={g.jugar} onOtra={g.reset}
         edicion={edicion} cartelDemo={cartelDemo}

@@ -1035,6 +1035,10 @@ export interface FichasCfg {
   fichas: Ficha[];
   /** Con fichas cargadas: oculta el recuadro "Apuesta: 5000". */
   sinCaja?: boolean;
+  /** 'fila' (por defecto): todas las fichas visibles a la vez.
+   * 'abanico': se ve solo la ficha activa; al tocarla se abren las demás
+   * alrededor y se repliegan solas al elegir una (ahorra espacio). */
+  modo?: 'fila' | 'abanico';
 }
 
 /** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`

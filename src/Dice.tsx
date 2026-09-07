@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
 import { FichasStrip } from './Fichas.tsx';
-import { fichasDe } from '../motor/fichas.js';
+import { fichasDe, fichasModoDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
 import {
   cfgConDefaults as _cfgDice, tirar as _tirarDice, umbralPermitido as _umbralOk, chanceDe as _chance,
@@ -15,8 +15,8 @@ type Dir = 'mayor' | 'menor';
 type Jugar = (umbral: number, direccion: Dir, apuesta: number) =>
   Promise<{ resultado: TiradaInstant; premio: number; saldo: number }>;
 
-function DiceJuego({ cfg, fichas, saldoInicial, minBet, maxBet, paso, onJugar }: {
-  cfg: DiceCfg; fichas: Ficha[]; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+function DiceJuego({ cfg, fichas, modoFichas, saldoInicial, minBet, maxBet, paso, onJugar }: {
+  cfg: DiceCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
 }) {
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
@@ -129,7 +129,7 @@ function DiceJuego({ cfg, fichas, saldoInicial, minBet, maxBet, paso, onJugar }:
       </div>
 
       {fichas.length > 0 ? (
-        <FichasStrip fichas={fichas} apuesta={apuesta} bloqueado={fase === 'rolling'} onElegir={setApuesta} />
+        <FichasStrip fichas={fichas} apuesta={apuesta} bloqueado={fase === 'rolling'} onElegir={setApuesta} modo={modoFichas} />
       ) : (
         <ApuestaControl apuesta={apuesta} minBet={minBet} maxBet={maxBet} paso={paso}
           ocupado={fase === 'rolling'} onApuesta={setApuesta} />
@@ -147,6 +147,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
   const juego = datos.juego;
   const cfg = useMemo(() => cfgDiceDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
+  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const [cargando, setCargando] = useState(true);
 
@@ -175,7 +176,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
       mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       cargando={cargando} cargaImagen={(juego.carga_url as string) || (juego.portada_url as string) || null}
     >
-      <DiceJuego cfg={cfg} fichas={fichas} saldoInicial={Number(saldoInicial)}
+      <DiceJuego cfg={cfg} fichas={fichas} modoFichas={modoFichas} saldoInicial={Number(saldoInicial)}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
     </InstantShell>
@@ -186,6 +187,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
 export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => void }) {
   const cfg = useMemo(() => cfgDiceDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
+  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const saldoRef = useRef(10000);
 
@@ -198,7 +200,7 @@ export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => v
 
   return (
     <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}>
-      <DiceJuego cfg={cfg} fichas={fichas} saldoInicial={10000}
+      <DiceJuego cfg={cfg} fichas={fichas} modoFichas={modoFichas} saldoInicial={10000}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
     </InstantShell>

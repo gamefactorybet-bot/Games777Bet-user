@@ -17,12 +17,16 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
   ubicacion?: 'arrastre' | 'tira' | 'grupo';
 }) {
   const conPos = ubicacion === 'arrastre';
+  // El modo "abanico" necesita un ancla libre (arrastre) o un centrado
+  // simple (tira). En "grupo" (slots clásicos) las fichas se pintan con
+  // el motor viejo y todavía no lo soportan.
+  const conAbanico = ubicacion === 'arrastre' || ubicacion === 'tira';
   const [cfg, setCfg] = useState<FichasCfg>(() => fichasConDefaults(juego.fichas_cfg) as FichasCfg);
   useEffect(() => { setCfg(fichasConDefaults(juego.fichas_cfg) as FichasCfg); }, [juego.id]);
   const [msg, setMsg] = useState('');
 
-  const guardar = (fichas: Ficha[], sinCaja = cfg.sinCaja) => {
-    const next: FichasCfg = { fichas, sinCaja };
+  const guardar = (fichas: Ficha[], sinCaja = cfg.sinCaja, modo = cfg.modo) => {
+    const next: FichasCfg = { fichas, sinCaja, modo };
     setCfg(next);
     onCampo('fichas_cfg', next);
     setMsg('Guardado ✓');
@@ -62,6 +66,23 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
 
       {usar && (
         <>
+          {conAbanico && (
+            <div className="grupo-nav" style={{ marginBottom: 14 }}>
+              <button className={`grupo-btn ${cfg.modo !== 'abanico' ? 'on' : ''}`}
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={() => guardar(cfg.fichas, cfg.sinCaja, 'fila')}>Fila (todas visibles)</button>
+              <button className={`grupo-btn ${cfg.modo === 'abanico' ? 'on' : ''}`}
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={() => guardar(cfg.fichas, cfg.sinCaja, 'abanico')}>Abanico (una sola)</button>
+            </div>
+          )}
+          {cfg.modo === 'abanico' && conAbanico && (
+            <p className="hint" style={{ margin: '0 0 12px' }}>
+              Solo se ve la ficha activa (la que coincide con la apuesta). Al tocarla se abren las
+              demás alrededor; elegir una la reemplaza y todo se repliega solo.
+              {conPos && ' La posición/tamaño de la primera ficha es la del botón cerrado.'}
+            </p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {cfg.fichas.map((f, i) => (
               <div key={i} style={{ border: '1px solid var(--border-soft)', borderRadius: 10, padding: 12, background: 'var(--surface-alt)' }}>
@@ -98,10 +119,10 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
 
                 <RangoMini etiqueta="Tamaño del botón" unidad="px" min={28} max={140} valor={f.tam} onInput={(n) => setFicha(i, { tam: n })} />
                 <RangoMini etiqueta="Tamaño de la imagen" unidad="%" min={30} max={100} valor={f.imgTam} onInput={(n) => setFicha(i, { imgTam: n })} />
-                {conPos && (
+                {conPos && (cfg.modo !== 'abanico' || i === 0) && (
                   <>
-                    <RangoMini etiqueta="Posición X" unidad="%" min={0} max={100} valor={f.x} onInput={(n) => setFicha(i, { x: n })} />
-                    <RangoMini etiqueta="Posición Y" unidad="%" min={0} max={100} valor={f.y} onInput={(n) => setFicha(i, { y: n })} />
+                    <RangoMini etiqueta={cfg.modo === 'abanico' ? 'Posición X (botón)' : 'Posición X'} unidad="%" min={0} max={100} valor={f.x} onInput={(n) => setFicha(i, { x: n })} />
+                    <RangoMini etiqueta={cfg.modo === 'abanico' ? 'Posición Y (botón)' : 'Posición Y'} unidad="%" min={0} max={100} valor={f.y} onInput={(n) => setFicha(i, { y: n })} />
                   </>
                 )}
               </div>

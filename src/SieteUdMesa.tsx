@@ -24,6 +24,7 @@ interface Props {
   pos: PosControlesSieteUd;
   est: EstadoSieteUd;
   fichas: Ficha[];
+  modoFichas: 'fila' | 'abanico';
   minBet: number; maxBet: number; paso: number;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   onApuesta: (n: number) => void;
@@ -36,7 +37,7 @@ interface Props {
 }
 
 export function SieteUdMesa({
-  cfg, pos, est, fichas, minBet, maxBet, paso, canvasRef,
+  cfg, pos, est, fichas, modoFichas, minBet, maxBet, paso, canvasRef,
   onApuesta, onZona, onJugar, onOtra, edicion, cartelDemo,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -166,7 +167,7 @@ export function SieteUdMesa({
       {P('apuesta', (
         <div style={{ pointerEvents: editando ? 'none' : 'auto' }}>
           {fichas.length > 0
-            ? <FichasStrip fichas={fichas} apuesta={est.apuesta} bloqueado={rolling} onElegir={onApuesta} />
+            ? <FichasStrip fichas={fichas} apuesta={est.apuesta} bloqueado={rolling} onElegir={onApuesta} modo={modoFichas} />
             : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button disabled={rolling} onClick={() => onApuesta(Math.max(minBet, est.apuesta - paso))} style={stepBtn}>−</button>

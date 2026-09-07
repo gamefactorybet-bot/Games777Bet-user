@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TableroMines } from './TableroMines.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasDe, fichasSinCajaDe } from '../motor/fichas.js';
+import { fichasDe, fichasSinCajaDe, fichasModoDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { crearEscenario } from './juego/escenario.ts';
 import { precargarLottie } from './lottie.ts';
@@ -39,6 +39,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
   const posCtl = useRef(posControlesDe(juego)).current;
   const fichas = useRef(fichasDe(juego)).current;
   const sinCaja = useRef(fichasSinCajaDe(juego)).current;
+  const modoFichas = useRef(fichasModoDe(juego)).current;
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
@@ -225,6 +226,7 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
               host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
               bloqueado={estado.fase !== 'inactiva' || estado.cargando}
               onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
+              modo={modoFichas}
             />
           )}
         </>

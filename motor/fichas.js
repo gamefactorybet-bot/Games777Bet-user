@@ -10,7 +10,7 @@
 // el juego usa sus controles de siempre.
 // =========================================================
 
-export const FICHAS_DEFAULT = { fichas: [], sinCaja: false };
+export const FICHAS_DEFAULT = { fichas: [], sinCaja: false, modo: 'abanico' };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -22,6 +22,9 @@ export function fichasConDefaults(cfg) {
     // Con fichas cargadas: oculta el recuadro "Apuesta: 5000" (cada
     // ficha ya muestra su valor). Sin efecto si no hay fichas.
     sinCaja: !!(cfg && cfg.sinCaja),
+    // 'abanico': se ve solo la ficha activa y las demás se abren al
+    // tocarla. La posición de la ficha 0 hace de ancla del abanico.
+    modo: cfg && cfg.modo === 'fila' ? 'fila' : 'abanico',
     fichas: arr
       .map((f) => {
         const o = f && typeof f === 'object' ? f : {};
@@ -47,4 +50,9 @@ export function fichasDe(juego) {
 export function fichasSinCajaDe(juego) {
   const c = fichasConDefaults(juego && juego.fichas_cfg);
   return c.fichas.length > 0 && c.sinCaja;
+}
+
+/** 'fila' | 'abanico' — cómo se muestran las fichas de este juego. */
+export function fichasModoDe(juego) {
+  return fichasConDefaults(juego && juego.fichas_cfg).modo;
 }
