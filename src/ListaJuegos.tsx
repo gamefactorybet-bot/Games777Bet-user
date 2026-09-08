@@ -70,6 +70,7 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
   const [vista, setVista] = useState<'tabla' | 'tarjetas'>('tabla');
   const [pagina, setPagina] = useState(1);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [detalleId, setDetalleId] = useState<string | null>(null);
 
   const [nuevoAbierto, setNuevoAbierto] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -192,15 +193,24 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
 
   const listos = conteo.listo;
   const pubs = conteo.publicado;
+  const detalle = detalleId ? juegos.find((j) => j.id === detalleId) || null : null;
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head page-head-modern">
         <div>
+          <div className="eyebrow">CENTRO DE CONTROL</div>
           <h2>Juegos</h2>
-          <p className="sub">{juegos.length} juegos · {listos} listos · {pubs} publicados</p>
+          <p className="sub">Gestioná, configurá y publicá todos tus juegos desde un solo lugar.</p>
         </div>
-        <button className="primary" onClick={() => setNuevoAbierto((v) => !v)}>+ Nuevo juego</button>
+        <button className="primary primary-lg" onClick={() => setNuevoAbierto((v) => !v)}>+ Nuevo juego</button>
+      </div>
+
+      <div className="games-kpis" aria-label="Resumen de juegos">
+        <div className="games-kpi"><span className="kpi-icon">✦</span><div><span>Total</span><strong>{conteo.todos}</strong><small>juegos</small></div></div>
+        <div className="games-kpi ok"><span className="kpi-icon">✓</span><div><span>Publicados</span><strong>{conteo.publicado}</strong><small>activos en catálogo</small></div></div>
+        <div className="games-kpi warn"><span className="kpi-icon">◌</span><div><span>En prueba</span><strong>{conteo.en_prueba}</strong><small>pendientes de validar</small></div></div>
+        <div className="games-kpi draft"><span className="kpi-icon">□</span><div><span>Borradores</span><strong>{conteo.borrador}</strong><small>en preparación</small></div></div>
       </div>
 
       {nuevoAbierto && (
@@ -222,7 +232,7 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
         </div>
       )}
 
-      <div className="lista-tools">
+      <div className="lista-tools modern-tools">
         <div className="buscar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
@@ -341,6 +351,9 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
                   <td><span className="when">{hace(j.updated_at)}</span></td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div className="jt-acts">
+                      <button title="Ver detalles" className="info-act" onClick={() => setDetalleId(j.id)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><line x1="12" y1="10" x2="12" y2="16" /><circle cx="12" cy="7" r=".7" fill="currentColor" /></svg>
+                      </button>
                       <button title="Editar" onClick={() => onAbrir(j.id)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
                       </button>
@@ -369,6 +382,7 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
               >
                 {!j.portada_url && <span className="hint" style={{ fontSize: 11 }}>Sin portada</span>}
                 {j.publicado && <span className="flag" />}
+                <span className="card-info" title="Ver detalles" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDetalleId(j.id); }}>i</span>
               </div>
               <div className="meta">
                 <div className="nm">{j.nombre}</div>
@@ -398,6 +412,36 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
               <button disabled={pag === paginas} onClick={() => setPagina(pag + 1)} aria-label="Siguiente">›</button>
             </div>
           )}
+        </div>
+      )}
+
+      {detalle && (
+        <div className="detail-overlay" onClick={() => setDetalleId(null)}>
+          <aside className="game-detail" onClick={(e) => e.stopPropagation()}>
+            <div className="detail-top">
+              <div><span className="eyebrow">DETALLE DEL JUEGO</span><h3>{detalle.nombre}</h3></div>
+              <button className="icon-btn" onClick={() => setDetalleId(null)} aria-label="Cerrar">×</button>
+            </div>
+            <div className="detail-cover" style={detalle.portada_url ? { backgroundImage: `url('${detalle.portada_url}')` } : undefined}>
+              {!detalle.portada_url && <span>Sin portada</span>}
+              <span className={`badge ${detalle.estado}`}>{ESTADOS[detalle.estado]}</span>
+            </div>
+            <div className="detail-grid">
+              <div><span>Motor</span><b>{motorCorto(detalle.motor)}</b></div>
+              <div><span>Versión</span><b>v{detalle.version || 1}</b></div>
+              <div><span>Actualizado</span><b>{hace(detalle.updated_at)}</b></div>
+              <div><span>Catálogo</span><b>{detalle.publicado ? 'Publicado' : 'No publicado'}</b></div>
+            </div>
+            <div className="detail-section">
+              <span className="detail-label">Identificación</span>
+              <code>{detalle.slug}</code>
+            </div>
+            <div className="detail-actions">
+              <button className="primary" onClick={() => { setDetalleId(null); onAbrir(detalle.id); }}>Editar juego</button>
+              <button onClick={() => duplicar(detalle)}>Duplicar</button>
+              <button onClick={() => { setDetalleId(null); onAbrir(detalle.id); }}>Previsualizar / configurar</button>
+            </div>
+          </aside>
         </div>
       )}
     </>
