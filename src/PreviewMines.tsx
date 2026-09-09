@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from './supabase.ts';
 import { TableroMines } from './TableroMines.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasConDefaults } from '../motor/fichas.js';
+import { fichasConDefaults, fichasVistaDe, parcheFichas } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjusteMinesControles } from './AjusteMinesControles.tsx';
 import { crearEscenario } from './juego/escenario.ts';
@@ -40,7 +40,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
   const modoFichas = fichasConDefaults(juego.fichas_cfg).modo;
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
-    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja, modo: fichasConDefaults(juego.fichas_cfg).modo };
+    const next = parcheFichas(juego, fs);
     supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
     (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
@@ -145,7 +145,7 @@ export function PreviewMines({ juego, onClose }: PreviewMinesProps) {
               editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
               onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
               onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
-              modo={modoFichas}
+              {...fichasVistaDe(juego)}
             />
           )}
         </>

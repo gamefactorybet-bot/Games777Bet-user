@@ -3,7 +3,7 @@ import { crearEscenario } from './juego/escenario.ts';
 import { Raspadita } from './Raspadita.tsx';
 import { RaspaditaMesa } from './RaspaditaMesa.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasDe, fichasSinCajaDe, fichasModoDe } from '../motor/fichas.js';
+import { fichasDe, fichasSinCajaDe, fichasVistaDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesRaspaDe } from './juego/raspadita.ts';
@@ -28,7 +28,7 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
   const cfg = useMemo(() => cfgDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
   const sinCaja = useMemo(() => fichasSinCajaDe(juego), [juego]);
-  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
+  const vistaFichas = useMemo(() => fichasVistaDe(juego), [juego]);
   const tema = useMemo(() => temaRaspaDe(cfg.tema), [cfg.tema]);
   const pos = useRef(posControlesRaspaDe(cfg)).current;
   const minBet = Number(juego.min_bet) || 1000;
@@ -152,7 +152,7 @@ export function JugarRaspadita({ datos, saldoInicial, slug, token }: JugarRaspad
               host={escRef.current.el} fichas={fichas} apuesta={estado.apuesta}
               bloqueado={!!tirada && !revelado}
               onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
-              modo={modoFichas}
+              {...vistaFichas}
             />
           )}
         </>

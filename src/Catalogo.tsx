@@ -1,14 +1,10 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { supabase } from './supabase.ts';
-import { Preview } from './Preview.tsx';
-import { PreviewMines } from './PreviewMines.tsx';
-import { PreviewRuleta } from './PreviewRuleta.tsx';
-import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
-import { PreviewCrash } from './PreviewCrash.tsx';
-import { PreviewPlinko } from './PreviewPlinko.tsx';
-import { PreviewRaspadita } from './PreviewRaspadita.tsx';
-import { PreviewLimbo } from './Limbo.tsx';
-import { PreviewDice } from './Dice.tsx';
+import {
+  Preview, PreviewMines, PreviewRuleta, PreviewRuletaBotones,
+  PreviewCrash, PreviewPlinko, PreviewRaspadita, PreviewLimbo,
+  PreviewDice, PreviewKeno, PreviewSieteUd, PreviewTorre,
+} from './previews-lazy.tsx';
 import type { Juego, Simbolo, Sonido, Efecto } from './types.ts';
 
 /**
@@ -29,6 +25,9 @@ export function Catalogo() {
   const [previewRaspa, setPreviewRaspa] = useState<Juego | null>(null);
   const [previewLimbo, setPreviewLimbo] = useState<Juego | null>(null);
   const [previewDice, setPreviewDice] = useState<Juego | null>(null);
+  const [previewKeno, setPreviewKeno] = useState<Juego | null>(null);
+  const [previewTorre, setPreviewTorre] = useState<Juego | null>(null);
+  const [previewSieteUd, setPreviewSieteUd] = useState<Juego | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -52,6 +51,9 @@ export function Catalogo() {
     if (juego.motor.startsWith('raspadita')) { setPreviewRaspa(juego); return; }
     if (juego.motor.startsWith('limbo')) { setPreviewLimbo(juego); return; }
     if (juego.motor.startsWith('dice')) { setPreviewDice(juego); return; }
+    if (juego.motor.startsWith('keno')) { setPreviewKeno(juego); return; }
+    if (juego.motor.startsWith('torre')) { setPreviewTorre(juego); return; }
+    if (juego.motor.startsWith('sieteud')) { setPreviewSieteUd(juego); return; }
     if (juego.motor === 'ruleta') {
       const { data } = await supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden');
       setPreviewRuleta({ juego, simbolos: (data as Simbolo[]) || [] });
@@ -108,15 +110,20 @@ export function Catalogo() {
         ))}
       </div>
 
-      {preview && <Preview {...preview} onClose={() => setPreview(null)} />}
-      {previewMines && <PreviewMines juego={previewMines} onClose={() => setPreviewMines(null)} />}
-      {previewRuleta && <PreviewRuleta {...previewRuleta} onClose={() => setPreviewRuleta(null)} />}
-      {previewBotones && <PreviewRuletaBotones juego={previewBotones} onClose={() => setPreviewBotones(null)} />}
-      {previewCrash && <PreviewCrash juego={previewCrash} onClose={() => setPreviewCrash(null)} />}
-      {previewPlinko && <PreviewPlinko juego={previewPlinko} onClose={() => setPreviewPlinko(null)} />}
-      {previewRaspa && <PreviewRaspadita juego={previewRaspa} onClose={() => setPreviewRaspa(null)} />}
-      {previewLimbo && <PreviewLimbo juego={previewLimbo} onClose={() => setPreviewLimbo(null)} />}
-      {previewDice && <PreviewDice juego={previewDice} onClose={() => setPreviewDice(null)} />}
+      <Suspense fallback={null}>
+        {preview && <Preview {...preview} onClose={() => setPreview(null)} />}
+        {previewMines && <PreviewMines juego={previewMines} onClose={() => setPreviewMines(null)} />}
+        {previewRuleta && <PreviewRuleta {...previewRuleta} onClose={() => setPreviewRuleta(null)} />}
+        {previewBotones && <PreviewRuletaBotones juego={previewBotones} onClose={() => setPreviewBotones(null)} />}
+        {previewCrash && <PreviewCrash juego={previewCrash} onClose={() => setPreviewCrash(null)} />}
+        {previewPlinko && <PreviewPlinko juego={previewPlinko} onClose={() => setPreviewPlinko(null)} />}
+        {previewRaspa && <PreviewRaspadita juego={previewRaspa} onClose={() => setPreviewRaspa(null)} />}
+        {previewLimbo && <PreviewLimbo juego={previewLimbo} onClose={() => setPreviewLimbo(null)} />}
+        {previewDice && <PreviewDice juego={previewDice} onClose={() => setPreviewDice(null)} />}
+        {previewKeno && <PreviewKeno juego={previewKeno} onClose={() => setPreviewKeno(null)} />}
+        {previewTorre && <PreviewTorre juego={previewTorre} onClose={() => setPreviewTorre(null)} />}
+        {previewSieteUd && <PreviewSieteUd juego={previewSieteUd} onClose={() => setPreviewSieteUd(null)} />}
+      </Suspense>
     </div>
   );
 }

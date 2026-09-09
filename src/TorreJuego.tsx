@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TorreEscalera } from './TorreEscalera.tsx';
 import { TorreMesa } from './TorreMesa.tsx';
 import { Fichas } from './Fichas.tsx';
+import { fichasVistaDe } from '../motor/fichas.js';
 import { estadoInicial } from './juego/torre.ts';
 import type { TemaTorre } from './juego/torre-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -157,7 +158,7 @@ export function TorreJuego({
         premioDemo={premioDemo} />
       {fichas.length > 0 && p.estado.fase === 'idle' && (
         <Fichas host={escenario.el} fichas={fichas} apuesta={p.estado.apuesta}
-          editable={fichasEditables} onElegir={p.setApuesta} onMover={onMoverFicha} modo={modoFichas} />
+          editable={fichasEditables} onElegir={p.setApuesta} onMover={onMoverFicha} {...fichasVistaDe(juego)} />
       )}
     </>
   );

@@ -12,6 +12,7 @@ import {
 } from '../../motor/mines-clasico.js';
 import type { CSSProperties } from 'react';
 import type { EstadoMines, Juego, PosControlesMines } from '../types.ts';
+import { temaMinesDe } from './mines-temas.ts';
 
 export const TOTAL: number = TOTAL_CASILLAS; // 25
 export const LADO = 5; // grilla 5×5
@@ -49,11 +50,12 @@ const CAMPO_IMAGEN: Record<Cara, keyof Juego> = {
 };
 
 export function casillaCara(juego: Juego, cara: Cara): CaraVisual {
+  const tema = temaMinesDe(juego.mines_tema);
   const defecto = cara === 'oculta'
-    ? { estilo: { background: 'var(--surface-alt)', border: '1px solid var(--border)' } as CSSProperties, emoji: null }
+    ? { estilo: { background: 'var(--mn-tile, var(--surface-alt))', border: '1px solid var(--mn-tile-border, var(--border))' } as CSSProperties, emoji: null }
     : cara === 'segura'
-      ? { estilo: { background: 'rgba(91,191,136,.14)', border: '1px solid var(--ok)' } as CSSProperties, emoji: '💎' }
-      : { estilo: { background: 'rgba(229,104,107,.16)', border: '1px solid var(--danger)' } as CSSProperties, emoji: '💣' };
+      ? { estilo: { background: 'var(--mn-safe-bg, rgba(91,191,136,.14))', border: '1px solid var(--mn-safe, var(--ok))' } as CSSProperties, emoji: tema.emojiSafe }
+      : { estilo: { background: 'var(--mn-mine-bg, rgba(229,104,107,.16))', border: '1px solid var(--mn-mine, var(--danger))' } as CSSProperties, emoji: tema.emojiMina };
 
   return {
     lottie: (juego[CAMPO_LOTTIE[cara]] as string) || null,

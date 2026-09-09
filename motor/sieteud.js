@@ -22,6 +22,7 @@ export const CFG_DEFAULT = {
   // Pagos fijados a mano por el operador. null / ausente = exacto por RTP.
   pagos: { abajo: null, siete: null, arriba: null },
   tema: 'clasico',
+  dadoMaterial: 'marfil',
   fondoPantallaUrl: null, // imagen detrás de todo (fondo de pantalla)
   fondoUrl: null,         // imagen del fieltro / mesa (donde caen los dados)
   velo: 0.5,              // opacidad del velo del color del fieltro sobre esa imagen (0.1–0.9)
@@ -43,6 +44,7 @@ export const CFG_DEFAULT = {
 };
 
 const FITS = ['cover', 'contain', 'fill'];
+const MATS_DADO = ['marfil', 'oro', 'cromo', 'cristal', 'rubi', 'onix'];
 function ajusteImg(v, def) {
   const o = obj(v);
   return {
@@ -81,6 +83,7 @@ function visualConDefaults(v) {
   const o = obj(v);
   return {
     tema: str(o.tema, CFG_DEFAULT.tema),
+    dadoMaterial: MATS_DADO.includes(o.dadoMaterial) ? o.dadoMaterial : CFG_DEFAULT.dadoMaterial,
     fondoPantallaUrl: urlPreset(o.fondoPantallaUrl),
     fondoUrl: urlPreset(o.fondoUrl),
     velo: clamp(num(o.velo, CFG_DEFAULT.velo), 0.1, 0.95),
@@ -159,6 +162,7 @@ export function cfgConDefaults(cfg) {
     caras,
     pagos,
     tema: str(c.tema, D.tema),
+    dadoMaterial: MATS_DADO.includes(c.dadoMaterial) ? c.dadoMaterial : D.dadoMaterial,
     fondoPantallaUrl: str(c.fondoPantallaUrl, null),
     fondoUrl: str(c.fondoUrl, null),
     velo: clamp(num(c.velo, D.velo), 0.1, 0.95),

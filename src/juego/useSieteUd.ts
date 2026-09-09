@@ -18,7 +18,7 @@ export interface EstadoSieteUd {
   fase: Fase;
   res: TiradaInstant | null;
   cartel: number | null; // monto del premio a mostrar en el cartel, o null
-  hist: { n: string; gano: boolean }[];
+  hist: { id: number; n: string; gano: boolean; zona: ZonaSieteUd }[];
 }
 
 export function useSieteUd(
@@ -34,11 +34,14 @@ export function useSieteUd(
   });
   const ref = useRef(est); ref.current = est;
   const vivo = useRef(true);
+  const histId = useRef(0);
   useEffect(() => () => { vivo.current = false; }, []);
 
   const setApuesta = useCallback((n: number) => setEst((e) => (e.fase === 'rolling' ? e : { ...e, apuesta: n })), []);
-  const setZona = useCallback((z: ZonaSieteUd) => setEst((e) => (e.fase === 'idle' ? { ...e, zona: z } : e)), []);
-  const reset = useCallback(() => setEst((e) => ({ ...e, fase: 'idle', res: null, cartel: null })), []);
+  const setZona = useCallback((z: ZonaSieteUd) => setEst((e) => (
+    e.fase === 'rolling' ? e : { ...e, zona: z, fase: 'idle', cartel: null }
+  )), []);
+  const reset = useCallback(() => setEst((e) => ({ ...e, fase: 'idle', cartel: null })), []);
 
   const jugar = useCallback(async () => {
     const cur = ref.current;
@@ -51,13 +54,25 @@ export function useSieteUd(
       await animar(dados);
       if (!vivo.current) return;
       const gano = !!r.resultado.gano;
+      const suma = r.resultado.suma ?? dados[0] + dados[1];
+      const lucky = suma === 7;
+      // Primero se ve la suma (y Lucky 7 en la mesa); el cartel espera un beat.
+      setEst((e) => ({ ...e, res: r.resultado, saldo: r.saldo }));
+      const reduce = typeof window !== 'undefined'
+        && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const beat = reduce ? 80 : lucky ? 420 : gano ? 300 : 160;
+      await new Promise((res) => setTimeout(res, beat));
+      if (!vivo.current) return;
       setEst((e) => ({
         ...e,
         fase: gano ? 'gano' : 'perdio',
-        res: r.resultado,
-        saldo: r.saldo,
         cartel: gano ? r.premio : null,
-        hist: [{ n: String(r.resultado.suma ?? dados[0] + dados[1]), gano }, ...e.hist].slice(0, 12),
+        hist: [{
+          id: ++histId.current,
+          n: String(suma),
+          gano,
+          zona: r.resultado.zonaGanadora || (suma === 7 ? 'siete' : suma < 7 ? 'abajo' : 'arriba'),
+        }, ...e.hist].slice(0, 12),
       }));
     } catch (err) {
       if (!vivo.current) return;

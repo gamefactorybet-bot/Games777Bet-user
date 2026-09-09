@@ -1,21 +1,40 @@
 import './styles.css';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 import { fetchJson } from './juego/recursos.ts';
 import { PantallaCarga } from './PantallaCarga.tsx';
-import { JugarSlot } from './JugarSlot.tsx';
-import { JugarMines } from './JugarMines.tsx';
-import { JugarRuleta } from './JugarRuleta.tsx';
-import { JugarRuletaBotones } from './JugarRuletaBotones.tsx';
-import { JugarCrash } from './JugarCrash.tsx';
-import { JugarPlinko } from './JugarPlinko.tsx';
-import { JugarRaspadita } from './JugarRaspadita.tsx';
-import { JugarLimbo } from './Limbo.tsx';
-import { JugarDice } from './Dice.tsx';
-import { JugarKeno } from './JugarKeno.tsx';
-import { JugarTorre } from './JugarTorre.tsx';
-import { JugarSieteUd } from './SieteUd.tsx';
 import type { DatosJuego } from './types.ts';
+
+type PropsJugar = { datos: DatosJuego; saldoInicial: number; slug: string; token: string };
+type CompJugar = ComponentType<PropsJugar>;
+
+const JugarSlot = lazy(() => import('./JugarSlot.tsx').then((m) => ({ default: m.JugarSlot })));
+const JugarMines = lazy(() => import('./JugarMines.tsx').then((m) => ({ default: m.JugarMines })));
+const JugarRuleta = lazy(() => import('./JugarRuleta.tsx').then((m) => ({ default: m.JugarRuleta })));
+const JugarRuletaBotones = lazy(() => import('./JugarRuletaBotones.tsx').then((m) => ({ default: m.JugarRuletaBotones })));
+const JugarCrash = lazy(() => import('./JugarCrash.tsx').then((m) => ({ default: m.JugarCrash })));
+const JugarPlinko = lazy(() => import('./JugarPlinko.tsx').then((m) => ({ default: m.JugarPlinko })));
+const JugarRaspadita = lazy(() => import('./JugarRaspadita.tsx').then((m) => ({ default: m.JugarRaspadita })));
+const JugarLimbo = lazy(() => import('./Limbo.tsx').then((m) => ({ default: m.JugarLimbo })));
+const JugarDice = lazy(() => import('./Dice.tsx').then((m) => ({ default: m.JugarDice })));
+const JugarKeno = lazy(() => import('./JugarKeno.tsx').then((m) => ({ default: m.JugarKeno })));
+const JugarTorre = lazy(() => import('./JugarTorre.tsx').then((m) => ({ default: m.JugarTorre })));
+const JugarSieteUd = lazy(() => import('./SieteUd.tsx').then((m) => ({ default: m.JugarSieteUd })));
+
+function pantallaDe(motor: string): CompJugar {
+  if (motor.startsWith('mines')) return JugarMines;
+  if (motor === 'ruleta') return JugarRuleta;
+  if (motor === 'ruleta-botones') return JugarRuletaBotones;
+  if (motor.startsWith('crash')) return JugarCrash;
+  if (motor.startsWith('plinko')) return JugarPlinko;
+  if (motor.startsWith('raspadita')) return JugarRaspadita;
+  if (motor.startsWith('limbo')) return JugarLimbo;
+  if (motor.startsWith('dice')) return JugarDice;
+  if (motor.startsWith('keno')) return JugarKeno;
+  if (motor.startsWith('sieteud')) return JugarSieteUd;
+  if (motor.startsWith('torre')) return JugarTorre;
+  return JugarSlot;
+}
 
 // Pantalla jugable real, sin login: la abre directo el jugador cuando
 // toca el juego en el portal de Win777, con ?slug=...&token=... en la
@@ -76,19 +95,12 @@ function Jugar() {
   }
 
   const props = { datos: estado.datos, saldoInicial: estado.saldo, slug: estado.slug, token: estado.token };
-  const motor = estado.datos.juego.motor;
-  if (motor.startsWith('mines')) return <JugarMines {...props} />;
-  if (motor === 'ruleta') return <JugarRuleta {...props} />;
-  if (motor === 'ruleta-botones') return <JugarRuletaBotones {...props} />;
-  if (motor.startsWith('crash')) return <JugarCrash {...props} />;
-  if (motor.startsWith('plinko')) return <JugarPlinko {...props} />;
-  if (motor.startsWith('raspadita')) return <JugarRaspadita {...props} />;
-  if (motor.startsWith('limbo')) return <JugarLimbo {...props} />;
-  if (motor.startsWith('dice')) return <JugarDice {...props} />;
-  if (motor.startsWith('keno')) return <JugarKeno {...props} />;
-  if (motor.startsWith('sieteud')) return <JugarSieteUd {...props} />;
-  if (motor.startsWith('torre')) return <JugarTorre {...props} />;
-  return <JugarSlot {...props} />;
+  const Pantalla = pantallaDe(estado.datos.juego.motor);
+  return (
+    <Suspense fallback={<PantallaCarga imagen={null} nombre="" hechos={0} total={1} visible />}>
+      <Pantalla {...props} />
+    </Suspense>
+  );
 }
 
 createRoot(document.getElementById('app')!).render(<Jugar />);

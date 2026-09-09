@@ -10,7 +10,7 @@
 // el juego usa sus controles de siempre.
 // =========================================================
 
-export const FICHAS_DEFAULT = { fichas: [], sinCaja: false, modo: 'fila' };
+export const FICHAS_DEFAULT = { fichas: [], sinCaja: false, modo: 'fila', abanicoApertura: 100, abanicoArco: 136 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -18,7 +18,7 @@ const str = (v, d) => (typeof v === 'string' && v ? v : d);
 
 /**
  * @param {{fichas?: unknown[], sinCaja?: boolean, modo?: string}} [cfg]
- * @returns {{sinCaja: boolean, modo: 'fila'|'abanico', fichas: Array<{valor:number, imagen_url:string|null, x:number, y:number, tam:number, imgTam:number}>}}
+ * @returns {{sinCaja: boolean, modo: 'fila'|'abanico', abanicoApertura: number, abanicoArco: number, fichas: Array<{valor:number, imagen_url:string|null, x:number, y:number, tam:number, imgTam:number}>}}
  */
 export function fichasConDefaults(cfg) {
   const arr = Array.isArray(cfg && cfg.fichas) ? cfg.fichas : [];
@@ -29,6 +29,10 @@ export function fichasConDefaults(cfg) {
     // 'abanico': se ve solo la ficha activa y las demás se abren al
     // tocarla. La posición de la ficha 0 hace de ancla del abanico.
     modo: cfg && cfg.modo === 'abanico' ? 'abanico' : 'fila',
+    // 100 = radio automático. 50 = más apretado, 200 = más lejos.
+    abanicoApertura: clamp(Math.round(num(cfg && cfg.abanicoApertura, 100)), 50, 220),
+    // Arco en grados (hacia arriba). 136 = el abanico original.
+    abanicoArco: clamp(Math.round(num(cfg && cfg.abanicoArco, 136)), 70, 180),
     fichas: arr
       .map((f) => {
         const o = f && typeof f === 'object' ? f : {};
@@ -62,4 +66,21 @@ export function fichasSinCajaDe(juego) {
  */
 export function fichasModoDe(juego) {
   return fichasConDefaults(juego && juego.fichas_cfg).modo;
+}
+
+/**
+ * Props de vista para <Fichas> / <FichasStrip>: modo + geometría del abanico.
+ * @returns {{ modo: 'fila'|'abanico', abanicoApertura: number, abanicoArco: number }}
+ */
+export function fichasVistaDe(juego) {
+  const c = fichasConDefaults(juego && juego.fichas_cfg);
+  return { modo: c.modo, abanicoApertura: c.abanicoApertura, abanicoArco: c.abanicoArco };
+}
+
+/**
+ * Reescribe solo el array de fichas, conservando modo / apertura / arco / sinCaja.
+ * Lo usan las vistas previas al arrastrar una ficha, para no pisar el resto.
+ */
+export function parcheFichas(juego, fichas) {
+  return { ...fichasConDefaults(juego && juego.fichas_cfg), fichas };
 }

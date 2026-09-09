@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { crearEscenario } from './juego/escenario.ts';
 import { RuletaJuego } from './RuletaJuego.tsx';
+import { FichasEnEscenario } from './Fichas.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -82,7 +83,10 @@ export function JugarRuleta({ datos, saldoInicial, slug, token }: JugarRuletaPro
     <>
       <div ref={hostRef} />
       {listo && escRef.current && (
-        <RuletaJuego escenario={escRef.current} simbolos={datos.simbolos} resolver={resolver} />
+        <>
+          <RuletaJuego escenario={escRef.current} simbolos={datos.simbolos} resolver={resolver} />
+          <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+        </>
       )}
       {pantallaMontada && (
         <PantallaCarga

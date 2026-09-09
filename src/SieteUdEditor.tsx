@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { subirArchivo } from './juego/subir.ts';
 import { Rango } from './AjustePanel.tsx';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
+import { SelectorPiel } from './SelectorPiel.tsx';
+import { MATERIALES_DADO } from './juego/dados3d.ts';
 import { probsZonas as _probs, rtpZona as _rtpZona, pagoRaw as _pagoRaw } from '../motor/sieteud.js';
 import {
   PIEZAS_SIETEUD, CONTROLES_SIETEUD_DEFAULT, FIT_OPC, ZONA_INFO, ZONAS, CFG_DEFAULT,
@@ -74,7 +76,7 @@ const copiar = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 function visualActual(cfg: SieteUdCfg, pos: PosControlesSieteUd): SieteUdVisualCfg {
   return copiar({
-    tema: cfg.tema, fondoPantallaUrl: cfg.fondoPantallaUrl, fondoUrl: cfg.fondoUrl, velo: cfg.velo,
+    tema: cfg.tema, dadoMaterial: cfg.dadoMaterial, fondoPantallaUrl: cfg.fondoPantallaUrl, fondoUrl: cfg.fondoUrl, velo: cfg.velo,
     cartelUrl: cfg.cartelUrl, botonImg: cfg.botonImg, arte: cfg.arte, controles: pos,
     editor: cfg.editor, estilos: cfg.estilos,
   });
@@ -106,6 +108,7 @@ function presetsBase(cfg: SieteUdCfg, pos: PosControlesSieteUd): SieteUdPreset[]
     visual.arte = copiar(ARTE_CLASICO);
     visual.estilos = copiar(ESTILOS_CLASICOS);
     visual.tema = p.tema;
+    visual.dadoMaterial = p.id === 'casino' ? 'oro' : p.id === 'neon' ? 'cristal' : p.id === 'minimalista' ? 'onix' : 'marfil';
     visual.velo = CFG_DEFAULT.velo;
     visual.fondoPantallaUrl = null; visual.fondoUrl = null; visual.cartelUrl = null; visual.botonImg = null;
     visual.estilos.zonas = { ...visual.estilos.zonas, fondo: p.fondo, borde: p.borde, acento: p.acento, seleccionado: p.seleccionado, gana: p.gana, pierde: p.pierde };
@@ -224,7 +227,18 @@ function TabEstilo({ cfg, onCfg }: { cfg: SieteUdCfg; onCfg: (patch: Partial<Sie
   const setBoton = (patch: Partial<typeof boton>) => onCfg({ estilos: { ...cfg.estilos, boton: { ...boton, ...patch } } });
   return (
     <>
-      <p className="hint" style={{ margin: '0 0 10px' }}>Definí el carácter de los controles. Los colores se ven al instante y no cambian las reglas ni los pagos.</p>
+      <p className="hint" style={{ margin: '0 0 10px' }}>Los dados son el centro del juego. El material no toca el RTP ni el tiro.</p>
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 7 }}>Material del dado</div>
+      <SelectorPiel
+        compact
+        valor={cfg.dadoMaterial || 'marfil'}
+        opciones={MATERIALES_DADO}
+        onSet={(id) => onCfg({ dadoMaterial: id })}
+      />
+      <p className="hint" style={{ margin: '8px 0 12px' }}>Marfil es el clásico de casino. Oro y cromo son metal. Cristal y rubí se ven translúcidos.</p>
+
+      <div style={{ borderTop: '1px solid var(--border-soft)', margin: '4px 0 10px' }} />
+      <p className="hint" style={{ margin: '0 0 10px' }}>Carácter de los controles. Se ve al instante.</p>
       <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 7 }}>Zonas de apuesta</div>
       <Color etiqueta="Fondo normal" valor={zonas.fondo} onCambio={(fondo) => setZonas({ fondo })} />
       <Color etiqueta="Borde normal" valor={zonas.borde} onCambio={(borde) => setZonas({ borde })} />
@@ -456,20 +470,12 @@ function TabJuego({ cfg, onCfg }: { cfg: SieteUdCfg; onCfg: (patch: Partial<Siet
         onClick={() => onCfg({ pagos: { abajo: null, siete: null, arriba: null } })}>Volver a pagos exactos por RTP</button>
 
       <div style={{ fontSize: 12, fontWeight: 600, margin: '14px 0 6px' }}>Tema</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 6 }}>
-        {TEMAS_INSTANT.map((t) => {
-          const on = (cfg.tema || 'clasico') === t.id;
-          return (
-            <button key={t.id} onClick={() => onCfg({ tema: t.id })} style={{
-              display: 'flex', flexDirection: 'column', gap: 4, padding: 6, textAlign: 'left', borderRadius: 8, cursor: 'pointer', fontSize: 11,
-              border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`, background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-            }}>
-              <span style={{ display: 'block', height: 14, borderRadius: 4, background: t.acento }} />
-              {t.nombre}
-            </button>
-          );
-        })}
-      </div>
+      <SelectorPiel
+        compact
+        valor={cfg.tema}
+        opciones={TEMAS_INSTANT.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.acento] }))}
+        onSet={(id) => onCfg({ tema: id })}
+      />
       <p className="hint" style={{ margin: '8px 0 0' }}>{`Pago actual: 7 abajo ${(_pagoRaw(cfg, 'abajo') as number).toFixed(2)}× · Lucky 7 ${(_pagoRaw(cfg, 'siete') as number).toFixed(2)}× · 7 arriba ${(_pagoRaw(cfg, 'arriba') as number).toFixed(2)}×`}</p>
     </>
   );

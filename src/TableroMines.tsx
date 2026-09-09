@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import { casillaCara, LADO, TOTAL } from './juego/mines.ts';
 import type { Cara, EstadoPartida } from './juego/mines.ts';
+import { aplicarTemaMines, temaMinesDe } from './juego/mines-temas.ts';
 import { montarLottieEn } from './lottie.ts';
 import { ControlesMines } from './ControlesMines.tsx';
 import type { Escenario } from './juego/escenario.ts';
@@ -74,12 +75,12 @@ function Casilla({
   // Textura de la casilla (campo fondo_url de Arte, en Mines por casilla).
   const textura = (juego.fondo_url as string) || null;
   const caraPlana = !usaLottie && !visual.imagen; // cara "por defecto" (solo tinte + emoji)
-  const tinte = caraPlana && cara === 'segura' ? 'rgba(91,191,136,.16)'
-    : caraPlana && cara === 'mina' ? 'rgba(229,104,107,.18)'
+  const tinte = caraPlana && cara === 'segura' ? 'var(--mn-safe-bg, rgba(91,191,136,.16))'
+    : caraPlana && cara === 'mina' ? 'var(--mn-mine-bg, rgba(229,104,107,.18))'
     : null;
-  const borde = cara === 'oculta' ? 'var(--border)'
+  const borde = cara === 'oculta' ? 'var(--mn-tile-border, var(--border))'
     : (usaLottie || visual.imagen) ? 'transparent'
-    : cara === 'segura' ? 'var(--ok)' : 'var(--danger)';
+    : cara === 'segura' ? 'var(--mn-safe, var(--ok))' : 'var(--mn-mine, var(--danger))';
 
   return (
     <button
@@ -88,7 +89,7 @@ function Casilla({
       aria-label="Casilla"
       style={{
         ...BOTON_CELDA,
-        background: textura ? `center/cover no-repeat url('${textura}')` : 'var(--surface-alt)',
+        background: textura ? `center/cover no-repeat url('${textura}')` : 'var(--mn-tile, var(--surface-alt))',
         borderColor: pendiente ? 'var(--accent)' : borde,
         cursor: destapable ? 'pointer' : 'default',
         opacity: atenuada ? 0.55 : 1,
@@ -165,16 +166,27 @@ export function TableroMines({
   escenario, pos, juego, estado, minBet, maxBet, pasoApuesta, ocultarApuesta, ocultarCaja,
   onIniciar, onRevelar, onRetirar, onCambiarApuesta, onCambiarMinas, onNueva,
 }: TableroMinesProps) {
+  const tema = useMemo(() => temaMinesDe(juego.mines_tema), [juego.mines_tema]);
+  const fondoPantalla = !!(juego.fondo_pantalla_url);
+
+  useEffect(() => aplicarTemaMines(escenario.el, tema, fondoPantalla), [escenario, tema, fondoPantalla]);
+
   return (
     <>
       {createPortal(<GrillaMines juego={juego} estado={estado} onRevelar={onRevelar} />, escenario.grillaEl)}
       {createPortal(
-        <ControlesMines
-          juego={juego} pos={pos} estado={estado}
-          minBet={minBet} maxBet={maxBet} pasoApuesta={pasoApuesta} ocultarApuesta={ocultarApuesta} ocultarCaja={ocultarCaja}
-          onIniciar={onIniciar} onRetirar={onRetirar} onNueva={onNueva}
-          onCambiarApuesta={onCambiarApuesta} onCambiarMinas={onCambiarMinas}
-        />,
+        <>
+          {tema.deco && (
+            <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', opacity: 0.7 }}
+              dangerouslySetInnerHTML={{ __html: tema.deco }} />
+          )}
+          <ControlesMines
+            juego={juego} pos={pos} estado={estado}
+            minBet={minBet} maxBet={maxBet} pasoApuesta={pasoApuesta} ocultarApuesta={ocultarApuesta} ocultarCaja={ocultarCaja}
+            onIniciar={onIniciar} onRetirar={onRetirar} onNueva={onNueva}
+            onCambiarApuesta={onCambiarApuesta} onCambiarMinas={onCambiarMinas}
+          />
+        </>,
         escenario.el,
       )}
     </>

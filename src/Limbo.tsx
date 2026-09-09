@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
 import { FichasStrip } from './Fichas.tsx';
-import { fichasDe, fichasModoDe } from '../motor/fichas.js';
+import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
 import { cfgConDefaults as _cfgLimbo, tirar as _tirarLimbo } from '../motor/limbo.js';
 import type { DatosJuego, Ficha, Juego, LimboCfg, ResultadoInstant, TiradaInstant } from './types.ts';
@@ -13,8 +13,8 @@ type Jugar = (objetivo: number, apuesta: number) => Promise<{ resultado: TiradaI
 
 // UI del Limbo. `onJugar` la resuelve el servidor (JugarLimbo) o el
 // motor local (PreviewLimbo).
-function LimboJuego({ cfg, fichas, modoFichas, saldoInicial, minBet, maxBet, paso, onJugar }: {
-  cfg: LimboCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, saldoInicial, minBet, maxBet, paso, onJugar }: {
+  cfg: LimboCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; abanicoApertura?: number; abanicoArco?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
 }) {
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
@@ -89,7 +89,7 @@ function LimboJuego({ cfg, fichas, modoFichas, saldoInicial, minBet, maxBet, pas
       </label>
 
       {fichas.length > 0 ? (
-        <FichasStrip fichas={fichas} apuesta={apuesta} bloqueado={fase === 'rolling'} onElegir={setApuesta} modo={modoFichas} />
+        <FichasStrip fichas={fichas} apuesta={apuesta} bloqueado={fase === 'rolling'} onElegir={setApuesta} modo={modoFichas} abanicoApertura={abanicoApertura} abanicoArco={abanicoArco} />
       ) : (
         <ApuestaControl apuesta={apuesta} minBet={minBet} maxBet={maxBet} paso={paso}
           ocupado={fase === 'rolling'} onApuesta={setApuesta} />
@@ -109,7 +109,7 @@ export function JugarLimbo({ datos, saldoInicial, slug, token }: {
   const juego = datos.juego;
   const cfg = useMemo(() => cfgLimboDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
-  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
+  const vistaFichas = useMemo(() => fichasVistaDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const [cargando, setCargando] = useState(true);
 
@@ -138,7 +138,7 @@ export function JugarLimbo({ datos, saldoInicial, slug, token }: {
       mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       cargando={cargando} cargaImagen={(juego.carga_url as string) || (juego.portada_url as string) || null}
     >
-      <LimboJuego cfg={cfg} fichas={fichas} modoFichas={modoFichas} saldoInicial={Number(saldoInicial)}
+      <LimboJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} saldoInicial={Number(saldoInicial)}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
     </InstantShell>
@@ -149,7 +149,7 @@ export function JugarLimbo({ datos, saldoInicial, slug, token }: {
 export function PreviewLimbo({ juego, onClose }: { juego: Juego; onClose: () => void }) {
   const cfg = useMemo(() => cfgLimboDe(juego), [juego]);
   const fichas = useMemo(() => fichasDe(juego), [juego]);
-  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
+  const vistaFichas = useMemo(() => fichasVistaDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const saldoRef = useRef(10000);
 
@@ -162,7 +162,7 @@ export function PreviewLimbo({ juego, onClose }: { juego: Juego; onClose: () => 
 
   return (
     <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}>
-      <LimboJuego cfg={cfg} fichas={fichas} modoFichas={modoFichas} saldoInicial={10000}
+      <LimboJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} saldoInicial={10000}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
         paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
     </InstantShell>

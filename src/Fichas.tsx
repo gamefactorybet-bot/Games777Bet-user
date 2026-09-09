@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import type { Ficha } from './types.ts';
+import { fichasConDefaults } from '../motor/fichas.js';
+import type { Ficha, Juego } from './types.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
 
@@ -19,12 +20,16 @@ interface FichasProps {
   /** 'fila' (por defecto): todas visibles. 'abanico': una sola ficha
    * (la ficha 0 hace de ancla), el resto se abre al tocarla. */
   modo?: 'fila' | 'abanico';
+  /** % del radio automático (50–220). 100 = el de siempre. */
+  abanicoApertura?: number;
+  /** Arco en grados hacia arriba (70–180). 136 = el de siempre. */
+  abanicoArco?: number;
 }
 
 // Fichas de apuesta rápida. Overlay puro: se monta por portal encima de
 // la pantalla del juego, sin tocar el resto de los controles. La misma
 // para todos los motores.
-export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, onMover, modo = 'fila' }: FichasProps) {
+export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, onMover, modo = 'fila', abanicoApertura = 100, abanicoArco = 136 }: FichasProps) {
   const dragRef = useRef<{ i: number; movido: boolean } | null>(null);
 
   if (modo === 'abanico') {
@@ -35,6 +40,7 @@ export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, o
         <Abanico
           fichas={fichas} apuesta={apuesta} onElegir={onElegir} bloqueado={bloqueado}
           host={host} x={ancla.x} y={ancla.y} ancho={host.getBoundingClientRect().width || 320}
+          apertura={abanicoApertura} arco={abanicoArco}
           editable={editable} onMover={onMover ? (nx, ny) => onMover(0, nx, ny) : undefined}
         />
       </div>,
@@ -140,17 +146,20 @@ interface FichasStripProps {
   bloqueado?: boolean;
   /** 'fila' (por defecto) o 'abanico' (una sola ficha, el resto se abre al tocarla). */
   modo?: 'fila' | 'abanico';
+  abanicoApertura?: number;
+  abanicoArco?: number;
 }
 
 // Tira de fichas para los juegos instantáneos (Limbo, Dice, 7 Up 7
 // Down): no hay escenario 420×860 para posicionar, así que van en una
 // fila centrada. Se respeta el valor, la imagen redonda y el tamaño de
 // cada ficha.
-export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila' }: FichasStripProps) {
+export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila', abanicoApertura = 100, abanicoArco = 136 }: FichasStripProps) {
   if (modo === 'abanico') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 20px' }}>
-        <Abanico fichas={fichas} apuesta={apuesta} onElegir={onElegir} bloqueado={bloqueado} ancho={340} />
+        <Abanico fichas={fichas} apuesta={apuesta} onElegir={onElegir} bloqueado={bloqueado} ancho={340}
+          apertura={abanicoApertura} arco={abanicoArco} />
       </div>
     );
   }
@@ -212,6 +221,58 @@ export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila
   );
 }
 
+function esparcirSiApiladas(fichas: Ficha[], gx: number, gy: number): Ficha[] {
+  if (fichas.length < 2) return fichas;
+  const x0 = fichas[0].x, y0 = fichas[0].y;
+  if (!fichas.every((f) => Math.abs(f.x - x0) < 1 && Math.abs(f.y - y0) < 1)) return fichas;
+  const paso = 14;
+  const start = gx - ((fichas.length - 1) * paso) / 2;
+  return fichas.map((f, k) => ({
+    ...f,
+    x: Math.max(6, Math.min(94, start + k * paso)),
+    y: gy,
+  }));
+}
+
+/** Overlay de fichas para slots / ruleta: el escenario esconde su tira HTML
+ *  y cada ficha se ubica (y se arrastra en la preview) como en Mines. */
+export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover }: {
+  juego: Juego;
+  escenario: { el: HTMLElement; apuesta: number; pintarApuesta: () => void; girando: boolean };
+  fichas?: Ficha[];
+  editable?: boolean;
+  onMover?: (i: number, x: number, y: number) => void;
+}) {
+  const cfg = fichasConDefaults(juego.fichas_cfg);
+  const [apuesta, setApuesta] = useState(escenario.apuesta);
+  const lista = fichas ?? cfg.fichas;
+  if (!lista.length) return null;
+  const gx = Number(juego.fichas_x ?? 50);
+  const gy = Number(juego.fichas_y ?? 88);
+  const visibles = cfg.modo === 'abanico' ? lista : esparcirSiApiladas(lista, gx, gy);
+  return (
+    <Fichas
+      host={escenario.el}
+      fichas={visibles}
+      apuesta={apuesta}
+      editable={editable}
+      onMover={onMover}
+      onElegir={(v) => {
+        if (escenario.girando) return;
+        escenario.apuesta = v;
+        escenario.pintarApuesta();
+        setApuesta(v);
+      }}
+      modo={cfg.modo}
+      abanicoApertura={cfg.abanicoApertura}
+      abanicoArco={cfg.abanicoArco}
+    />
+  );
+}
+
+/** @deprecated usar FichasEnEscenario */
+export const FichasSlotAbanico = FichasEnEscenario;
+
 /** Etiqueta corta para la ficha sin imagen: 1k, 5k, 1M… */
 function fichaCorto(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0) + 'M';
@@ -236,6 +297,10 @@ interface AbanicoProps {
   host?: HTMLElement;
   x?: number;
   y?: number;
+  /** % del radio automático. */
+  apertura?: number;
+  /** Arco en grados (hacia arriba). */
+  arco?: number;
 }
 
 /**
@@ -244,14 +309,16 @@ interface AbanicoProps {
  * todo se repliega solo. Pensado para no ocupar una franja fija de la
  * pantalla con todas las fichas a la vez.
  */
-function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, onMover, host, x, y }: AbanicoProps) {
+function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, onMover, host, x, y, apertura = 100, arco = 136 }: AbanicoProps) {
   const [abierto, setAbierto] = useState(false);
   const dragRef = useRef<{ movido: boolean } | null>(null);
 
   if (!fichas.length) return null;
   const activa = fichas.find((f) => Math.round(f.valor) === Math.round(apuesta)) ?? fichas[0];
   const resto = fichas.filter((f) => f !== activa);
-  const radio = Math.max(64, Math.min(112, ancho * 0.32));
+  const radioAuto = Math.max(64, Math.min(112, ancho * 0.32));
+  const radio = radioAuto * (Math.max(50, Math.min(220, apertura)) / 100);
+  const arcoDeg = Math.max(70, Math.min(180, arco));
   const n = resto.length;
 
   const elegir = (valor: number) => { onElegir(valor); setAbierto(false); };
@@ -325,7 +392,9 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
       </button>
 
       {resto.map((f, k) => {
-        const ang = n === 1 ? 90 : 158 + (22 - 158) * (k / (n - 1));
+        const start = 90 + arcoDeg / 2;
+        const end = 90 - arcoDeg / 2;
+        const ang = n === 1 ? 90 : start + (end - start) * (k / Math.max(1, n - 1));
         const rad = (ang * Math.PI) / 180;
         const tx = Math.cos(rad) * radio, ty = -Math.sin(rad) * radio;
         return (

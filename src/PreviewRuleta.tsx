@@ -4,11 +4,13 @@ import { supabase } from './supabase.ts';
 import { crearEscenario } from './juego/escenario.ts';
 import { cargarMotor } from '../motor/registro.js';
 import { RuletaJuego } from './RuletaJuego.tsx';
+import { FichasEnEscenario } from './Fichas.tsx';
 import { AjustePanel } from './AjustePanel.tsx';
+import { fichasConDefaults, parcheFichas } from '../motor/fichas.js';
 import type { Escenario } from './juego/escenario.ts';
 import type { MotorModulo } from './types.ts';
 import type { ResueltoRuleta } from './RuletaJuego.tsx';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, Juego, Simbolo } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, Ficha, Juego, Simbolo } from './types.ts';
 
 const MOTOR_STUB = { COLUMNAS: 1, FILAS: 1, FILA_PAGO: 0 };
 
@@ -28,6 +30,13 @@ export function PreviewRuleta({ juego, simbolos, onClose }: {
 
   const [listo, setListo] = useState(false);
   const [mostrarPanel, setMostrarPanel] = useState(false);
+  const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const guardarFichas = (fs: Ficha[]) => {
+    setFichas(fs);
+    const next = parcheFichas(juego, fs);
+    supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
+  };
 
   useEffect(() => {
     let cancelado = false;
@@ -86,7 +95,14 @@ export function PreviewRuleta({ juego, simbolos, onClose }: {
       <div ref={hostRef} />
 
       {listo && escRef.current && (
-        <RuletaJuego escenario={escRef.current} simbolos={simbolos} resolver={resolver} />
+        <>
+          <RuletaJuego escenario={escRef.current} simbolos={simbolos} resolver={resolver} />
+          <FichasEnEscenario
+            juego={juego} escenario={escRef.current} fichas={fichas}
+            editable
+            onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+          />
+        </>
       )}
 
       {listo && mostrarPanel && escRef.current && (

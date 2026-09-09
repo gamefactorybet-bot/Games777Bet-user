@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KenoTablero } from './KenoTablero.tsx';
 import { KenoMesa } from './KenoMesa.tsx';
 import { Fichas } from './Fichas.tsx';
+import { fichasVistaDe } from '../motor/fichas.js';
 import { estadoInicial, tablaDe } from './juego/keno.ts';
 import type { TemaKeno } from './juego/keno-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -119,7 +120,7 @@ export function KenoJuego({
           editable={fichasEditables}
           onElegir={p.setApuesta}
           onMover={onMoverFicha}
-          modo={modoFichas} />
+          {...fichasVistaDe(juego)} />
       )}
     </>
   );

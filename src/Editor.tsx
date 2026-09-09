@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { analizar, analizarRuleta } from './motor.ts';
 import { cargarMotor, MOTORES_DISPONIBLES } from '../motor/registro.js';
@@ -11,12 +11,11 @@ import {
 import type { Sugerencia } from './juego/calibracion.ts';
 import { montarLottieEn } from './lottie.ts';
 import { listarClientesActivos } from './Clientes.tsx';
-import { Preview } from './Preview.tsx';
-import { PreviewMines } from './PreviewMines.tsx';
-import { PreviewRuleta } from './PreviewRuleta.tsx';
-import { PreviewRuletaBotones } from './PreviewRuletaBotones.tsx';
-import { PreviewCrash } from './PreviewCrash.tsx';
-import { PreviewPlinko } from './PreviewPlinko.tsx';
+import {
+  Preview, PreviewMines, PreviewRuleta, PreviewRuletaBotones,
+  PreviewCrash, PreviewPlinko, PreviewRaspadita, PreviewLimbo,
+  PreviewDice, PreviewKeno, PreviewSieteUd, PreviewTorre,
+} from './previews-lazy.tsx';
 import { simularMines } from '../motor/mines-clasico.js';
 import {
   cfgDe as cfgBotonesDe, rtpPromedio as rtpBotonesPromedio, totalTajadas as totalTajadasBotones,
@@ -34,41 +33,30 @@ import { TEMAS as TEMAS_RASPA } from './juego/raspadita-temas.ts';
 import {
   cfgDe as cfgRaspaDe, metricasRTP as metricasRaspa, rtpPromedio as rtpRaspaPromedio,
 } from './juego/raspadita.ts';
-import { PreviewRaspadita } from './PreviewRaspadita.tsx';
 import { SeccionFichas } from './SeccionFichas.tsx';
-import { PreviewLimbo, cfgLimboDe } from './Limbo.tsx';
-import { PreviewDice, cfgDiceDe } from './Dice.tsx';
-import { PreviewKeno, cfgKenoDe } from './Keno.tsx';
-import { PreviewSieteUd } from './SieteUd.tsx';
-import { PreviewTorre, cfgTorreDe } from './Torre.tsx';
-import { rtpDe as rtpLimboDe } from '../motor/limbo.js';
-import { rtpDe as rtpDiceDe } from '../motor/dice.js';
+import { cfgConDefaults as cfgLimboRaw, rtpDe as rtpLimboDe } from '../motor/limbo.js';
+import { cfgConDefaults as cfgDiceRaw, rtpDe as rtpDiceDe } from '../motor/dice.js';
+import { cfgDe as cfgKenoDe } from './juego/keno.ts';
+import { cfgDe as cfgTorreDe } from './juego/torre.ts';
 import { rtpDe as rtpSieteUdDe } from '../motor/sieteud.js';
 import { rtpDe as rtpKenoDe, rtpTabla as rtpKenoTabla, tablaBase as tablaKenoBase } from '../motor/keno.js';
 import { rtpDe as rtpTorreDe, multBase as multTorreBase, rtpPiso as rtpTorrePiso, chanceZafar as chanceTorre } from '../motor/torre.js';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
 import { TEMAS as TEMAS_TORRE } from './juego/torre-temas.ts';
-import type { CrashCfg, DiceCfg, KenoCfg, LimboCfg, PlinkoCfg, RaspaCfg, SieteUdCfg, SimboloRaspa, TorreCfg } from './types.ts';
+import { capsDe, NIVELES_MESA, NIVELES_SLOT } from './juego/capacidades.ts';
+import { CardPiel } from './SelectorPiel.tsx';
+import { TEMAS as TEMAS_MINES } from './juego/mines-temas.ts';
 import type {
-  ClienteActivo, Efecto, EstadoJuego, Juego, PerfilRtp, RotacionRtp, RotacionEstado,
-  RotacionHistorialFila, RuletaBotonesCfg, Simbolo, Sonido,
+  ClienteActivo, CrashCfg, DiceCfg, Efecto, EstadoJuego, Juego, KenoCfg, LimboCfg,
+  PerfilRtp, PlinkoCfg, RaspaCfg, RotacionRtp, RotacionEstado, RotacionHistorialFila,
+  RuletaBotonesCfg, SieteUdCfg, Simbolo, SimboloRaspa, Sonido, TorreCfg,
 } from './types.ts';
 
+const cfgLimboDe = (juego: Juego): LimboCfg => cfgLimboRaw(juego.limbo_cfg) as LimboCfg;
+const cfgDiceDe = (juego: Juego): DiceCfg => cfgDiceRaw(juego.dice_cfg) as DiceCfg;
+
 const COLORES = ['#f87171', '#fbbf24', '#facc15', '#4ade80', '#38bdf8', '#a78bfa', '#f472b6', '#94a3b8'];
-
-const SONIDOS = [
-  { tipo: 'musica_fondo', etiqueta: 'Música de fondo' },
-  { tipo: 'giro', etiqueta: 'Sonido de giro' },
-  { tipo: 'premio_chico', etiqueta: 'Premio chico' },
-  { tipo: 'premio_grande', etiqueta: 'Premio grande' },
-] as const;
-
-const NIVELES = [
-  { valor: 'dos_iguales', etiqueta: 'Dos iguales' },
-  { valor: 'tres_iguales', etiqueta: 'Tres iguales' },
-  { valor: 'premio_mayor', etiqueta: 'Premio mayor' },
-];
 
 const DIGITOS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'];
 
@@ -111,21 +99,18 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const esKeno = juego.motor.startsWith('keno');
   const esSieteUd = juego.motor.startsWith('sieteud');
   const esTorre = juego.motor.startsWith('torre');
-  const esInstant = esLimbo || esDice || esKeno || esSieteUd;
-  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esTorre;
+  const esInstant = esLimbo || esDice || esSieteUd;
+  const sinSimbolos = esMines || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esKeno || esTorre;
+  const caps = useMemo(() => capsDe(juego.motor), [juego.motor]);
+  const nivelesEfecto = caps.efectosNivelesSlot ? NIVELES_SLOT : NIVELES_MESA;
+  const gruposVisibles = GRUPOS.filter((g) => g.id !== 'efectos' || caps.efectosCss);
   const [riveExpandido, setRiveExpandido] = useState<Set<number>>(new Set());
 
   const [previewAbierto, setPreviewAbierto] = useState(false);
 
-  // "Guardado hace Xs": un solo reloj para todo el editor. Se marca
-  // desde cualquier punto que realmente escriba en la base.
-  const ultimoGuardado = useRef<number | null>(null);
-  const [, tick] = useReducer((x: number) => x + 1, 0);
-  const marcarGuardado = () => { ultimoGuardado.current = Date.now(); tick(); };
-  useEffect(() => {
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+  // "Guardado hace Xs": el reloj vive en TextoGuardado, no redibuja el editor.
+  const [ultimoGuardado, setUltimoGuardado] = useState<number | null>(null);
+  const marcarGuardado = () => setUltimoGuardado(Date.now());
 
   const cargarSimbolos = useCallback(async () => {
     const { data } = await supabase.from('simbolos').select('*').eq('juego_id', juego.id).order('orden');
@@ -159,11 +144,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   // acá para saber cuántos rodillos usar en el RTP y el simulador.
   // Mines no es de rodillos, no hace falta.
   useEffect(() => {
-    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esTorre) return;
+    if (esMines || esRuleta || esRuletaBotones || esCrash || esPlinko || esRaspadita || esInstant || esKeno || esTorre) return;
     let vivo = true;
     cargarMotor(juego.motor).then((mod) => { if (vivo) setColumnasMotor(mod.COLUMNAS || 3); });
     return () => { vivo = false; };
-  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko, esRaspadita, esInstant, esTorre]);
+  }, [juego.motor, esMines, esRuleta, esRuletaBotones, esCrash, esPlinko, esRaspadita, esInstant, esKeno, esTorre]);
 
   // ---------------- Símbolos ----------------
   const setSimbolo = (i: number, patch: Partial<Simbolo>) => {
@@ -233,9 +218,10 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   };
 
   // ---------------- RTP ----------------
-  const analisisTiles = analizar(
+  const analisisTiles = useMemo(() => analizar(
     simbolos.length ? simbolos : [{ nombre: '-', peso: 1, pago_tres: 0, pago_dos: 0 } as unknown as Simbolo],
-  );
+    columnasMotor,
+  ), [simbolos, columnasMotor]);
   const rtpBotones = esRuletaBotones ? rtpBotonesPromedio(juego.ruleta_botones_cfg || {}) : 0;
   const rtpCrash = esCrash ? rtpTeoricoCrash(juego.crash_cfg || {}) * 100 : 0;
   const rtpPlinko = esPlinko ? rtpPlinkoPromedio(juego.plinko_cfg || {}) * 100 : 0;
@@ -244,7 +230,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   const rtpDice = esDice ? (rtpDiceDe(juego.dice_cfg || {}) as number) * 100 : 0;
   const rtpKeno = esKeno ? (rtpKenoDe(juego.keno_cfg || {}) as number) * 100 : 0;
   const rtpSieteUd = esSieteUd ? (rtpSieteUdDe(juego.sieteud_cfg || {}) as number) * 100 : 0;
-  const rtpInstant = esLimbo ? rtpLimbo : esDice ? rtpDice : esSieteUd ? rtpSieteUd : rtpKeno;
+  const rtpInstant = esLimbo ? rtpLimbo : esDice ? rtpDice : rtpSieteUd;
   const rtpTorre = esTorre ? (rtpTorreDe(juego.torre_cfg || {}) as number) * 100 : 0;
   const rtpReal = esRuletaBotones
     ? rtpBotones
@@ -270,6 +256,8 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         ? (rtpPlinko <= 0 || rtpPlinko > 100)
       : esRaspadita
         ? (rtpRaspa <= 0 || rtpRaspa > 100)
+      : esKeno
+        ? (rtpKeno <= 0 || rtpKeno > 100)
       : esInstant
         ? (rtpInstant <= 0 || rtpInstant > 100)
       : esTorre
@@ -279,7 +267,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           : esRuleta
             ? (!simbolos.length || rtpReal > 100)
             : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
-    sonido: !sonidos.length,
+    sonido: caps.familia === 'rodillos' && !sonidos.length,
     efectos: false,
   };
 
@@ -512,6 +500,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         avisos.push('No hay ningún símbolo de relleno (sin premio) — con grillas grandes puede costar armar tarjetas sin premio de más.');
       if (rtpRaspa > 100) errores.push(`El RTP es ${rtpRaspa.toFixed(1)}% — la casa pierde plata en cada tarjeta.`);
       else if (rtpRaspa < 85 || rtpRaspa > 99) avisos.push(`RTP de ${rtpRaspa.toFixed(1)}%, fuera del rango habitual (85-99%).`);
+    } else if (esKeno) {
+      if (rtpKeno > 100) errores.push(`El RTP es ${rtpKeno.toFixed(1)}% — la casa pierde plata en cada jugada.`);
+      else if (rtpKeno < 85 || rtpKeno > 99) avisos.push(`RTP de ${rtpKeno.toFixed(1)}%, fuera del rango habitual (85-99%).`);
     } else if (esInstant) {
       if (rtpInstant > 100) errores.push(`El RTP es ${rtpInstant.toFixed(1)}% — la casa pierde plata en cada jugada.`);
       else if (rtpInstant < 85 || rtpInstant > 99) avisos.push(`RTP de ${rtpInstant.toFixed(1)}%, fuera del rango habitual (85-99%).`);
@@ -532,9 +523,9 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esTorre && !sonidos.length) avisos.push('Sin sonidos cargados.');
+    if (caps.familia === 'rodillos' && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
-    if (!esMines && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esTorre && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
+    if (caps.girar && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
   };
 
@@ -593,12 +584,6 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
   };
 
   // ---------------- Render ----------------
-  const guardadoTxt = (() => {
-    if (!ultimoGuardado.current) return '';
-    const seg = Math.round((Date.now() - ultimoGuardado.current) / 1000);
-    return seg < 2 ? 'Guardado ✓' : `Guardado hace ${seg}s`;
-  })();
-
   const motorEtiqueta = MOTORES_DISPONIBLES.find((m) => m.valor === juego.motor)?.etiqueta || juego.motor || 'motor desconocido';
 
   return (
@@ -615,21 +600,21 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <p className="hint" style={{ margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className={`badge ${juego.estado}`}>{ETIQUETA_ESTADO[juego.estado]}</span>
             <span className="ed-resumen-chip">{motorEtiqueta}</span>
-            <span>{guardadoTxt}</span>
+            <TextoGuardado ts={ultimoGuardado} />
           </p>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="ed-resumen-fila" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRaspadita ? rtpRaspa.toFixed(1) + '%' : esInstant ? rtpInstant.toFixed(1) + '%' : esTorre ? rtpTorre.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
+          <span className="ed-resumen-chip">RTP {esMines ? '--' : esCrash ? rtpCrash.toFixed(1) + '%' : esPlinko ? rtpPlinko.toFixed(1) + '%' : esRaspadita ? rtpRaspa.toFixed(1) + '%' : esKeno ? rtpKeno.toFixed(1) + '%' : esInstant ? rtpInstant.toFixed(1) + '%' : esTorre ? rtpTorre.toFixed(1) + '%' : esRuletaBotones ? rtpBotones.toFixed(1) + '%' : (simbolos.length ? rtpReal.toFixed(1) + '%' : '--')}</span>
           <span className="ed-resumen-chip">versión {juego.version || 1}</span>
           <span className="ed-resumen-chip">{juego.publicado ? 'publicado ✓' : 'sin publicar'}</span>
         </div>
       </div>
 
       <div className="grupo-nav" style={{ marginBottom: 16 }}>
-        {GRUPOS.map((g) => (
+        {gruposVisibles.map((g) => (
           <button key={g.id} className={`grupo-btn ${g.id === grupo ? 'on' : ''}`} onClick={() => setGrupo(g.id)}>
             <span className={`grupo-punto ${puntos[g.id] ? 'alerta' : ''}`} />{g.etiqueta}
           </button>
@@ -690,12 +675,16 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
       {grupo === 'arte' && (
         <div className="card fade-in">
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
-          <p className="hint" style={{ marginBottom: 14 }}>Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar posición" en la Vista previa, viendo el resultado en vivo sobre el tamaño real del celular.</p>
+          <p className="hint" style={{ marginBottom: 14 }}>
+            {caps.capasEscenario
+              ? 'Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar" en la Vista previa, sobre el tamaño real del celular.'
+              : 'Portada del catálogo, pantalla de carga y el fondo que ve el jugador. El resto del diseño se hace en la Vista previa.'}
+          </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            {!esSieteUd && <SubirImagen juego={juego} campo="fondo_url" etiqueta={esMines ? 'Textura de la casilla' : (esRuleta || esRuletaBotones) ? 'Fondo detrás de la rueda' : esCrash ? 'Fondo del área de juego' : esPlinko ? 'Fondo del tablero' : (esRaspadita || esInstant || esTorre) ? 'Fondo del área de juego' : 'Fondo del rodillo'} onSet={setImagen} />}
-            {!esSieteUd && <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />}
-            {!esSieteUd && <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />}
-            {!esSieteUd && <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />}
+            {caps.fondoArea && <SubirImagen juego={juego} campo="fondo_url" etiqueta={caps.etiquetaFondoArea} onSet={setImagen} />}
+            {caps.capasEscenario && <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />}
+            {caps.capasEscenario && <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />}
+            {caps.capasEscenario && <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />}
             <SubirImagen juego={juego} campo="portada_url" etiqueta="Portada (catálogo)" onSet={setImagen} />
             <SubirImagen juego={juego} campo="carga_url" etiqueta="Pantalla de carga" onSet={setImagen} />
           </div>
@@ -743,7 +732,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <SeccionArteTorre juego={juego} onCampo={guardarCampoJuego} />
       )}
 
-      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esTorre && (
+      {grupo === 'jugabilidad' && !esMines && !esRuleta && !esRuletaBotones && !esCrash && !esPlinko && !esRaspadita && !esInstant && !esKeno && !esTorre && (
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -818,9 +807,15 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         <div className="fade-in">
           <div className="card" style={{ marginBottom: 16 }}>
             <strong style={{ fontSize: 15 }}>Sonidos</strong>
-            <p className="hint" style={{ marginBottom: 14 }}>Archivos cortos (mp3 u ogg). La música arranca con el primer toque del jugador.</p>
+            <p className="hint" style={{ marginBottom: 14 }}>
+              {caps.familia === 'rodillos'
+                ? 'Archivos cortos (mp3 u ogg). La música arranca con el primer toque del jugador.'
+                : caps.familia === 'mesa'
+                  ? 'Opcional. Música de fondo, un sonido al jugar y otro al ganar. Archivos cortos (mp3 u ogg).'
+                  : 'Opcional. Música de fondo y un sonido al ganar o perder. Archivos cortos (mp3 u ogg).'}
+            </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
-              {SONIDOS.map((s) => {
+              {caps.sonidos.map((s) => {
                 const existe = sonidos.some((x) => x.tipo === s.tipo);
                 return (
                   <label key={s.tipo} style={{ background: 'var(--surface-alt)', borderRadius: 10, padding: 12, textAlign: 'center', cursor: 'pointer', display: 'block' }}>
@@ -834,7 +829,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
             </div>
           </div>
 
-          <div className="card">
+          {caps.digitosPremio && <div className="card">
             <strong style={{ fontSize: 15 }}>Dígitos del monto ganado</strong>
             <p className="hint" style={{ marginBottom: 14 }}>Opcional: subí un ícono por carácter (0-9 y el punto) para mostrar el monto ganado con tu propio estilo en vez de texto. Lo que no subas se sigue mostrando como texto normal.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(52px,1fr))', gap: 8, maxWidth: 440 }}>
@@ -855,17 +850,21 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                 );
               })}
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
-      {grupo === 'efectos' && (
+      {grupo === 'efectos' && caps.efectosCss && (
         <div className="card fade-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <strong style={{ fontSize: 15, flex: 1 }}>Efectos</strong>
             <button onClick={nuevoEfecto}>+ Nuevo efecto</button>
           </div>
-          <p className="hint" style={{ marginBottom: 14 }}>Animaciones CSS. Las de carcasa se ven siempre; las de premio disparan al ganar.</p>
+          <p className="hint" style={{ marginBottom: 14 }}>
+            {caps.efectosNivelesSlot
+              ? 'Animaciones CSS. Las de carcasa se ven siempre; las de premio disparan al ganar (dos iguales, tres, premio mayor).'
+              : 'Animaciones CSS sobre el escenario. Las de carcasa se ven siempre; las de premio disparan al ganar o en el premio grande. No hay “dos iguales”: este motor no es de rodillos.'}
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {efectos.length === 0 && <p className="hint">Sin efectos todavía. Agregá uno y pegá el CSS de la animación.</p>}
             {efectos.map((ef, i) => (
@@ -880,11 +879,11 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
                 </div>
                 {ef.tipo === 'premio' && (
                   <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <select value={ef.nivel_premio || 'dos_iguales'} onChange={(e) => cambiarEfecto(i, 'nivel_premio', e.target.value)} style={{ width: 'auto' }}>
-                      {NIVELES.map((n) => <option key={n.valor} value={n.valor}>{n.etiqueta}</option>)}
+                    <select value={ef.nivel_premio || nivelesEfecto[0].valor} onChange={(e) => cambiarEfecto(i, 'nivel_premio', e.target.value)} style={{ width: 'auto' }}>
+                      {nivelesEfecto.map((n) => <option key={n.valor} value={n.valor}>{n.etiqueta}</option>)}
                     </select>
-                    <select value={ef.posicion || 'linea'} onChange={(e) => cambiarEfecto(i, 'posicion', e.target.value)} style={{ width: 'auto' }}>
-                      <option value="linea">Sobre la línea</option>
+                    <select value={ef.posicion || (caps.efectosNivelesSlot ? 'linea' : 'pantalla')} onChange={(e) => cambiarEfecto(i, 'posicion', e.target.value)} style={{ width: 'auto' }}>
+                      {caps.efectosNivelesSlot && <option value="linea">Sobre la línea</option>}
                       <option value="pantalla">Toda la pantalla</option>
                     </select>
                   </div>
@@ -896,32 +895,47 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
         </div>
       )}
 
-      {previewAbierto && (esMines
-        ? <PreviewMines juego={juego} onClose={() => setPreviewAbierto(false)} />
-        : esRuleta
-          ? <PreviewRuleta juego={juego} simbolos={simbolos} onClose={() => setPreviewAbierto(false)} />
-          : esRuletaBotones
-            ? <PreviewRuletaBotones juego={juego} onClose={() => setPreviewAbierto(false)} />
-            : esCrash
-              ? <PreviewCrash juego={juego} onClose={() => setPreviewAbierto(false)} />
-              : esPlinko
-                ? <PreviewPlinko juego={juego} onClose={() => setPreviewAbierto(false)} />
-                : esRaspadita
-                  ? <PreviewRaspadita juego={juego} onClose={() => setPreviewAbierto(false)} />
-                  : esLimbo
-                    ? <PreviewLimbo juego={juego} onClose={() => setPreviewAbierto(false)} />
-                    : esDice
-                      ? <PreviewDice juego={juego} onClose={() => setPreviewAbierto(false)} />
-                    : esKeno
-                      ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
-                    : esSieteUd
-                      ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} onGuardarCfg={guardarSieteUdCfg} onGuardarJuego={guardarCamposJuego} />
-                    : esTorre
-                      ? <PreviewTorre juego={juego} onClose={() => setPreviewAbierto(false)} />
-                      : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />
+      {previewAbierto && (
+        <Suspense fallback={<p className="hint" style={{ padding: 24 }}>Cargando vista previa…</p>}>
+          {esMines
+            ? <PreviewMines juego={juego} onClose={() => setPreviewAbierto(false)} />
+            : esRuleta
+              ? <PreviewRuleta juego={juego} simbolos={simbolos} onClose={() => setPreviewAbierto(false)} />
+              : esRuletaBotones
+                ? <PreviewRuletaBotones juego={juego} onClose={() => setPreviewAbierto(false)} />
+                : esCrash
+                  ? <PreviewCrash juego={juego} onClose={() => setPreviewAbierto(false)} />
+                  : esPlinko
+                    ? <PreviewPlinko juego={juego} onClose={() => setPreviewAbierto(false)} />
+                    : esRaspadita
+                      ? <PreviewRaspadita juego={juego} onClose={() => setPreviewAbierto(false)} />
+                      : esLimbo
+                        ? <PreviewLimbo juego={juego} onClose={() => setPreviewAbierto(false)} />
+                        : esDice
+                          ? <PreviewDice juego={juego} onClose={() => setPreviewAbierto(false)} />
+                          : esKeno
+                            ? <PreviewKeno juego={juego} onClose={() => setPreviewAbierto(false)} />
+                            : esSieteUd
+                              ? <PreviewSieteUd juego={juego} onClose={() => setPreviewAbierto(false)} onGuardarCfg={guardarSieteUdCfg} onGuardarJuego={guardarCamposJuego} />
+                              : esTorre
+                                ? <PreviewTorre juego={juego} onClose={() => setPreviewAbierto(false)} />
+                                : <Preview juego={juego} simbolos={simbolos} sonidos={sonidos} efectos={efectos} onClose={() => setPreviewAbierto(false)} />}
+        </Suspense>
       )}
     </>
   );
+}
+
+function TextoGuardado({ ts }: { ts: number | null }) {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    if (ts == null) return;
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [ts]);
+  if (ts == null) return null;
+  const seg = Math.round((ahora - ts) / 1000);
+  return <span>{seg < 2 ? 'Guardado ✓' : `Guardado hace ${seg}s`}</span>;
 }
 
 function Tile({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -1017,6 +1031,13 @@ function SeccionMines({ juego, onCampo, onCampos }: SeccionMinesProps) {
           <p className="hint" style={{ margin: 0 }}>{simOut}</p>
         </div>
       </div>
+
+      <CardPiel
+        valor={juego.mines_tema}
+        opciones={TEMAS_MINES.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.safe, t.mine] }))}
+        onSet={(id) => onCampo('mines_tema', id)}
+        hint="Fondo, colores y las caras por defecto (💎/💣 cambian con la piel). Si subís imagen o Lottie a una casilla, esa cara no usa el emoji del tema. No toca el margen ni el RTP."
+      />
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -1331,32 +1352,15 @@ function SeccionRuletaBotones({ juego, onCampo }: {
 
   return (
     <div className="fade-in">
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Tema visual</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>
-          Cambia el aspecto de la rueda y la mesa en la pantalla del jugador (fondo, colores,
-          tipografía). No toca la matemática ni el RTP. <b>Clásico</b> = como estaba.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-          {TEMAS_RULETA.map((t) => {
-            const activo = (cfg.tema || 'clasico') === t.id;
-            const muestra = t.seg || cfg.numeros.map((n) => n.color);
-            return (
-              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
-                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left',
-                borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                background: activo ? 'var(--accent-soft)' : 'var(--surface-alt)',
-              }}>
-                <span style={{ display: 'flex', height: 20, borderRadius: 5, overflow: 'hidden' }}>
-                  {muestra.slice(0, 9).map((c, j) => <span key={j} style={{ flex: 1, background: c }} />)}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_RULETA.map((t) => ({
+          id: t.id, nombre: t.nombre,
+          colores: (t.seg || cfg.numeros.map((n) => n.color)).slice(0, 9),
+        }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+        hint="Cambia el aspecto de la rueda y la mesa (fondo, colores, tipografía). No toca la matemática ni el RTP. Clásico = como estaba."
+      />
 
       <div className="card" style={{ marginBottom: 16 }}>
         <strong style={{ fontSize: 15 }}>Los números</strong>
@@ -1649,28 +1653,11 @@ function SeccionCrash({ juego, onCampo }: {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Tema visual</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Cambia fondo, colores y tipografía. <b>Clásico</b> = hereda del panel.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-          {TEMAS_CRASH.map((t) => {
-            const on = (cfg.tema || 'clasico') === t.id;
-            return (
-              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
-                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-              }}>
-                <span style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden' }}>
-                  <span style={{ flex: 2, background: t.trazo }} />
-                  <span style={{ flex: 1, background: t.objeto }} />
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_CRASH.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.trazo, t.objeto] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+      />
 
       <div className="card" style={{ marginBottom: 16 }}>
         <strong style={{ fontSize: 15 }}>El objeto que vuela</strong>
@@ -1912,28 +1899,11 @@ function SeccionPlinko({ juego, onCampo }: {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Tema visual</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-          {TEMAS_PLINKO.map((t) => {
-            const on = (cfg.tema || 'clasico') === t.id;
-            return (
-              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
-                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-              }}>
-                <span style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden' }}>
-                  <span style={{ flex: 2, background: t.bola }} />
-                  <span style={{ flex: 1, background: t.clavo }} />
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_PLINKO.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.bola, t.clavo] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+      />
 
       <div className="card">
         <strong style={{ fontSize: 15 }}>La bolita</strong>
@@ -2193,28 +2163,11 @@ function SeccionRaspadita({ juego, onCampo }: {
         </p>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 15 }}>Tema visual</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-          {TEMAS_RASPA.map((t) => {
-            const on = (cfg.tema || 'clasico') === t.id;
-            return (
-              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
-                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-              }}>
-                <span style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden' }}>
-                  <span style={{ flex: 2, background: t.cobertura }} />
-                  <span style={{ flex: 1, background: t.ganar }} />
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_RASPA.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.cobertura, t.ganar] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+      />
 
       <div className="card">
         <strong style={{ fontSize: 15 }}>Aspecto de la tarjeta</strong>
@@ -2337,7 +2290,12 @@ function SeccionLimbo({ juego, onCampo }: {
         <p className="hint" style={{ margin: 0 }}>{msg}</p>
       </div>
 
-      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_INSTANT.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.acento] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+        hint="Fondo, colores y tipografía. Clásico = hereda del panel. El fondo de pantalla propio se sube en Arte."
+      />
     </div>
   );
 }
@@ -2397,7 +2355,12 @@ function SeccionDice({ juego, onCampo }: {
         <p className="hint" style={{ margin: '10px 0 0' }}>{msg}</p>
       </div>
 
-      <TemaInstantSelector valor={cfg.tema} onSet={(id) => guardar({ ...cfg, tema: id })} />
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_INSTANT.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.acento] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+        hint="Fondo, colores y tipografía. Clásico = hereda del panel. El fondo de pantalla propio se sube en Arte."
+      />
     </div>
   );
 }
@@ -2549,25 +2512,12 @@ function SeccionKeno({ juego, onCampo }: {
         </div>
       </div>
 
-      <div className="card">
-        <strong style={{ fontSize: 15 }}>Tema visual</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel. El fondo de pantalla propio se sube en <b>Arte</b>. Los controles se ubican en la <b>Vista previa</b> (⚙ Ajustar).</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-          {TEMAS_KENO.map((t) => {
-            const on = (cfg.tema || 'clasico') === t.id;
-            return (
-              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
-                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-              }}>
-                <span style={{ display: 'block', height: 18, borderRadius: 5, background: t.acento }} />
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_KENO.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.acento] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+        hint="Fondo, colores y tipografía. Clásico = hereda del panel. El fondo de pantalla propio se sube en Arte. Los controles se ubican en la Vista previa (⚙ Ajustar)."
+      />
     </div>
   );
 }
@@ -2694,25 +2644,12 @@ function SeccionTorre({ juego, onCampo }: {
         </div>
       </div>
 
-      <div className="card">
-        <strong style={{ fontSize: 15 }}>Tema visual</strong>
-        <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel. Los controles se ubican en la <b>Vista previa</b> (⚙ Ajustar).</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-          {TEMAS_TORRE.map((t) => {
-            const on = (cfg.tema || 'clasico') === t.id;
-            return (
-              <button key={t.id} onClick={() => guardar({ ...cfg, tema: t.id })} style={{
-                display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-              }}>
-                <span style={{ display: 'block', height: 18, borderRadius: 5, background: t.acento }} />
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CardPiel
+        valor={cfg.tema}
+        opciones={TEMAS_TORRE.map((t) => ({ id: t.id, nombre: t.nombre, colores: [t.acento] }))}
+        onSet={(id) => guardar({ ...cfg, tema: id })}
+        hint="Fondo, colores y tipografía. Clásico = hereda del panel. Los controles se ubican en la Vista previa (⚙ Ajustar)."
+      />
     </div>
   );
 }
@@ -2788,29 +2725,7 @@ function probKeno(T: number, D: number, P: number, h: number): number {
   return v === -Infinity ? 0 : Math.exp(v);
 }
 
-function TemaInstantSelector({ valor, onSet }: { valor: string; onSet: (id: string) => void }) {
-  return (
-    <div className="card">
-      <strong style={{ fontSize: 15 }}>Tema visual</strong>
-      <p className="hint" style={{ marginBottom: 12 }}>Fondo, colores y tipografía. <b>Clásico</b> = hereda del panel. El fondo de pantalla propio se sube en <b>Arte</b>.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 8 }}>
-        {TEMAS_INSTANT.map((t) => {
-          const on = (valor || 'clasico') === t.id;
-          return (
-            <button key={t.id} onClick={() => onSet(t.id)} style={{
-              display: 'flex', flexDirection: 'column', gap: 6, padding: 8, textAlign: 'left', borderRadius: 10, cursor: 'pointer',
-              border: `2px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-              background: on ? 'var(--accent-soft)' : 'var(--surface-alt)',
-            }}>
-              <span style={{ display: 'block', height: 18, borderRadius: 5, background: t.acento }} />
-              <span style={{ fontSize: 12, fontWeight: 700 }}>{t.nombre}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+
 
 // ---------------- Calibración de RTP + perfiles ("modos de pago") ----------------
 

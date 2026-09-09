@@ -5,7 +5,7 @@ import { crearEscenario } from './juego/escenario.ts';
 import { Raspadita } from './Raspadita.tsx';
 import { RaspaditaMesa } from './RaspaditaMesa.tsx';
 import { Fichas } from './Fichas.tsx';
-import { fichasConDefaults } from '../motor/fichas.js';
+import { fichasConDefaults, fichasVistaDe, parcheFichas } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjusteRaspaControles } from './AjusteRaspaControles.tsx';
 import { cfgDe, estadoInicial, posControlesRaspaDe, jugarLocal } from './juego/raspadita.ts';
@@ -38,7 +38,7 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
   const modoFichas = fichasConDefaults(juego.fichas_cfg).modo;
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
-    const next = { fichas: fs, sinCaja: !!fichasConDefaults(juego.fichas_cfg).sinCaja, modo: fichasConDefaults(juego.fichas_cfg).modo };
+    const next = parcheFichas(juego, fs);
     supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
     (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
@@ -122,7 +122,7 @@ export function PreviewRaspadita({ juego, onClose }: { juego: Juego; onClose: ()
               editable={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
               onElegir={(v) => setEstado((e) => ({ ...e, apuesta: v }))}
               onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
-              modo={modoFichas}
+              {...fichasVistaDe(juego)}
             />
           )}
         </>

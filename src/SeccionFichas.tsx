@@ -16,17 +16,20 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
    *  - 'grupo': van juntas donde se ubica el grupo de fichas (slots/ruleta). */
   ubicacion?: 'arrastre' | 'tira' | 'grupo';
 }) {
-  const conPos = ubicacion === 'arrastre';
-  // El modo "abanico" necesita un ancla libre (arrastre) o un centrado
-  // simple (tira). En "grupo" (slots clásicos) las fichas se pintan con
-  // el motor viejo y todavía no lo soportan.
-  const conAbanico = ubicacion === 'arrastre' || ubicacion === 'tira';
+  const conPos = ubicacion === 'arrastre' || ubicacion === 'grupo';
+  // El abanico va en todos: arrastre (ancla libre), tira (centrado) y
+  // grupo (slots: el ancla es la posición de la primera ficha / grupo).
+  const conAbanico = true;
   const [cfg, setCfg] = useState<FichasCfg>(() => fichasConDefaults(juego.fichas_cfg) as FichasCfg);
   useEffect(() => { setCfg(fichasConDefaults(juego.fichas_cfg) as FichasCfg); }, [juego.id]);
   const [msg, setMsg] = useState('');
 
-  const guardar = (fichas: Ficha[], sinCaja = cfg.sinCaja, modo = cfg.modo) => {
-    const next: FichasCfg = { fichas, sinCaja, modo };
+  const guardar = (fichas: Ficha[], sinCaja = cfg.sinCaja, modo = cfg.modo, extra: Partial<FichasCfg> = {}) => {
+    const next: FichasCfg = {
+      fichas, sinCaja, modo,
+      abanicoApertura: cfg.abanicoApertura, abanicoArco: cfg.abanicoArco,
+      ...extra,
+    };
     setCfg(next);
     onCampo('fichas_cfg', next);
     setMsg('Guardado ✓');
@@ -73,15 +76,40 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
                 onClick={() => guardar(cfg.fichas, cfg.sinCaja, 'fila')}>Fila (todas visibles)</button>
               <button className={`grupo-btn ${cfg.modo === 'abanico' ? 'on' : ''}`}
                 style={{ flex: 1, justifyContent: 'center' }}
-                onClick={() => guardar(cfg.fichas, cfg.sinCaja, 'abanico')}>Abanico (una sola)</button>
+                onClick={() => {
+                  const gx = Number(juego.fichas_x ?? 50);
+                  const gy = Number(juego.fichas_y ?? 88);
+                  const fichas = ubicacion === 'grupo'
+                    ? cfg.fichas.map((f, i) => (i === 0 ? { ...f, x: gx, y: gy } : f))
+                    : cfg.fichas;
+                  guardar(fichas, cfg.sinCaja, 'abanico');
+                }}>Abanico (una sola)</button>
             </div>
           )}
           {cfg.modo === 'abanico' && conAbanico && (
-            <p className="hint" style={{ margin: '0 0 12px' }}>
-              Solo se ve la ficha activa (la que coincide con la apuesta). Al tocarla se abren las
-              demás alrededor; elegir una la reemplaza y todo se repliega solo.
-              {conPos && ' La posición/tamaño de la primera ficha es la del botón cerrado.'}
-            </p>
+            <div style={{ margin: '0 0 14px' }}>
+              <p className="hint" style={{ margin: '0 0 10px' }}>
+                Solo se ve la ficha activa. Al tocarla se abren las demás alrededor; elegir una
+                la reemplaza y todo se repliega.
+                {conPos && ' La posición de la primera ficha es la del botón cerrado.'}
+                {ubicacion === 'grupo' && ' En slots, el ancla es la posición de la primera ficha (slider o arrastre en la Vista previa).'}
+                {ubicacion === 'tira' && ' En este juego el abanico queda centrado.'}
+              </p>
+              <RangoMini
+                etiqueta="Apertura (qué tan lejos vuelan)"
+                unidad="%"
+                min={50} max={220}
+                valor={cfg.abanicoApertura ?? 100}
+                onInput={(n) => guardar(cfg.fichas, cfg.sinCaja, 'abanico', { abanicoApertura: n })}
+              />
+              <RangoMini
+                etiqueta="Arco (qué tan abierto, hacia arriba)"
+                unidad="°"
+                min={70} max={180}
+                valor={cfg.abanicoArco ?? 136}
+                onInput={(n) => guardar(cfg.fichas, cfg.sinCaja, 'abanico', { abanicoArco: n })}
+              />
+            </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {cfg.fichas.map((f, i) => (
@@ -148,7 +176,7 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
 
           <p className="hint" style={{ margin: '10px 0 0' }}>
             {ubicacion === 'tira' && <>En este juego las fichas van en una fila centrada, sin posición propia. {msg}</>}
-            {ubicacion === 'grupo' && <>Las fichas se ubican todas juntas donde pongas el <b>grupo de fichas</b> (⚙ Ajustar → Capas). {msg}</>}
+            {ubicacion === 'grupo' && <>Cada ficha tiene su posición (sliders acá, o arrastrala en la <b>Vista previa</b>). {msg}</>}
             {ubicacion === 'arrastre' && <>También podés arrastrarlas en la <b>Vista previa</b> (⚙ Ajustar → Controles → <b>Fichas</b>). {msg}</>}
           </p>
         </>

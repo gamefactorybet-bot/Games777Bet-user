@@ -53,6 +53,8 @@ export interface Juego {
   mines_revelado_al_perder?: 'minas' | 'todo';
   /** Posición/aspecto de los controles del tablero de Mines (jsonb). */
   mines_controles?: Partial<PosControlesMines>;
+  /** Piel visual de Mines (`clasico`, `vegas`, `neon`…). No toca el RTP. */
+  mines_tema?: string | null;
 
   /** Ruleta de botones: toda su config (números, fichas, sorpresa). */
   ruleta_botones_cfg?: Partial<RuletaBotonesCfg>;
@@ -792,6 +794,8 @@ export type ZonaSieteUd = 'abajo' | 'siete' | 'arriba';
  * No contiene RTP, caras ni pagos: aplicar un preset nunca altera el juego. */
 export interface SieteUdVisualCfg {
   tema: string;
+  /** Material del dado (marfil, oro, cromo, cristal, rubí, ónix). No toca RTP. */
+  dadoMaterial: string;
   fondoPantallaUrl: string | null;
   fondoUrl: string | null;
   velo: number;
@@ -1039,6 +1043,10 @@ export interface FichasCfg {
    * 'abanico': se ve solo la ficha activa; al tocarla se abren las demás
    * alrededor y se repliegan solas al elegir una (ahorra espacio). */
   modo?: 'fila' | 'abanico';
+  /** Radio del abanico, % del automático (50–220). 100 = el de siempre. */
+  abanicoApertura?: number;
+  /** Arco del abanico en grados (70–180). 136 = el de siempre, hacia arriba. */
+  abanicoArco?: number;
 }
 
 /** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`

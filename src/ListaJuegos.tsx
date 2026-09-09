@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { MOTORES_DISPONIBLES, MOTOR_POR_DEFECTO } from '../motor/registro.js';
+import { DESC_KIT_FRUTAS, EFECTOS_KIT_FRUTAS, esSlotClasico, simbolosKitFrutas } from './juego/kit-frutas.ts';
 import type { EstadoJuego, Juego } from './types.ts';
 
 const ESTADOS: Record<string, string> = { borrador: 'Borrador', en_prueba: 'En prueba', listo: 'Listo' };
@@ -14,6 +15,12 @@ const MOTOR_CORTO: Record<string, string> = {
   'ruleta-botones': 'Ruleta botones',
   'crash-clasico': 'Crash',
   'plinko-clasico': 'Plinko',
+  'raspadita-clasica': 'Raspadita',
+  'limbo-clasico': 'Limbo',
+  'dice-clasico': 'Dice',
+  'keno-clasico': 'Keno',
+  'torre-clasica': 'Torre',
+  'sieteud-clasico': '7 Up 7 Down',
 };
 
 // Carpetas del bucket `assets` con archivos por juego. Al eliminar un
@@ -142,12 +149,26 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
       nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') +
       '-' + Date.now().toString(36);
     const { data, error } = await supabase
-      .from('juegos').insert({ nombre, slug, motor: nuevoMotor }).select().single();
+      .from('juegos').insert({
+        nombre, slug, motor: nuevoMotor,
+        ...(esSlotClasico(nuevoMotor) ? { descripcion: DESC_KIT_FRUTAS } : {}),
+      }).select().single();
     if (error) { alert(error.message); return; }
+    const creado = data as Juego;
+    if (esSlotClasico(nuevoMotor)) {
+      const filas = simbolosKitFrutas(nuevoMotor).map((s) => ({ ...s, juego_id: creado.id }));
+      const { error: errSim } = await supabase.from('simbolos').insert(filas);
+      if (errSim) alert('El juego se creó, pero no se pudieron cargar los símbolos Frutas: ' + errSim.message);
+      else {
+        await supabase.from('efectos').insert(
+          EFECTOS_KIT_FRUTAS.map((e) => ({ ...e, juego_id: creado.id })),
+        );
+      }
+    }
     setNuevoNombre('');
     setNuevoAbierto(false);
     recargar();
-    onAbrir((data as Juego).id);
+    onAbrir(creado.id);
   };
 
   const duplicar = async (j: Juego) => {
@@ -229,6 +250,11 @@ export function ListaJuegos({ juegos, onAbrir, recargar }: ListaJuegosProps) {
           </select>
           <button className="primary" onClick={crear}>Crear</button>
           <button onClick={() => setNuevoAbierto(false)}>Cancelar</button>
+          {esSlotClasico(nuevoMotor) && (
+            <p className="hint" style={{ margin: '8px 0 0', flexBasis: '100%' }}>
+              Arranca con el pack <b>Frutas</b>: 8 símbolos, pagos a ~91% RTP e íconos listos. Después cambiás arte y pagos.
+            </p>
+          )}
         </div>
       )}
 

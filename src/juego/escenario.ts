@@ -682,8 +682,10 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const aplicarModo = () => {
     // Con fichas ricas se ignora modo_apuesta: mandan las fichas y se
     // esconden los −/+ (la apuesta se fija tocando una ficha).
-    const conFichas = fichasRicas.length > 0
-      || escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto';
+    // Fichas ricas (fila o abanico): las pinta el overlay React (<Fichas>),
+    // no este HTML, para poder ubicar cada una.
+    const conFichasRicas = fichasRicas.length > 0;
+    const conFichas = !conFichasRicas && (escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto');
     const conMasMenos = fichasRicas.length === 0
       && (escenario.modoApuesta === 'mas_menos' || escenario.modoApuesta === 'mixto');
     fichasEl.style.display = conFichas ? 'flex' : 'none';

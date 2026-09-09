@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchJson } from './juego/recursos.ts';
-import { fichasDe, fichasModoDe } from '../motor/fichas.js';
+import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
-import { crearDados3D, type Dados3D } from './juego/dados3d.ts';
+import { crearDados3D, type Dados3D, type MaterialDado } from './juego/dados3d.ts';
+import { crearAudioDados, type AudioDados } from './juego/dados-audio.ts';
 import { SieteUdShell } from './SieteUdShell.tsx';
 import { SieteUdMesa, type EdicionMesa } from './SieteUdMesa.tsx';
 import { SieteUdEditor } from './SieteUdEditor.tsx';
@@ -52,24 +53,37 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
   edicion?: EdicionMesa | null;
 }) {
   const fichas = useMemo(() => fichasDe(juego), [juego]);
-  const modoFichas = useMemo(() => fichasModoDe(juego), [juego]);
+  const vistaFichas = useMemo(() => fichasVistaDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const motorRef = useRef<Dados3D | null>(null);
+  const audioRef = useRef<AudioDados | null>(null);
   // Al editar, se puede ubicar el cartel de premio sin haber ganado.
   const cartelDemo = edicion?.seleccion === 'cartel';
 
   useEffect(() => {
     if (!canvasRef.current) return;
+    const audio = crearAudioDados((cfg.dadoMaterial || 'marfil') as MaterialDado);
+    audioRef.current = audio;
     const m = crearDados3D(canvasRef.current, {
-      paleta: paletaDadosDe(cfg.tema), fondo: null, velo: cfg.velo, fondoAjuste: cfg.arte.mesa,
+      paleta: paletaDadosDe(cfg.tema, cfg.dadoMaterial), fondo: null, velo: cfg.velo, fondoAjuste: cfg.arte.mesa,
+      fx: {
+        onThrow: () => audio.lanzar(),
+        onBounce: (f) => audio.rebote(f),
+        onCollide: (f) => audio.choque(f),
+        onLand: (f) => audio.aterrizaje(f),
+        onSettle: () => audio.clavar(),
+      },
     });
     motorRef.current = m;
-    return () => { m.destruir(); motorRef.current = null; };
+    return () => { m.destruir(); audio.destruir(); motorRef.current = null; audioRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { motorRef.current?.setPaleta(paletaDadosDe(cfg.tema)); }, [cfg.tema]);
+  useEffect(() => {
+    motorRef.current?.setPaleta(paletaDadosDe(cfg.tema, cfg.dadoMaterial));
+    audioRef.current?.setMaterial((cfg.dadoMaterial || 'marfil') as MaterialDado);
+  }, [cfg.tema, cfg.dadoMaterial]);
 
   // Se cachea la imagen por URL: retocar (posición/zoom/blur/oscurecer) no
   // debe recrearla ni recargarla, o parpadea un frame sin fondo hasta que
@@ -91,11 +105,22 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
   }, [cfg.fondoUrl, cfg.velo, arteMesaKey]);
 
   const animar = useCallback(
-    (d: [number, number]): Promise<void> => motorRef.current?.tirar(d) ?? new Promise((r) => setTimeout(r, 200)),
+    (d: [number, number]): Promise<void> => {
+      audioRef.current?.unlock();
+      return motorRef.current?.tirar(d) ?? new Promise((r) => setTimeout(r, 200));
+    },
     [],
   );
   const apuestaIni = fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000));
   const g = useSieteUd(cfg, saldoInicial, apuestaIni, onJugar, animar);
+  const stingRef = useRef(g.est.fase);
+
+  useEffect(() => {
+    if (g.est.fase === stingRef.current) return;
+    stingRef.current = g.est.fase;
+    if (g.est.fase === 'gano') audioRef.current?.gano(g.est.res?.suma === 7);
+    if (g.est.fase === 'perdio') audioRef.current?.perdio();
+  }, [g.est.fase, g.est.res?.suma]);
 
   return (
     <SieteUdShell
@@ -103,9 +128,11 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
       tema={tema} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} fondoAjuste={cfg.arte.pantalla}
     >
       <SieteUdMesa
-        cfg={cfg} pos={pos} est={g.est} fichas={fichas} modoFichas={modoFichas}
+        cfg={cfg} pos={pos} est={g.est} fichas={fichas} modoFichas={vistaFichas.modo}
+        abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco}
         minBet={minBet} maxBet={maxBet} paso={paso} canvasRef={canvasRef}
         onApuesta={g.setApuesta} onZona={g.setZona} onJugar={g.jugar} onOtra={g.reset}
+        onUnlock={() => audioRef.current?.unlock()}
         edicion={edicion} cartelDemo={cartelDemo}
       />
     </SieteUdShell>

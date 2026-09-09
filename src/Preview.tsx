@@ -6,10 +6,12 @@ import { mostrarTablaPagos } from './tabla-pagos.ts';
 import { crearEscenario } from './juego/escenario.ts';
 import { crearRodillosPreview } from './juego/rodillos-preview.ts';
 import { AjustePanel } from './AjustePanel.tsx';
+import { FichasEnEscenario } from './Fichas.tsx';
+import { fichasConDefaults, parcheFichas } from '../motor/fichas.js';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosPreview } from './juego/rodillos-preview.ts';
 import type {
-  AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
+  AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Ficha, Juego,
   MotorModulo, PremioVisual, ResultadoGiro, Simbolo, Sonido,
 } from './types.ts';
 
@@ -33,6 +35,13 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
   const [listo, setListo] = useState(false);
   const [mostrarPanel, setMostrarPanel] = useState(false);
   const [mostrarProbador, setMostrarProbador] = useState(false);
+  const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const guardarFichas = (fs: Ficha[]) => {
+    setFichas(fs);
+    const next = parcheFichas(juego, fs);
+    supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
+    (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
+  };
 
   useEffect(() => {
     if (!simbolos.length) { alert('Agregá símbolos antes de probar el juego.'); onClose(); return; }
@@ -138,6 +147,13 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
           <button onClick={onClose}>✕ Cerrar prueba</button>
         </div>
         <div ref={hostRef} />
+        {listo && escRef.current && (
+          <FichasEnEscenario
+            juego={juego} escenario={escRef.current} fichas={fichas}
+            editable
+            onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+          />
+        )}
       </div>
 
       {listo && mostrarPanel && escRef.current && (

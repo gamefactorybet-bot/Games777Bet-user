@@ -1,13 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase.ts';
 import { Sidebar } from './Sidebar.tsx';
 import { ListaJuegos } from './ListaJuegos.tsx';
-import { Catalogo } from './Catalogo.tsx';
-import { Clientes } from './Clientes.tsx';
-import { Apariencia } from './Apariencia.tsx';
-import { Editor } from './Editor.tsx';
 import type { Juego } from './types.ts';
+
+const Catalogo = lazy(() => import('./Catalogo.tsx').then((m) => ({ default: m.Catalogo })));
+const Clientes = lazy(() => import('./Clientes.tsx').then((m) => ({ default: m.Clientes })));
+const Apariencia = lazy(() => import('./Apariencia.tsx').then((m) => ({ default: m.Apariencia })));
+const Editor = lazy(() => import('./Editor.tsx').then((m) => ({ default: m.Editor })));
+
+function CargaPanel() {
+  return <p className="hint" style={{ padding: 24 }}>Cargando…</p>;
+}
 
 export type VistaPanel = 'juegos' | 'catalogo' | 'clientes' | 'apariencia';
 
@@ -72,26 +77,28 @@ export function App({ session, onSalir }: AppProps) {
                 <span className="sep">/</span>
                 <span className="cur">{juegoSel.nombre}</span>
               </div>
-              <Editor key={juegoSel.id} juego={juegoSel} onCambio={cargarLista} />
+              <Suspense fallback={<CargaPanel />}>
+                <Editor key={juegoSel.id} juego={juegoSel} onCambio={cargarLista} />
+              </Suspense>
             </div>
           )}
 
           {vista === 'catalogo' && (
             <>
               <div className="page-head"><div><h2>Catálogo</h2><p className="sub">Los juegos marcados como "Listo", como se verían en una lista real.</p></div></div>
-              <Catalogo />
+              <Suspense fallback={<CargaPanel />}><Catalogo /></Suspense>
             </>
           )}
           {vista === 'clientes' && (
             <>
               <div className="page-head"><div><h2>Clientes</h2><p className="sub">Los casinos a los que les servís juegos.</p></div></div>
-              <Clientes />
+              <Suspense fallback={<CargaPanel />}><Clientes /></Suspense>
             </>
           )}
           {vista === 'apariencia' && (
             <>
               <div className="page-head"><div><h2>Apariencia</h2><p className="sub">Temas de vidrio y fondo animado. Los cambios se ven al instante en todo el panel.</p></div></div>
-              <Apariencia />
+              <Suspense fallback={<CargaPanel />}><Apariencia /></Suspense>
             </>
           )}
         </div>

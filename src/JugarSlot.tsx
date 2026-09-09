@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { FichasEnEscenario } from './Fichas.tsx';
 import { cargarMotor } from '../motor/registro.js';
 import { mostrarTablaPagos } from './tabla-pagos.ts';
 import { animarSimboloGanador, detenerAnimacionesSimbolos, detenerAnimacionesJuego } from './lottie.ts';
@@ -29,6 +30,7 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
   const [progreso, setProgreso] = useState({ hechos: 0, total: 1 });
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
+  const [escListo, setEscListo] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -52,6 +54,7 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
       esc.el.style.opacity = '0';
       esc.el.style.transition = 'opacity .45s';
       hostRef.current.appendChild(esc.wrap);
+      setEscListo(true);
 
       const rod = crearRodillosJugar(esc, motor, datos.simbolos);
       rodRef.current = rod;
@@ -79,6 +82,7 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
       window.removeEventListener('orientationchange', alRedimensionar);
       rodRef.current?.destruir();
       escRef.current?.destruir();
+      setEscListo(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -170,6 +174,9 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
   return (
     <>
       <div ref={hostRef} />
+      {escListo && escRef.current && (
+        <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+      )}
       {pantallaMontada && (
         <PantallaCarga
           ref={pantallaRef}
