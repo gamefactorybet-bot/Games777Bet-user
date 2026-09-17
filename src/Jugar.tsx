@@ -61,6 +61,12 @@ function Jugar() {
 
     document.addEventListener('contextmenu', prevenir);
     document.addEventListener('dragstart', prevenir);
+    // En Android el toque deja el botón en :focus y pinta un recuadro.
+    const soltarFoco = () => {
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && el.matches('button, [role="button"]')) el.blur();
+    };
+    document.addEventListener('touchend', soltarFoco, { passive: true });
 
     let cancelado = false;
 
@@ -84,6 +90,7 @@ function Jugar() {
       cancelado = true;
       document.removeEventListener('contextmenu', prevenir);
       document.removeEventListener('dragstart', prevenir);
+      document.removeEventListener('touchend', soltarFoco);
     };
   }, []);
 

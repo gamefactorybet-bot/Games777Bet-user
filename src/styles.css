@@ -28,7 +28,7 @@
   --amb-4: #26397a; --amb-5: #1f5563;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 body {
   margin: 0;
@@ -74,6 +74,7 @@ button {
 }
 button:hover { background: var(--border-soft); border-color: var(--border); }
 button:active { transform: translateY(1px); }
+button:focus, button:focus-visible { outline: none; }
 
 button.primary {
   background: var(--accent);
