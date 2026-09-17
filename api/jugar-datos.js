@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { supabaseAdmin, errorAdmin } from './_lib/supabaseAdmin.js';
 
 // Datos de un juego para la pantalla jugable real. Sin login: acá
 // no hay nada sensible (símbolos, imágenes, efectos) — el saldo del
@@ -9,9 +9,10 @@ export default async function handler(req, res) {
   const slug = req.query.slug;
   if (!slug) return res.status(400).json({ error: 'Falta el slug del juego' });
 
-  const { data: juego } = await supabaseAdmin
+  const { data: juego, error } = await supabaseAdmin
     .from('juegos').select('*').eq('slug', slug).eq('estado', 'listo').maybeSingle();
 
+  if (error) return res.status(500).json({ error: errorAdmin(error) });
   if (!juego) return res.status(404).json({ error: 'Juego no encontrado, o todavía no está marcado como Listo' });
 
   const [

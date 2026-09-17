@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { supabaseAdmin, errorAdmin } from './_lib/supabaseAdmin.js';
 
 // Catálogo público, en el formato que ya espera la función
 // "Sincronizar catálogo" del panel de Win777: { proveedor, juegos:
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     .eq('estado', 'listo')
     .eq('publicado', true);
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return res.status(500).json({ error: errorAdmin(error) });
 
   const origen = `https://${req.headers.host}`;
 
