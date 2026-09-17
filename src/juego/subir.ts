@@ -5,8 +5,12 @@
 import { supabase } from '../supabase.ts';
 
 export async function subirArchivo(archivo: File, carpeta: string): Promise<string | null> {
-  const ruta = `${carpeta}/${Date.now()}-${archivo.name}`;
-  const { error } = await supabase.storage.from('assets').upload(ruta, archivo, { upsert: true });
+  const seguro = archivo.name.replace(/[^\w.\-]+/g, '_');
+  const ruta = `${carpeta}/${Date.now()}-${seguro}`;
+  const { error } = await supabase.storage.from('assets').upload(ruta, archivo, {
+    upsert: true,
+    contentType: archivo.type || undefined,
+  });
   if (error) { alert('No se pudo subir: ' + error.message); return null; }
   const { data } = supabase.storage.from('assets').getPublicUrl(ruta);
   return data.publicUrl;

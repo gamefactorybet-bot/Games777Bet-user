@@ -19,6 +19,7 @@ import { conDefaults, ordenPorDefecto, filtroCss, posPremioDefaults, escapeHtml 
 import type { CapaId, PosCapas, PosPremio } from './defaults.ts';
 import { pintarMonto } from './monto.ts';
 import { fichasDe } from '../../motor/fichas.js';
+import { engancharLoopVideo, htmlCapaFondo } from './fondo.ts';
 import type {
   AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
   NivelPremio, PremioVisual, Rect, Simbolo, Sonido,
@@ -258,7 +259,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
   el.innerHTML = `
     <style>${cssEfectos}</style>
-    ${juego.fondo_pantalla_url ? `<img data-capa-img="fondo_pantalla" src="${juego.fondo_pantalla_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
+    ${juego.fondo_pantalla_url ? htmlCapaFondo(juego.fondo_pantalla_url) : ''}
     ${juego.marco_url ? `<img data-capa-img="marco" src="${juego.marco_url}" style="position:absolute; object-fit:fill; pointer-events:none" />` : ''}
 
     <div data-titulo-row style="display:flex; align-items:center; gap:8px; position:relative; z-index:10">
@@ -715,10 +716,12 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const alRedimensionar = () => escalar();
   window.addEventListener('resize', alRedimensionar);
   if (modo === 'jugar') window.addEventListener('orientationchange', alRedimensionar);
+  const soltarFondo = engancharLoopVideo(ELEMENTO_CAPA.fondo_pantalla);
 
   const destruir = () => {
     window.removeEventListener('resize', alRedimensionar);
     window.removeEventListener('orientationchange', alRedimensionar);
+    soltarFondo();
     pararLuces();
     cancelAnimationFrame(animContador);
     if (timerPremio) clearTimeout(timerPremio);

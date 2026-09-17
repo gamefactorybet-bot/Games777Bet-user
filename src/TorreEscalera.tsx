@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { FondoLoop } from './FondoLoop.tsx';
 import { cargarFuenteTorre } from './juego/torre-temas.ts';
 import { forma, multPiso } from './juego/torre.ts';
 import type { TemaTorre } from './juego/torre-temas.ts';
@@ -50,12 +51,7 @@ export function TorreEscalera({ escenario, juego, cfg, tema, pos, estado, onEleg
 
   return createPortal(
     <>
-      {fondoPantalla && (
-        <div aria-hidden style={{
-          position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
-          background: `center/cover no-repeat url("${fondoPantalla}")`,
-        }} />
-      )}
+      {fondoPantalla && <FondoLoop url={fondoPantalla} />}
       {tema.deco && (
         <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', opacity: 0.7 }}
           dangerouslySetInnerHTML={{ __html: tema.deco }} />

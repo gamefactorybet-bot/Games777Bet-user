@@ -1,5 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { PantallaCarga } from './PantallaCarga.tsx';
+import { FondoLoop } from './FondoLoop.tsx';
+import { esVideoFondo } from './juego/fondo.ts';
 import { cargarFuenteInstant, type TemaInstant } from './juego/instant-temas.ts';
 import { estiloFondo } from './juego/sieteud.ts';
 import type { AjusteImg } from './types.ts';
@@ -33,7 +35,13 @@ export function SieteUdShell({
       fontFamily: 'var(--in-body, inherit)',
       ...(vars as object),
     }}>
-      {fondoUrl && <div aria-hidden style={estiloFondo(fondoUrl, fondoAjuste)} />}
+      {fondoUrl && (esVideoFondo(fondoUrl)
+        ? <FondoLoop url={fondoUrl} style={{
+            ...estiloFondo(fondoUrl, fondoAjuste),
+            backgroundImage: 'none',
+            objectPosition: `${fondoAjuste.x}% ${fondoAjuste.y}%`,
+          }} />
+        : <div aria-hidden style={estiloFondo(fondoUrl, fondoAjuste)} />)}
 
       {mostrarNombre && nombre && (
         <p style={{

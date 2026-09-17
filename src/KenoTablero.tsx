@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { FondoLoop } from './FondoLoop.tsx';
 import { cargarFuenteKeno } from './juego/keno-temas.ts';
 import { columnasKeno } from './juego/keno.ts';
 import type { TemaKeno } from './juego/keno-temas.ts';
@@ -73,12 +74,7 @@ export function KenoTablero({ escenario, juego, cfg, tema, pos, estado, onToggle
 
   return createPortal(
     <>
-      {fondoPantalla && (
-        <div aria-hidden style={{
-          position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
-          background: `center/cover no-repeat url("${fondoPantalla}")`,
-        }} />
-      )}
+      {fondoPantalla && <FondoLoop url={fondoPantalla} />}
 
       <style>{`
         .kn-host{ position:absolute; transform:translate(-50%,-50%); z-index:9; container-type:inline-size; }

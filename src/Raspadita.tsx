@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { FondoLoop } from './FondoLoop.tsx';
 import { montarLottieEn } from './lottie.ts';
 import { cargarFuenteRaspa } from './juego/raspadita-temas.ts';
 import type { TemaRaspa } from './juego/raspadita-temas.ts';
@@ -343,12 +344,7 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, p
 
   return createPortal(
     <>
-    {fondoPantalla && (
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: `center/cover no-repeat url("${fondoPantalla}")`,
-      }} />
-    )}
+    {fondoPantalla && <FondoLoop url={fondoPantalla} />}
     <div
       ref={hostRef}
       className="rs-host"

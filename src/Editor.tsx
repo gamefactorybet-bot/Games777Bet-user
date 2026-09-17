@@ -45,6 +45,7 @@ import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { TEMAS as TEMAS_KENO } from './juego/keno-temas.ts';
 import { TEMAS as TEMAS_TORRE } from './juego/torre-temas.ts';
 import { capsDe, NIVELES_MESA, NIVELES_SLOT } from './juego/capacidades.ts';
+import { ACCEPT_FONDO, esVideoFondo, validarVideoFondo } from './juego/fondo.ts';
 import { CardPiel } from './SelectorPiel.tsx';
 import { TEMAS as TEMAS_MINES } from './juego/mines-temas.ts';
 import type {
@@ -677,12 +678,12 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <strong style={{ fontSize: 15 }}>Imágenes</strong>
           <p className="hint" style={{ marginBottom: 14 }}>
             {caps.capasEscenario
-              ? 'Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar" en la Vista previa, sobre el tamaño real del celular.'
-              : 'Portada del catálogo, pantalla de carga y el fondo que ve el jugador. El resto del diseño se hace en la Vista previa.'}
+              ? 'Subí acá. La posición y el tamaño se ajustan desde "⚙ Ajustar" en la Vista previa. El fondo de pantalla acepta imagen o un video corto (MP4/WebM, ~6 s, sin sonido).'
+              : 'Portada del catálogo, pantalla de carga y el fondo que ve el jugador (imagen o video de ~6 s). El resto del diseño se hace en la Vista previa.'}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 14 }}>
-            {caps.fondoArea && <SubirImagen juego={juego} campo="fondo_url" etiqueta={caps.etiquetaFondoArea} onSet={setImagen} />}
-            {caps.capasEscenario && <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />}
+            {caps.fondoArea && <SubirImagen juego={juego} campo="fondo_url" etiqueta={caps.etiquetaFondoArea} aceptaVideo={caps.etiquetaFondoArea === 'Fondo de pantalla' || esKeno || esRaspadita || esTorre} onSet={setImagen} />}
+            {caps.capasEscenario && <SubirImagen juego={juego} campo="fondo_pantalla_url" etiqueta="Fondo de pantalla" aceptaVideo posicionable reset={{ fondo_pantalla_x: 50, fondo_pantalla_y: 50, fondo_pantalla_ancho: 100, fondo_pantalla_alto: 100 }} onSet={setImagen} />}
             {caps.capasEscenario && <SubirImagen juego={juego} campo="marco_url" etiqueta="Marco" posicionable reset={{ marco_x: 50, marco_y: 50, marco_ancho: 100, marco_alto: 100 }} onSet={setImagen} />}
             {caps.capasEscenario && <SubirImagen juego={juego} campo="cartel_url" etiqueta="Cartel" posicionable reset={{ cartel_x: 50, cartel_y: 15, cartel_ancho: 75, cartel_alto: 16 }} onSet={setImagen} />}
             <SubirImagen juego={juego} campo="portada_url" etiqueta="Portada (catálogo)" onSet={setImagen} />
@@ -3083,14 +3084,20 @@ interface SubirImagenProps {
   campo: string;
   etiqueta: string;
   posicionable?: boolean;
+  aceptaVideo?: boolean;
   reset?: Record<string, number>;
   onSet: (campo: string, url: string | null, reset?: Record<string, number>) => void;
 }
 
-function SubirImagen({ juego, campo, etiqueta, posicionable, reset, onSet }: SubirImagenProps) {
+function SubirImagen({ juego, campo, etiqueta, posicionable, aceptaVideo, reset, onSet }: SubirImagenProps) {
   const url = juego[campo] as string | null | undefined;
+  const esVideo = esVideoFondo(url);
 
   const subir = async (archivo: File) => {
+    if (aceptaVideo && archivo.type.startsWith('video/')) {
+      const err = await validarVideoFondo(archivo);
+      if (err) { alert(err); return; }
+    }
     const nuevaUrl = await subirArchivo(archivo, `${campo}/${juego.id}`);
     if (nuevaUrl) onSet(campo, nuevaUrl);
   };
@@ -3106,15 +3113,22 @@ function SubirImagen({ juego, campo, etiqueta, posicionable, reset, onSet }: Sub
       <label
         style={{
           display: 'flex', aspectRatio: '1', borderRadius: 10, border: '1px dashed var(--border)',
-          background: url && !posicionable ? `center/cover url('${url}')` : 'var(--surface-alt)',
+          background: url && !posicionable && !esVideo ? `center/cover url('${url}')` : 'var(--surface-alt)',
           cursor: 'pointer', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', position: 'relative',
         }}
       >
-        {posicionable && url && <img src={url} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
-        {!url && <span className="hint">Subir imagen</span>}
-        <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && subir(e.target.files[0])} />
+        {url && esVideo && (
+          <video src={url} muted loop playsInline autoPlay
+            style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+        )}
+        {posicionable && url && !esVideo && <img src={url} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
+        {!url && <span className="hint">{aceptaVideo ? 'Imagen o video' : 'Subir imagen'}</span>}
+        <input type="file" accept={aceptaVideo ? ACCEPT_FONDO : 'image/*'} hidden onChange={(e) => e.target.files?.[0] && subir(e.target.files[0])} />
       </label>
-      {url && <button style={{ width: '100%', marginTop: 8, color: 'var(--danger)' }} onClick={quitar}>Quitar imagen</button>}
+      {aceptaVideo && !url && (
+        <p className="hint" style={{ margin: '6px 0 0', fontSize: 11 }}>MP4/WebM, ~6 s, sin audio. Ideal menos de 4 MB.</p>
+      )}
+      {url && <button style={{ width: '100%', marginTop: 8, color: 'var(--danger)' }} onClick={quitar}>Quitar</button>}
     </div>
   );
 }

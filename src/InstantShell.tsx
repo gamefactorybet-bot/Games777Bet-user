@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PantallaCarga } from './PantallaCarga.tsx';
+import { FondoLoop } from './FondoLoop.tsx';
+import { esVideoFondo } from './juego/fondo.ts';
 import { cargarFuenteInstant, type TemaInstant } from './juego/instant-temas.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
@@ -31,9 +33,9 @@ export function InstantShell({
   const vars: Record<string, string> = { ...tema.vars };
   if (tema.font) vars['--in-body'] = tema.font.family;
 
-  const fondo = fondoUrl
-    ? `center/cover no-repeat url("${fondoUrl}")`
-    : tema.stageBg || 'var(--bg)';
+  const fondoCss = !fondoUrl
+    ? (tema.stageBg || 'var(--bg)')
+    : esVideoFondo(fondoUrl) ? (tema.stageBg || 'var(--bg)') : `center/cover no-repeat url("${fondoUrl}")`;
 
   const cuerpo = (
     <div
@@ -41,10 +43,11 @@ export function InstantShell({
         position: 'fixed', inset: 0, zIndex: demo ? 100 : 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         gap: 22, padding: '24px 16px', overflow: 'hidden',
-        background: fondo, fontFamily: 'var(--in-body, inherit)',
+        background: fondoCss, fontFamily: 'var(--in-body, inherit)',
         ...(vars as object),
       }}
     >
+      {esVideoFondo(fondoUrl) && <FondoLoop url={fondoUrl} zIndex={0} />}
       {demo && (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center' }}>
           <span className="hint">plata de mentira</span>
@@ -54,12 +57,12 @@ export function InstantShell({
 
       {mostrarNombre && nombre && (
         <p style={{
-          position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', margin: 0,
+          position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', margin: 0, zIndex: 2,
           fontSize: 13, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-dim)',
         }}>{nombre}</p>
       )}
 
-      <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+      <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, position: 'relative', zIndex: 2 }}>
         {children}
       </div>
 

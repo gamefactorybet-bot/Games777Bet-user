@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { subirArchivo } from './juego/subir.ts';
+import { ACCEPT_FONDO, esVideoFondo, validarVideoFondo } from './juego/fondo.ts';
 import { Rango } from './AjustePanel.tsx';
 import { TEMAS as TEMAS_INSTANT } from './juego/instant-temas.ts';
 import { SelectorPiel } from './SelectorPiel.tsx';
@@ -355,6 +356,10 @@ function TabImagenes({ juego, cfg, onCfg, onArte }: {
   const [abierto, setAbierto] = useState<ImgKey | null>(null);
 
   const subir = async (k: ImgKey, file: File) => {
+    if (k === 'pantalla' && file.type.startsWith('video/')) {
+      const err = await validarVideoFondo(file);
+      if (err) { alert(err); return; }
+    }
     const url = await subirArchivo(file, `sieteud/${juego.id}`);
     if (url) onCfg({ [CAMPO_IMG[k]]: url } as Partial<SieteUdCfg>);
   };
@@ -364,7 +369,9 @@ function TabImagenes({ juego, cfg, onCfg, onArte }: {
     return (
       <div style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 9, border: '1px dashed var(--border)', borderRadius: 10, background: 'var(--surface-alt)' }}>
-          <div style={{ width: 44, height: 36, borderRadius: 7, border: '1px solid var(--border)', flexShrink: 0, background: url ? `center/cover no-repeat url("${url}")` : 'var(--bg)', display: 'grid', placeItems: 'center', fontSize: 14 }}>{url ? '' : '🖼️'}</div>
+          <div style={{ width: 44, height: 36, borderRadius: 7, border: '1px solid var(--border)', flexShrink: 0, background: url && !esVideoFondo(url) ? `center/cover no-repeat url("${url}")` : 'var(--bg)', display: 'grid', placeItems: 'center', fontSize: 14, overflow: 'hidden' }}>
+            {url && esVideoFondo(url) ? <video src={url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (url ? '' : '🖼️')}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <b style={{ fontSize: 12, display: 'block' }}>{etiqueta}</b>
             <span className="hint" style={{ margin: 0, fontSize: 10 }}>{sub}</span>
@@ -372,7 +379,7 @@ function TabImagenes({ juego, cfg, onCfg, onArte }: {
           {url && <button style={{ fontSize: 11 }} onClick={() => setAbierto((a) => (a === k ? null : k))}>{abierto === k ? '▲' : 'Retoque'}</button>}
           <label className="add-sym" style={{ flexShrink: 0, fontSize: 11 }}>
             {url ? 'Cambiar' : 'Subir'}
-            <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subir(k, f); }} />
+            <input type="file" accept={k === 'pantalla' ? ACCEPT_FONDO : 'image/*'} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subir(k, f); }} />
           </label>
           {url && <button style={{ fontSize: 11, color: 'var(--danger)' }} onClick={() => onCfg({ [CAMPO_IMG[k]]: null } as Partial<SieteUdCfg>)}>✕</button>}
         </div>
@@ -384,7 +391,7 @@ function TabImagenes({ juego, cfg, onCfg, onArte }: {
   return (
     <>
       <p className="hint" style={{ margin: '0 0 10px' }}>Todo opcional. Los fondos siempre cubren la pantalla — el retoque sólo panea, agranda, desenfoca y oscurece.</p>
-      {slot('pantalla', 'Fondo de pantalla', 'detrás de todo', false)}
+      {slot('pantalla', 'Fondo de pantalla', 'imagen o video ~6 s, detrás de todo', false)}
       {slot('mesa', 'Fondo de la mesa (fieltro)', 'donde caen los dados', false)}
       <label style={{ fontSize: 12, display: 'block', margin: '2px 0 2px' }}>
         Velo sobre el fieltro <b>{Math.round(cfg.velo * 100)}%</b>

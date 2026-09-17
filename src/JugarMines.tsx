@@ -6,6 +6,7 @@ import { PantallaCarga } from './PantallaCarga.tsx';
 import { crearEscenario } from './juego/escenario.ts';
 import { precargarLottie } from './lottie.ts';
 import { fetchJson, correrIntro } from './juego/recursos.ts';
+import { esVideoFondo } from './juego/fondo.ts';
 import { estadoInicial, puedeRetirar as calcPuedeRetirar, posControlesDe } from './juego/mines.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { EstadoPartida } from './juego/mines.ts';
@@ -63,12 +64,14 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
     setListo(true);
 
     (async () => {
-      const imgs = [
+      const medios = [
         juego.fondo_url, juego.fondo_pantalla_url, juego.marco_url, juego.cartel_url,
         juego.mines_casilla_oculta_url, juego.mines_casilla_segura_url, juego.mines_casilla_mina_url,
         juego.portada_url, juego.carga_url,
         ...(datos.capasLibres || []).map((c) => c.imagen_url),
       ].filter(Boolean) as string[];
+      const imgs = medios.filter((u) => !esVideoFondo(u));
+      const videos = medios.filter((u) => esVideoFondo(u));
 
       const lottieUrls = [
         juego.mines_casilla_oculta_lottie_url, juego.mines_casilla_segura_lottie_url, juego.mines_casilla_mina_lottie_url,
@@ -83,6 +86,13 @@ export function JugarMines({ datos, saldoInicial, slug, token }: JugarMinesProps
           img.src = url;
           return (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).finally(marcar);
         }),
+        ...videos.map((url) => new Promise((listo) => {
+          const v = document.createElement('video');
+          const fin = () => listo(null);
+          v.addEventListener('canplaythrough', fin, { once: true });
+          v.addEventListener('error', fin, { once: true });
+          v.muted = true; v.preload = 'auto'; v.src = url;
+        }).finally(marcar)),
         ...lottieUrls.map((url) => fetch(url).then((r) => r.blob()).catch(() => {}).finally(marcar)),
         ...(lottieUrls.length ? [precargarLottie().catch(() => {}).finally(marcar)] : []),
       ];

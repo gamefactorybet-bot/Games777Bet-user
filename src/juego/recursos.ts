@@ -2,6 +2,7 @@
 // Extraído de `jugar.js` — lógica pura, sin DOM salvo `Image`/`Audio`.
 
 import { precargarLottie, mostrarAnimacionJuego, detenerAnimacionesJuego } from '../lottie.ts';
+import { esVideoFondo } from './fondo.ts';
 import type { AnimacionLottie, DatosJuego } from '../types.ts';
 
 export async function fetchJson<T = unknown>(url: string, opciones?: RequestInit): Promise<T> {
@@ -39,7 +40,7 @@ export function esperarRecursos(
 ): Promise<unknown> {
   const { juego, simbolos, sonidos, digitos, capasLibres, botones, animaciones } = datos;
 
-  const imagenes = [
+  const medios = [
     juego.fondo_url, juego.fondo_pantalla_url, juego.marco_url, juego.cartel_url,
     juego.girar_imagen_url, juego.saldo_fondo_url, juego.apuesta_fondo_url,
     ...simbolos.map((s) => s.icono_url),
@@ -47,6 +48,8 @@ export function esperarRecursos(
     ...(capasLibres || []).map((c) => c.imagen_url),
     ...(botones || []).map((b) => b.imagen_url),
   ].filter(Boolean) as string[];
+  const imagenes = medios.filter((u) => !esVideoFondo(u));
+  const videos = medios.filter((u) => esVideoFondo(u));
 
   const audios = (sonidos || []).map((s) => s.archivo_url).filter(Boolean) as string[];
 
@@ -59,7 +62,7 @@ export function esperarRecursos(
     ...(animaciones || []).map((a) => a.lottie_url),
   ].filter(Boolean) as string[])];
 
-  const total = imagenes.length + audios.length + lottieUrls.length + (lottieUrls.length ? 1 : 0);
+  const total = imagenes.length + videos.length + audios.length + lottieUrls.length + (lottieUrls.length ? 1 : 0);
   if (!total) { avance(1, 1); return Promise.resolve(); }
 
   let hechos = 0;
@@ -71,6 +74,15 @@ export function esperarRecursos(
       // onerror también resuelve: una imagen rota no debe trabar todo.
       img.onload = img.onerror = () => { marcar(); listo(); };
       img.src = url;
+    })),
+    ...videos.map((url) => new Promise<void>((listo) => {
+      const v = document.createElement('video');
+      const fin = () => { marcar(); listo(); };
+      v.addEventListener('canplaythrough', fin, { once: true });
+      v.addEventListener('error', fin, { once: true });
+      v.muted = true;
+      v.preload = 'auto';
+      v.src = url;
     })),
     ...audios.map((url) => new Promise<void>((listo) => {
       const a = new Audio();
