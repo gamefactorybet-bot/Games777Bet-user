@@ -39,7 +39,12 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
     const next = parcheFichas(juego, fs);
-    supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
+    const gx = escRef.current?.posGrupos.fichas_x;
+    const gy = escRef.current?.posGrupos.fichas_y;
+    supabase.from('juegos').update({
+      fichas_cfg: next,
+      ...(gx != null ? { fichas_x: gx, fichas_y: gy } : {}),
+    }).eq('id', juego.id).then(() => {});
     (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
 
@@ -151,7 +156,15 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
           <FichasEnEscenario
             juego={juego} escenario={escRef.current} fichas={fichas}
             editable
-            onMover={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+            onMover={(i, x, y) => {
+              guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)));
+              if (i === 0 && escRef.current) {
+                escRef.current.posGrupos.fichas_x = x;
+                escRef.current.posGrupos.fichas_y = y;
+                (juego as { fichas_x?: number; fichas_y?: number }).fichas_x = x;
+                (juego as { fichas_x?: number; fichas_y?: number }).fichas_y = y;
+              }
+            }}
           />
         )}
       </div>
@@ -162,6 +175,10 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
           juego={juego}
           simbolos={simbolos}
           onGrillaCambio={() => rodRef.current?.pintarGrillaInicial()}
+          onFichasVista={(cfg) => {
+            (juego as { fichas_cfg?: unknown }).fichas_cfg = cfg;
+            setFichas(cfg.fichas);
+          }}
         />
       )}
 

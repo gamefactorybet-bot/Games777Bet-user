@@ -4,8 +4,9 @@ import { subirArchivo } from './juego/subir.ts';
 import { mostrarAnimacionJuego, detenerAnimacionesJuego } from './lottie.ts';
 import { NOMBRE_CAPA, NIVELES_PREMIO } from './juego/defaults.ts';
 import type { CapaId } from './juego/defaults.ts';
+import { fichasConDefaults, fichasDesdeMontos } from '../motor/fichas.js';
 import type { Escenario } from './juego/escenario.ts';
-import type { AnimacionLottie, CadenaLuz, CapaLibre, Juego, NivelPremio, Simbolo } from './types.ts';
+import type { AnimacionLottie, CadenaLuz, CapaLibre, FichasCfg, Juego, NivelPremio, Simbolo } from './types.ts';
 
 // ---------------- Constantes de panel (de preview.js) ----------------
 
@@ -99,9 +100,11 @@ interface AjustePanelProps {
   categorias?: string[];
   /** En Mines, la capa "grilla" es el tablero (otro nombre y rangos). */
   esMines?: boolean;
+  /** El overlay React de fichas (abanico del 3×3) vive en la preview. */
+  onFichasVista?: (cfg: FichasCfg) => void;
 }
 
-export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMines }: AjustePanelProps) {
+export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMines, onFichasVista }: AjustePanelProps) {
   const cats = CATEGORIAS_PANEL.filter((c) => !categorias || categorias.includes(c.id));
   const [categoria, setCategoria] = useState<string>(cats[0]?.id ?? 'capas');
   const [capa, setCapa] = useState<string>(cats[0]?.tabs[0] ?? 'grilla');
@@ -153,7 +156,7 @@ export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMi
         {capa === 'animaciones' && <PanelAnimaciones escenario={escenario} juego={juego} />}
         {capa === 'luces' && <PanelLuces escenario={escenario} juego={juego} />}
         {capa === 'girar' && <PanelGirar escenario={escenario} juego={juego} />}
-        {capa === 'controles' && <PanelControles escenario={escenario} juego={juego} />}
+        {capa === 'controles' && <PanelControles escenario={escenario} juego={juego} onFichasVista={onFichasVista} />}
         {esCapa && <PanelCapa escenario={escenario} capa={capa} esMines={esMines} onGrillaCambio={onGrillaCambio} />}
       </div>
 
@@ -734,12 +737,36 @@ function PanelGirar({ escenario, juego }: { escenario: Escenario; juego: Juego }
 
 // ---------------- Controles ----------------
 
-function PanelControles({ escenario, juego }: { escenario: Escenario; juego: Juego }) {
+function PanelControles({ escenario, juego, onFichasVista }: {
+  escenario: Escenario; juego: Juego; onFichasVista?: (cfg: FichasCfg) => void;
+}) {
   const gr = escenario.posGrupos;
   const [, forzar] = useState(0);
   const redibujar = () => forzar((x) => x + 1);
   const [botonActual, setBotonActual] = useState('menos');
   const cfg = escenario.botones[botonActual];
+  const cfgFichas = fichasConDefaults(juego.fichas_cfg) as FichasCfg;
+
+  const aplicarFichasCfg = (next: FichasCfg, persistir = true) => {
+    juego.fichas_cfg = next;
+    onFichasVista?.(next);
+    escenario.aplicarModo();
+    redibujar();
+    if (persistir) supabase.from('juegos').update({ fichas_cfg: next }).eq('id', juego.id).then(() => {});
+  };
+
+  const asegurarFichasRicas = (): FichasCfg => {
+    if (cfgFichas.fichas.length) {
+      return {
+        ...cfgFichas,
+        fichas: cfgFichas.fichas.map((f, i) => (i === 0 ? { ...f, x: gr.fichas_x, y: gr.fichas_y } : f)),
+      };
+    }
+    return {
+      ...cfgFichas,
+      fichas: fichasDesdeMontos(escenario.fichas, gr.fichas_x, gr.fichas_y) as FichasCfg['fichas'],
+    };
+  };
 
   const sliderGrupo = (campo: keyof typeof gr, etiqueta: string, min: number, max: number, unidad: string) => (
     <Rango key={campo} etiqueta={etiqueta} min={min} max={max} unidad={unidad} valor={gr[campo] as number}
@@ -769,6 +796,7 @@ function PanelControles({ escenario, juego }: { escenario: Escenario; juego: Jue
       saldo_fondo_url: gr.saldo_fondo_url, apuesta_fondo_url: gr.apuesta_fondo_url,
       modo_apuesta: escenario.modoApuesta, mostrar_nombre: escenario.mostrarNombre,
       contador_ms: escenario.contadorMs, fichas: escenario.fichas,
+      fichas_cfg: juego.fichas_cfg ?? cfgFichas,
     }).eq('id', juego.id);
 
     const { error: errBtn } = await supabase.from('botones').upsert(
@@ -803,11 +831,56 @@ function PanelControles({ escenario, juego }: { escenario: Escenario; juego: Jue
       <label style={{ display: 'block', marginBottom: 10, fontSize: 12 }}>Montos de las fichas (separados por coma)
         <input type="text" defaultValue={escenario.fichas.join(', ')} style={{ width: '100%' }} onChange={(e) => {
           const lista = e.target.value.split(',').map((t) => Number(String(t).replace(/[^\d]/g, ''))).filter((n) => Number.isFinite(n) && n > 0);
-          if (lista.length) { escenario.fichas = lista; escenario.aplicarModo(); }
+          if (!lista.length) return;
+          escenario.fichas = lista;
+          if (cfgFichas.fichas.length) {
+            const next: FichasCfg = {
+              ...cfgFichas,
+              fichas: lista.map((v, i) => cfgFichas.fichas[i]
+                ? { ...cfgFichas.fichas[i], valor: v }
+                : { valor: v, imagen_url: null, x: gr.fichas_x, y: gr.fichas_y, tam: 54, imgTam: 88 }),
+            };
+            aplicarFichasCfg(next, false);
+          } else {
+            escenario.aplicarModo();
+          }
         }} />
       </label>
-      {sliderGrupo('fichas_x', 'Fichas — Posición X', 0, 100, '%')}
-      {sliderGrupo('fichas_y', 'Fichas — Posición Y', 0, 100, '%')}
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px' }}>Cómo se ven las fichas</p>
+      <div className="grupo-nav" style={{ marginBottom: 10 }}>
+        <button className={`grupo-btn ${cfgFichas.modo !== 'abanico' ? 'on' : ''}`}
+          style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
+          onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'fila' })}>Fila (todas visibles)</button>
+        <button className={`grupo-btn ${cfgFichas.modo === 'abanico' ? 'on' : ''}`}
+          style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
+          onClick={() => aplicarFichasCfg({ ...asegurarFichasRicas(), modo: 'abanico' })}>Abanico (una sola)</button>
+      </div>
+      {cfgFichas.modo === 'abanico' && (
+        <div style={{ margin: '0 0 12px' }}>
+          <p className="hint" style={{ margin: '0 0 8px' }}>
+            Solo se ve la ficha activa. Al tocarla se abren las demás alrededor.
+            La posición X/Y de abajo es el botón cerrado.
+          </p>
+          <Rango etiqueta="Apertura (qué tan lejos vuelan)" min={50} max={220} unidad="%"
+            valor={cfgFichas.abanicoApertura ?? 100}
+            onInput={(n) => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoApertura: n })} />
+          <Rango etiqueta="Arco (qué tan abierto, hacia arriba)" min={70} max={180} unidad="°"
+            valor={cfgFichas.abanicoArco ?? 136}
+            onInput={(n) => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoArco: n })} />
+        </div>
+      )}
+      <Rango etiqueta="Fichas — Posición X" min={0} max={100} unidad="%" valor={gr.fichas_x}
+        onInput={(n) => {
+          gr.fichas_x = n;
+          escenario.aplicarGrupos();
+          if (cfgFichas.fichas.length) onFichasVista?.({ ...cfgFichas });
+        }} />
+      <Rango etiqueta="Fichas — Posición Y" min={0} max={100} unidad="%" valor={gr.fichas_y}
+        onInput={(n) => {
+          gr.fichas_y = n;
+          escenario.aplicarGrupos();
+          if (cfgFichas.fichas.length) onFichasVista?.({ ...cfgFichas });
+        }} />
 
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '10px 0 8px' }}>Saldo</p>
       {sliderGrupo('saldo_x', 'Posición X', 0, 100, '%')}

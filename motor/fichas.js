@@ -84,3 +84,23 @@ export function fichasVistaDe(juego) {
 export function parcheFichas(juego, fichas) {
   return { ...fichasConDefaults(juego && juego.fichas_cfg), fichas };
 }
+
+/**
+ * Convierte montos simples (`juegos.fichas` = [1000, 2000, …]) en fichas
+ * ricas, todas apiladas en (x, y). Lo usa el slot 3×3/5×3 al pasar a
+ * abanico: esa tira HTML no sabe desplegarse, el overlay React sí.
+ */
+export function fichasDesdeMontos(montos, x, y) {
+  const gx = clamp(num(x, 50), 0, 100);
+  const gy = clamp(num(y, 88), 0, 100);
+  return (Array.isArray(montos) ? montos : [])
+    .map((v) => ({
+      valor: Math.max(1, Math.round(num(v, 1000))),
+      imagen_url: null,
+      x: gx,
+      y: gy,
+      tam: 54,
+      imgTam: 88,
+    }))
+    .slice(0, 12);
+}

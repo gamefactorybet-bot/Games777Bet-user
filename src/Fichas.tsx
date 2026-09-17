@@ -238,7 +238,10 @@ function esparcirSiApiladas(fichas: Ficha[], gx: number, gy: number): Ficha[] {
  *  y cada ficha se ubica (y se arrastra en la preview) como en Mines. */
 export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover }: {
   juego: Juego;
-  escenario: { el: HTMLElement; apuesta: number; pintarApuesta: () => void; girando: boolean };
+  escenario: {
+    el: HTMLElement; apuesta: number; pintarApuesta: () => void; girando: boolean;
+    posGrupos?: { fichas_x: number; fichas_y: number };
+  };
   fichas?: Ficha[];
   editable?: boolean;
   onMover?: (i: number, x: number, y: number) => void;
@@ -247,9 +250,12 @@ export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover 
   const [apuesta, setApuesta] = useState(escenario.apuesta);
   const lista = fichas ?? cfg.fichas;
   if (!lista.length) return null;
-  const gx = Number(juego.fichas_x ?? 50);
-  const gy = Number(juego.fichas_y ?? 88);
-  const visibles = cfg.modo === 'abanico' ? lista : esparcirSiApiladas(lista, gx, gy);
+  // En el slot el ancla es el grupo (⚙ Fichas X/Y), no cada ficha por su cuenta.
+  const gx = Number(escenario.posGrupos?.fichas_x ?? juego.fichas_x ?? 50);
+  const gy = Number(escenario.posGrupos?.fichas_y ?? juego.fichas_y ?? 88);
+  const visibles = cfg.modo === 'abanico'
+    ? lista.map((f, i) => (i === 0 ? { ...f, x: gx, y: gy } : f))
+    : esparcirSiApiladas(lista, gx, gy);
   return (
     <Fichas
       host={escenario.el}

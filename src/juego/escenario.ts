@@ -233,10 +233,6 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const fichasRicas = fichasDe(juego) as {
     valor: number; imagen_url: string | null; tam: number; imgTam: number;
   }[];
-  // Con fichas ricas + "dejar solo las fichas": se esconde todo el
-  // grupo de apuesta (−/+ y el recuadro "Apuesta: 5000").
-  const fichasSinCaja = fichasRicas.length > 0
-    && !!(juego.fichas_cfg && (juego.fichas_cfg as { sinCaja?: boolean }).sinCaja);
 
   const cssEfectos = (efectos || []).map((ef) => ef.css || '').join('\n');
   const audios: Partial<Record<string, HTMLAudioElement>> = {};
@@ -684,14 +680,19 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     // esconden los −/+ (la apuesta se fija tocando una ficha).
     // Fichas ricas (fila o abanico): las pinta el overlay React (<Fichas>),
     // no este HTML, para poder ubicar cada una.
-    const conFichasRicas = fichasRicas.length > 0;
+    // Se relee de `juego` porque el panel de ajuste puede cargar
+    // fichas_cfg después de crear el escenario (pasar a abanico en 3×3).
+    const ricas = fichasDe(juego);
+    const conFichasRicas = ricas.length > 0;
+    const soloFichas = ricas.length > 0
+      && !!(juego.fichas_cfg && (juego.fichas_cfg as { sinCaja?: boolean }).sinCaja);
     const conFichas = !conFichasRicas && (escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto');
-    const conMasMenos = fichasRicas.length === 0
+    const conMasMenos = !conFichasRicas
       && (escenario.modoApuesta === 'mas_menos' || escenario.modoApuesta === 'mixto');
     fichasEl.style.display = conFichas ? 'flex' : 'none';
     btnMenos.style.display = conMasMenos ? 'flex' : 'none';
     btnMas.style.display = conMasMenos ? 'flex' : 'none';
-    grupoApuestaEl.style.display = fichasSinCaja ? 'none' : '';
+    grupoApuestaEl.style.display = soloFichas ? 'none' : '';
     if (conFichas) pintarFichas();
   };
 
