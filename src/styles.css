@@ -233,10 +233,7 @@ button.primary:hover { box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 2
 .side-brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 16px; }
 .side-brand .logo {
   width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(140deg, var(--accent), #9b7bff);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 34%, transparent);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px; color: #fff;
+  object-fit: contain; display: block;
 }
 .side-brand b { font-weight: 600; letter-spacing: -.01em; }
 .side-label {
@@ -458,7 +455,7 @@ select.compacto { width: auto; padding: 8px 10px; font-size: 12.5px; }
 .login-page::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 18% 15%, var(--accent-soft), transparent 32%), radial-gradient(circle at 84% 86%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 36%); }
 .login-card { max-width: 360px; width: 100%; padding: 28px; border-color: color-mix(in srgb, var(--accent) 20%, var(--border-soft)); }
 .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-.login-brand .logo { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; font-size: 14px; font-weight: 700; color: #fff; background: linear-gradient(140deg, var(--accent), #9b7bff); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 33%, transparent); }
+.login-brand .logo { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; display: block; }
 .login-brand b { font-size: 16px; letter-spacing: -.02em; }
 
 /* ---- Paginado ---- */

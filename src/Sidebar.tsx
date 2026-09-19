@@ -18,7 +18,7 @@ export function Sidebar({ vista, cantidadJuegos, cantidadListos, email, onIr, on
   return (
     <aside className="side">
       <div className="side-brand">
-        <div className="logo">g7</div>
+        <img className="logo" src="/icon-192.png" alt="" />
         <b>gameswin777</b>
       </div>
 
