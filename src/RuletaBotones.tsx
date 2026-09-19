@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom';
 import { Ruleta } from './Ruleta.tsx';
 import { slotsDe } from './juego/ruleta-botones.ts';
 import { cargarFuenteTema, temaDe } from './juego/ruleta-temas.ts';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { PosControlesRuleta, ResueltoBotones, RuletaBotonesCfg, RuletaSlot } from './types.ts';
 
@@ -71,6 +73,9 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
   const pendiente = useRef<GiroBotones | null>(null);
   const resolverRef = useRef(resolver);
   resolverRef.current = resolver;
+  const auto = useAutoplay();
+  const girarRef = useRef<() => void>(() => {});
+  const lastApuestas = useRef<Record<number, number[]>>({});
 
   useEffect(() => { if (objetivo == null) setSlots(slotsDe(numeros)); }, [numeros, objetivo]);
   useEffect(() => { if (!cfg.fichas.includes(fichaActiva)) setFichaActiva(cfg.fichas[0] ?? 1000); }, [cfg.fichas, fichaActiva]);
@@ -119,13 +124,14 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
 
   const girar = async () => {
     if (girando) return;
-    if (total <= 0) { setResultado('Poné al menos una ficha en un número.'); return; }
+    if (total <= 0) { setResultado('Poné al menos una ficha en un número.'); auto.stop(); return; }
     setGirando(true);
     setResultado('');
     escenario.lanzarAnimaciones('girar');
     if (escenario.audios.giro) { escenario.audios.giro.currentTime = 0; escenario.audios.giro.play().catch(() => {}); }
     if (escenario.audios.musica_fondo?.paused) escenario.audios.musica_fondo.play().catch(() => {});
 
+    lastApuestas.current = apuestas;
     const montos: Record<number, number> = {};
     numeros.forEach((_n, i) => { const m = montoEn(i); if (m > 0) montos[i] = m; });
 
@@ -138,8 +144,10 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
     } catch (err) {
       setGirando(false);
       setResultado((err as Error).message || 'No se pudo resolver el giro.');
+      auto.stop();
     }
   };
+  girarRef.current = () => { void girar(); };
 
   const alLlegar = () => {
     const g = pendiente.current;
@@ -161,6 +169,11 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
       setResultado(`Cayó ${et} · no le pusiste fichas`);
     }
     setGirando(false);
+    const tot = Object.values(lastApuestas.current).reduce((s, arr) => s + arr.reduce((a, b) => a + b, 0), 0);
+    auto.continuar(() => {
+      setApuestas(lastApuestas.current);
+      window.setTimeout(() => girarRef.current(), 30);
+    }, g.saldo >= tot && tot > 0);
   };
 
   // ---------------- Render ----------------
@@ -276,7 +289,14 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
       </div>
 
       {/* Girar */}
-      <button className={pos.girar.imagen_url ? 'jg-play' : 'primary jg-play'} onClick={girar} disabled={girando} style={{
+      <BotonAuto
+        x={pos.girar.x} y={pos.girar.y}
+        offsetPx={-(pos.girar.ancho / 2 + 44)}
+        restantes={auto.restantes} activo={auto.activo}
+        disabled={girando || total <= 0}
+        onStart={(n) => auto.start(n, () => girarRef.current())} onStop={auto.stop}
+      />
+      <button className={pos.girar.imagen_url ? 'jg-play' : 'primary jg-play'} onClick={girar} disabled={girando || auto.activo} style={{
         position: 'absolute', left: `${pos.girar.x}%`, top: `${pos.girar.y}%`, transform: 'translate(-50%,-50%)',
         width: pos.girar.ancho, height: pos.girar.alto, pointerEvents: 'auto',
         display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ruleta } from './Ruleta.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { slotsDe } from './juego/ruleta.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { NivelPremio, RuletaSlot, Simbolo } from './types.ts';
@@ -34,6 +36,8 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
   const pendiente = useRef<ResueltoRuleta | null>(null);
   const resolverRef = useRef(resolver);
   resolverRef.current = resolver;
+  const auto = useAutoplay();
+  const girarRef = useRef<() => void>(() => {});
 
   // Reconstruir la rueda si cambian los símbolos y no está girando.
   useEffect(() => {
@@ -64,8 +68,10 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
         esc.btnGirar.disabled = false;
         setSpinning(false);
         setResultado((err as Error).message || 'No se pudo resolver el giro.');
+        auto.stop();
       }
     };
+    girarRef.current = () => { void girar(); };
     esc.btnGirar.addEventListener('click', girar);
     return () => esc.btnGirar.removeEventListener('click', girar);
   }, [escenario]);
@@ -89,11 +95,23 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
       setResultado(`Cayó ${r.slots[r.ganadora]?.et ?? '×0'} · perdés ${Math.round(apuesta).toLocaleString('es-PY')}`);
     }
     escenario.girando = false;
-    escenario.btnGirar.disabled = false;
+    escenario.btnGirar.disabled = auto.activo;
+    auto.continuar(() => girarRef.current(), escenario.saldo >= escenario.apuesta);
   };
 
   return (
     <>
+      <BotonAuto
+        host={escenario.el}
+        x={escenario.posGirar.girar_x}
+        y={escenario.posGirar.girar_y}
+        offsetPx={-(escenario.posGirar.girar_tamano / 2 + 44)}
+        restantes={auto.restantes}
+        activo={auto.activo}
+        disabled={escenario.saldo < escenario.apuesta}
+        onStart={(n) => auto.start(n, () => girarRef.current())}
+        onStop={auto.stop}
+      />
       {createPortal(<Ruleta slots={slots} objetivo={objetivo} onLlegada={alLlegar} girando={spinning} />, escenario.grillaEl)}
       {createPortal(
         <p style={{

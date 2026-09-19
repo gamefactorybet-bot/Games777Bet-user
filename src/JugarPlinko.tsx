@@ -7,6 +7,8 @@ import { fichasDe, fichasSinCajaDe, fichasVistaDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesPlinkoDe } from './juego/plinko.ts';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { temaPlinkoDe } from './juego/plinko-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { DatosJuego, EstadoPlinko, ResultadoPlinko, TiradaResuelta } from './types.ts';
@@ -46,6 +48,8 @@ export function JugarPlinko({ datos, saldoInicial, slug, token }: JugarPlinkoPro
   const [pantallaMontada, setPantallaMontada] = useState(true);
   const [estado, setEstado] = useState<EstadoPlinko>(() => estadoInicial(minBet, Number(saldoInicial), cfg));
   const [tirada, setTirada] = useState<TiradaResuelta | null>(null);
+  const auto = useAutoplay();
+  const soltarRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let cancelado = false;
@@ -90,18 +94,22 @@ export function JugarPlinko({ datos, saldoInicial, slug, token }: JugarPlinkoPro
       setTirada(r.resultado);
     } catch (err) {
       setEstado((e) => ({ ...e, cargando: false, error: (err as Error).message || 'No se pudo resolver la tirada.' }));
+      auto.stop();
     }
   };
+  soltarRef.current = () => { void soltar(); };
 
   const alCaer = (mult: number) => {
     const p = pendRef.current;
     pendRef.current = null;
+    const saldo = p ? p.saldoFinal : estado.saldo;
     setEstado((e) => ({
       ...e,
-      saldo: p ? p.saldoFinal : e.saldo,
+      saldo,
       historial: [mult, ...e.historial].slice(0, 30),
     }));
     setTirada(null);
+    auto.continuar(() => soltarRef.current(), saldo >= estado.apuesta);
   };
 
   const imagenCarga = (juego.carga_url as string) || (juego.portada_url as string) || null;
@@ -120,9 +128,17 @@ export function JugarPlinko({ datos, saldoInicial, slug, token }: JugarPlinkoPro
             filas={estado.filas} riesgo={estado.riesgo}
             tirada={tirada} onLand={alCaer}
           />
+          <BotonAuto
+            host={escRef.current.el}
+            x={pos.boton.x} y={pos.boton.y}
+            offsetPx={-(pos.boton.ancho / 2 + 44)}
+            restantes={auto.restantes} activo={auto.activo}
+            disabled={!!tirada || estado.cargando || estado.saldo < estado.apuesta}
+            onStart={(n) => auto.start(n, () => soltarRef.current())} onStop={auto.stop}
+          />
           <PlinkoMesa
             escenario={escRef.current} cfg={cfg} pos={pos} estado={estado}
-            minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada}
+            minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada || auto.activo}
             ocultarApuesta={fichas.length > 0}
             ocultarCaja={sinCaja}
             onSoltar={soltar}

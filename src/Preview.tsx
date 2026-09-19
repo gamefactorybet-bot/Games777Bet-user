@@ -7,6 +7,8 @@ import { crearEscenario } from './juego/escenario.ts';
 import { crearRodillosPreview } from './juego/rodillos-preview.ts';
 import { AjustePanel } from './AjustePanel.tsx';
 import { FichasEnEscenario } from './Fichas.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { fichasConDefaults, parcheFichas } from '../motor/fichas.js';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosPreview } from './juego/rodillos-preview.ts';
@@ -35,6 +37,8 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
   const [listo, setListo] = useState(false);
   const [mostrarPanel, setMostrarPanel] = useState(false);
   const [mostrarProbador, setMostrarProbador] = useState(false);
+  const auto = useAutoplay();
+  const girarRef = useRef<() => void>(() => {});
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
@@ -101,7 +105,7 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
   const girar = async () => {
     const esc = escRef.current, rod = rodRef.current;
     if (!esc || !rod || esc.girando) return;
-    if (esc.saldo < esc.apuesta) { alert('Sin saldo de prueba. Cerrá y volvé a abrir.'); return; }
+    if (esc.saldo < esc.apuesta) { alert('Sin saldo de prueba. Cerrá y volvé a abrir.'); auto.stop(); return; }
 
     esc.girando = true;
     esc.btnGirar.disabled = true;
@@ -116,8 +120,10 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
     await rod.girar(forzado);
 
     esc.girando = false;
-    esc.btnGirar.disabled = false;
+    esc.btnGirar.disabled = auto.activo;
+    auto.continuar(() => girarRef.current(), esc.saldo >= esc.apuesta);
   };
+  girarRef.current = () => { void girar(); };
 
   const probar = (simboloIdx: number, cadena: number) => {
     const esc = escRef.current, motor = motorRef.current;
@@ -153,6 +159,17 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
         </div>
         <div ref={hostRef} />
         {listo && escRef.current && (
+          <>
+          <BotonAuto
+            host={escRef.current.el}
+            x={escRef.current.posGirar.girar_x}
+            y={escRef.current.posGirar.girar_y}
+            offsetPx={-(escRef.current.posGirar.girar_tamano / 2 + 44)}
+            restantes={auto.restantes}
+            activo={auto.activo}
+            onStart={(n) => auto.start(n, () => girarRef.current())}
+            onStop={auto.stop}
+          />
           <FichasEnEscenario
             juego={juego} escenario={escRef.current} fichas={fichas}
             editable
@@ -166,6 +183,7 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
               }
             }}
           />
+          </>
         )}
       </div>
 

@@ -5,6 +5,8 @@ import { Fichas } from './Fichas.tsx';
 import { fichasVistaDe } from '../motor/fichas.js';
 import { estadoInicial, tablaDe } from './juego/keno.ts';
 import { tocar, tocarPremio } from './juego/sfx.ts';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import type { TemaKeno } from './juego/keno-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { EstadoKeno, Ficha, Juego, KenoCfg, PosControlesKeno, TiradaInstant } from './types.ts';
@@ -45,7 +47,7 @@ export function usePartidaKeno(cfg: KenoCfg, saldoInicial: number, apuestaInicia
 
   const jugar = useCallback(async () => {
     const cur = estadoRef.current;
-    if (cur.fase !== 'idle' || !cur.picked.length || cur.saldo < cur.apuesta) return;
+    if (cur.fase === 'rolling' || !cur.picked.length || cur.saldo < cur.apuesta) return;
     const picked = cur.picked.slice();
     const apuesta = cur.apuesta;
     setEstado((e) => ({ ...e, fase: 'rolling', res: null, drawn: [], error: null, saldo: e.saldo - e.apuesta }));
@@ -102,14 +104,20 @@ export function KenoJuego({
 }: KenoJuegoProps) {
   const inicial = fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000));
   const p = usePartidaKeno(cfg, saldoInicial, inicial, onJugar);
+  const auto = useAutoplay();
+  const jugarRef = useRef<() => void>(() => {});
+  jugarRef.current = () => { void p.jugar(); };
   const fasePrev = useRef(p.estado.fase);
   useEffect(() => {
     const antes = fasePrev.current;
     fasePrev.current = p.estado.fase;
     if (antes === p.estado.fase) return;
     if (p.estado.fase === 'rolling') tocar(escenario.audios, 'giro');
-    if (p.estado.fase === 'done') tocarPremio(escenario.audios, p.estado.res?.amount ?? 0, p.estado.apuesta);
-  }, [p.estado.fase, p.estado.res, p.estado.apuesta, escenario.audios]);
+    if (p.estado.fase === 'done') {
+      tocarPremio(escenario.audios, p.estado.res?.amount ?? 0, p.estado.apuesta);
+      auto.continuar(() => jugarRef.current(), p.estado.saldo >= p.estado.apuesta && p.estado.picked.length > 0);
+    }
+  }, [p.estado.fase, p.estado.res, p.estado.apuesta, p.estado.saldo, p.estado.picked.length, escenario.audios]);
   const tabla = useMemo(
     () => (p.estado.picked.length ? tablaDe(cfg, p.estado.picked.length) : []),
     [cfg, p.estado.picked.length],
@@ -119,6 +127,14 @@ export function KenoJuego({
     <>
       <KenoTablero escenario={escenario} juego={juego} cfg={cfg} tema={tema} pos={pos}
         estado={p.estado} onToggle={p.onToggle} premioDemo={premioDemo} />
+      <BotonAuto
+        host={escenario.el}
+        x={pos.boton.x} y={pos.boton.y}
+        offsetPx={-(pos.boton.ancho / 2 + 44)}
+        restantes={auto.restantes} activo={auto.activo}
+        disabled={p.estado.fase === 'rolling' || !p.estado.picked.length || p.estado.saldo < p.estado.apuesta}
+        onStart={(n) => auto.start(n, () => jugarRef.current())} onStop={auto.stop}
+      />
       <KenoMesa escenario={escenario} cfg={cfg} pos={pos} estado={p.estado} tabla={tabla}
         minBet={minBet} maxBet={maxBet} pasoApuesta={paso}
         ocultarApuesta={fichas.length > 0} ocultarCaja={sinCaja}

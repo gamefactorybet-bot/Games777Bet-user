@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { audiosDe, tocar } from './juego/sfx.ts';
 import { FichasStrip } from './Fichas.tsx';
 import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
@@ -19,6 +21,8 @@ function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sal
   sonidos?: { tipo: string; archivo_url?: string | null }[]; motor?: string;
 }) {
   const audios = useMemo(() => audiosDe(sonidos, motor || 'limbo'), [sonidos, motor]);
+  const auto = useAutoplay();
+  const jugarRef = useRef<() => void>(() => {});
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
     fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000)),
@@ -56,13 +60,16 @@ function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sal
         setSaldo(r.saldo);
         setNota(gano ? `¡Ganaste! ×${r.resultado.objetivo?.toFixed(2)}` : `Cayó en ${X.toFixed(2)}× · objetivo ×${obj.toFixed(2)}`);
         setHist((h) => [{ texto: X.toFixed(2) + '×', gano }, ...h].slice(0, 12));
+        auto.continuar(() => jugarRef.current(), r.saldo >= apuesta);
       };
       rafRef.current = requestAnimationFrame(tick);
     } catch (err) {
       setFase('idle'); setSaldo((s) => s + apuesta);
       setNota((err as Error).message || 'No se pudo resolver la jugada.');
+      auto.stop();
     }
   };
+  jugarRef.current = () => { void jugar(); };
 
   const color = fase === 'gano' ? 'var(--ok)' : fase === 'perdio' ? 'var(--danger)' : fase === 'rolling' ? 'var(--text)' : 'var(--text-dim)';
 
@@ -99,7 +106,14 @@ function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sal
         <ApuestaControl apuesta={apuesta} minBet={minBet} maxBet={maxBet} paso={paso}
           ocupado={fase === 'rolling'} onApuesta={setApuesta} />
       )}
-      <BotonJugar texto={fase === 'rolling' ? '…' : 'Apostar'} disabled={fase === 'rolling' || saldo < apuesta} onClick={jugar} />
+      <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <BotonAuto enFlujo restantes={auto.restantes} activo={auto.activo}
+          disabled={fase === 'rolling' || saldo < apuesta}
+          onStart={(n) => auto.start(n, () => jugarRef.current())} onStop={auto.stop} />
+        <div style={{ flex: 1 }}>
+          <BotonJugar texto={fase === 'rolling' || auto.activo ? '…' : 'Apostar'} disabled={fase === 'rolling' || auto.activo || saldo < apuesta} onClick={jugar} />
+        </div>
+      </div>
       <Saldo valor={saldo} />
     </>
   );

@@ -7,6 +7,8 @@ import { fichasDe, fichasSinCajaDe, fichasVistaDe } from '../motor/fichas.js';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesCrashDe } from './juego/crash.ts';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { temaCrashDe } from './juego/crash-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { DatosJuego, EstadoCrash, RetiroCrash, RondaCrash } from './types.ts';
@@ -48,6 +50,9 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
   const [estado, setEstado] = useState<EstadoCrash>(() => estadoInicial(minBet, Number(saldoInicial), cfg));
+  const auto = useAutoplay();
+  const apostarRef = useRef<() => void>(() => {});
+  const fasePrev = useRef(estado.fase);
 
   useEffect(() => {
     let cancelado = false;
@@ -103,8 +108,9 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
         saldo: r.yaExistia ? e.saldo : (r.saldo ?? e.saldo - e.apuesta),
         error: r.yaExistia ? 'Retomaste una ronda que ya tenías en curso.' : null,
       }));
-    } catch (err) { conError(err); }
+    } catch (err) { conError(err); auto.stop(); }
   };
+  apostarRef.current = () => { void apostar(); };
 
   const retirar = async (objetivoAuto?: number) => {
     if (!roundRef.current || cerrandoRef.current) return;
@@ -154,6 +160,14 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
     setEstado((e) => (e.fase === 'en_curso' ? e : { ...e, fase: 'inactiva', roundId: null, multiplicador: 1, inicioTs: null, reventadoEn: null, ganancia: null, error: null }));
   };
 
+  useEffect(() => {
+    const antes = fasePrev.current;
+    fasePrev.current = estado.fase;
+    if (estado.fase === 'inactiva' && (antes === 'retirada' || antes === 'reventada')) {
+      auto.continuar(() => apostarRef.current(), estado.saldo >= estado.apuesta);
+    }
+  }, [estado.fase, estado.saldo, estado.apuesta]);
+
   const imagenCarga = (juego.carga_url as string) || (juego.portada_url as string) || null;
 
   return (
@@ -170,6 +184,14 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
             multVivoRef={multVivoRef}
             onAuto={(obj) => retirar(obj)}
             onTope={() => cerrar()}
+          />
+          <BotonAuto
+            host={escRef.current.el}
+            x={pos.boton.x} y={pos.boton.y}
+            offsetPx={-(pos.boton.ancho / 2 + 44)}
+            restantes={auto.restantes} activo={auto.activo}
+            disabled={estado.fase === 'en_curso' || estado.cargando || estado.saldo < estado.apuesta}
+            onStart={(n) => auto.start(n, () => apostarRef.current())} onStop={auto.stop}
           />
           <CrashMesa
             escenario={escRef.current} cfg={cfg} pos={pos} estado={estado}

@@ -9,6 +9,7 @@ import { SieteUdShell } from './SieteUdShell.tsx';
 import { SieteUdMesa, type EdicionMesa } from './SieteUdMesa.tsx';
 import { SieteUdEditor } from './SieteUdEditor.tsx';
 import { useSieteUd, type JugarSieteUdFn } from './juego/useSieteUd.ts';
+import { useAutoplay } from './juego/autoplay.ts';
 import { cfgConDefaults as _cfg, tirar as _tirarLocal } from '../motor/sieteud.js';
 import { posControlesSieteUdDe, paletaDadosDe, ESCENA_W, ESCENA_H } from './juego/sieteud.ts';
 import type {
@@ -114,13 +115,19 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
   const apuestaIni = fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000));
   const g = useSieteUd(cfg, saldoInicial, apuestaIni, onJugar, animar);
   const stingRef = useRef(g.est.fase);
+  const auto = useAutoplay();
+  const jugarRef = useRef(g.jugar);
+  jugarRef.current = g.jugar;
 
   useEffect(() => {
     if (g.est.fase === stingRef.current) return;
     stingRef.current = g.est.fase;
     if (g.est.fase === 'gano') audioRef.current?.gano(g.est.res?.suma === 7);
     if (g.est.fase === 'perdio') audioRef.current?.perdio();
-  }, [g.est.fase, g.est.res?.suma]);
+    if (g.est.fase === 'gano' || g.est.fase === 'perdio') {
+      auto.continuar(() => { void jugarRef.current(); }, g.est.saldo >= g.est.apuesta);
+    }
+  }, [g.est.fase, g.est.res?.suma, g.est.saldo, g.est.apuesta]);
 
   return (
     <SieteUdShell
@@ -132,6 +139,12 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
         abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco}
         minBet={minBet} maxBet={maxBet} paso={paso} canvasRef={canvasRef}
         onApuesta={g.setApuesta} onZona={g.setZona} onJugar={g.jugar} onOtra={g.reset}
+        auto={{
+          restantes: auto.restantes, activo: auto.activo,
+          disabled: g.est.fase === 'rolling' || g.est.saldo < g.est.apuesta,
+          onStart: (n) => auto.start(n, () => { void jugarRef.current(); }),
+          onStop: auto.stop,
+        }}
         onUnlock={() => audioRef.current?.unlock()}
         edicion={edicion} cartelDemo={cartelDemo}
       />

@@ -9,6 +9,8 @@ import { fichasConDefaults, fichasVistaDe, parcheFichas } from '../motor/fichas.
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjustePlinkoControles } from './AjustePlinkoControles.tsx';
 import { cfgDe, estadoInicial, posControlesPlinkoDe, tirarLocal } from './juego/plinko.ts';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { temaPlinkoDe } from './juego/plinko-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { AnimacionLottie, CadenaLuz, CapaLibre, EstadoPlinko, Ficha, Juego, PosControlesPlinko, TiradaResuelta } from './types.ts';
@@ -44,6 +46,8 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
   };
   const [estado, setEstado] = useState<EstadoPlinko>(() => estadoInicial(minBet, SALDO_DEMO, cfg));
   const [tirada, setTirada] = useState<TiradaResuelta | null>(null);
+  const auto = useAutoplay();
+  const soltarRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let cancelado = false;
@@ -78,14 +82,18 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
       return { ...e, saldo: e.saldo - e.apuesta, error: null };
     });
   };
+  soltarRef.current = soltar;
 
   const alCaer = (mult: number) => {
+    const premio = Math.round(estado.apuesta * mult);
+    const saldo = estado.saldo + premio;
     setEstado((e) => ({
       ...e,
       saldo: e.saldo + Math.round(e.apuesta * mult),
       historial: [mult, ...e.historial].slice(0, 30),
     }));
     setTirada(null);
+    auto.continuar(() => soltarRef.current(), saldo >= estado.apuesta);
   };
 
   const overlay = (
@@ -105,9 +113,17 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
             filas={estado.filas} riesgo={estado.riesgo}
             tirada={tirada} onLand={alCaer}
           />
+          <BotonAuto
+            host={escRef.current.el}
+            x={posCtl.boton.x} y={posCtl.boton.y}
+            offsetPx={-(posCtl.boton.ancho / 2 + 44)}
+            restantes={auto.restantes} activo={auto.activo}
+            disabled={!!tirada || estado.saldo < estado.apuesta}
+            onStart={(n) => auto.start(n, () => soltarRef.current())} onStop={auto.stop}
+          />
           <PlinkoMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
-            minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada}
+            minBet={minBet} maxBet={maxBet} pasoApuesta={paso} cayendo={!!tirada || auto.activo}
             ocultarApuesta={fichas.length > 0}
             ocultarCaja={sinCaja}
             onSoltar={soltar}

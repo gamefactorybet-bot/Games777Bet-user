@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FichasEnEscenario } from './Fichas.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { cargarMotor } from '../motor/registro.js';
 import { mostrarTablaPagos } from './tabla-pagos.ts';
 import { animarSimboloGanador, detenerAnimacionesSimbolos, detenerAnimacionesJuego } from './lottie.ts';
@@ -31,6 +33,8 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
   const [escListo, setEscListo] = useState(false);
+  const auto = useAutoplay();
+  const girarRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let cancelado = false;
@@ -124,6 +128,7 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
       alert((err as Error).message || 'No se pudo resolver el giro. Probá de nuevo.');
       esc.girando = false;
       esc.btnGirar.disabled = false;
+      auto.stop();
       return;
     }
 
@@ -166,8 +171,15 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
     }
 
     esc.girando = false;
-    esc.btnGirar.disabled = false;
+    esc.btnGirar.disabled = auto.activo;
+    auto.continuar(() => girarRef.current(), esc.saldo >= esc.apuesta);
   };
+  girarRef.current = () => { void girar(); };
+
+  useEffect(() => {
+    const esc = escRef.current;
+    if (esc) esc.btnGirar.disabled = auto.activo || esc.girando;
+  }, [auto.activo]);
 
   const imagenCarga = (datos.juego.carga_url as string) || (datos.juego.portada_url as string) || null;
 
@@ -175,7 +187,20 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
     <>
       <div ref={hostRef} />
       {escListo && escRef.current && (
-        <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+        <>
+          <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+          <BotonAuto
+            host={escRef.current.el}
+            x={escRef.current.posGirar.girar_x}
+            y={escRef.current.posGirar.girar_y}
+            offsetPx={-(escRef.current.posGirar.girar_tamano / 2 + 44)}
+            restantes={auto.restantes}
+            activo={auto.activo}
+            disabled={escRef.current.saldo < escRef.current.apuesta}
+            onStart={(n) => auto.start(n, () => girarRef.current())}
+            onStop={auto.stop}
+          />
+        </>
       )}
       {pantallaMontada && (
         <PantallaCarga

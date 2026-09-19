@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
 import { audiosDe, tocar } from './juego/sfx.ts';
 import { FichasStrip } from './Fichas.tsx';
 import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
@@ -21,6 +23,8 @@ function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sald
   sonidos?: { tipo: string; archivo_url?: string | null }[]; motor?: string;
 }) {
   const audios = useMemo(() => audiosDe(sonidos, motor || 'dice'), [sonidos, motor]);
+  const auto = useAutoplay();
+  const jugarRef = useRef<() => void>(() => {});
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
     fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000)),
@@ -63,13 +67,16 @@ function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sald
         tocar(audios, gano ? 'premio_chico' : 'perder');
         setSaldo(r.saldo);
         setHist((h) => [{ texto: v.toFixed(2), gano }, ...h].slice(0, 12));
+        auto.continuar(() => jugarRef.current(), r.saldo >= apuesta);
       }, 560);
     } catch (err) {
       setFase('idle'); setSaldo((s) => s + apuesta);
       setHist((h) => [{ texto: '—', gano: false }, ...h].slice(0, 12));
+      auto.stop();
       console.error(err);
     }
   };
+  jugarRef.current = () => { void jugar(); };
 
   const resultColor = fase === 'gano' ? 'var(--ok)' : fase === 'perdio' ? 'var(--danger)' : 'var(--text-dim)';
   const zona: React.CSSProperties = dir === 'mayor'
@@ -139,7 +146,14 @@ function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sald
         <ApuestaControl apuesta={apuesta} minBet={minBet} maxBet={maxBet} paso={paso}
           ocupado={fase === 'rolling'} onApuesta={setApuesta} />
       )}
-      <BotonJugar texto={fase === 'rolling' ? '…' : 'Tirar'} disabled={fase === 'rolling' || saldo < apuesta} onClick={jugar} />
+      <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <BotonAuto enFlujo restantes={auto.restantes} activo={auto.activo}
+          disabled={fase === 'rolling' || saldo < apuesta}
+          onStart={(n) => auto.start(n, () => jugarRef.current())} onStop={auto.stop} />
+        <div style={{ flex: 1 }}>
+          <BotonJugar texto={fase === 'rolling' || auto.activo ? '…' : 'Tirar'} disabled={fase === 'rolling' || auto.activo || saldo < apuesta} onClick={jugar} />
+        </div>
+      </div>
       <Saldo valor={saldo} />
     </>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { FichasStrip } from './Fichas.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
 import { Pieza, type PatchPieza, type ValPieza } from './SieteUdPieza.tsx';
 import { ZONAS, ZONA_INFO, pagoDe, campana, estiloImg, PIEZAS_SIETEUD } from './juego/sieteud.ts';
 import type { EstadoSieteUd } from './juego/useSieteUd.ts';
@@ -38,11 +39,15 @@ interface Props {
   edicion?: EdicionMesa | null;
   /** mostrar el cartel de premio sin haber ganado (para ubicarlo). */
   cartelDemo?: boolean;
+  auto?: {
+    restantes: number; activo: boolean; disabled: boolean;
+    onStart: (n: number) => void; onStop: () => void;
+  };
 }
 
 export function SieteUdMesa({
   cfg, pos, est, fichas, modoFichas, abanicoApertura, abanicoArco, minBet, maxBet, paso, canvasRef,
-  onApuesta, onZona, onJugar, onOtra, onUnlock, edicion, cartelDemo,
+  onApuesta, onZona, onJugar, onOtra, onUnlock, edicion, cartelDemo, auto,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const editando = !!edicion;
@@ -217,6 +222,13 @@ export function SieteUdMesa({
       ))}
 
       {P('boton', (
+        <div>
+        {auto && !editando && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+            <BotonAuto enFlujo restantes={auto.restantes} activo={auto.activo} disabled={auto.disabled}
+              onStart={auto.onStart} onStop={auto.onStop} />
+          </div>
+        )}
         <button
           className="jg-play-flow"
           onClick={() => {
@@ -224,7 +236,7 @@ export function SieteUdMesa({
             onUnlock?.();
             onJugar();
           }}
-          disabled={rolling || est.saldo < est.apuesta}
+          disabled={rolling || !!auto?.activo || est.saldo < est.apuesta}
           style={{
             position: 'relative', overflow: 'hidden',
             width: '100%', border: `1px solid ${estiloBoton.borde}`, borderRadius: estiloBoton.radio, cursor: editando ? 'move' : 'pointer',
@@ -239,6 +251,7 @@ export function SieteUdMesa({
           {rolling && <span aria-hidden className="sud-shine" />}
           <span style={{ position: 'relative' }}>{rolling ? 'TIRANDO' : 'TIRAR'}</span>
         </button>
+        </div>
       ))}
     </div>
   );
