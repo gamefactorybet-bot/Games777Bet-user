@@ -78,6 +78,7 @@ export function RaspaditaMesa({
       )}
 
       <button
+        className="jg-play"
         onClick={onComprar}
         disabled={btnDisabled}
         style={{

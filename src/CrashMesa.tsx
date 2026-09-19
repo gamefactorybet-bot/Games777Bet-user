@@ -130,6 +130,7 @@ export function CrashMesa({
 
       {/* Botón principal */}
       <button
+        className="jg-play"
         onClick={accion}
         disabled={btnDisabled}
         style={{

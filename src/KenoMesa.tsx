@@ -130,6 +130,7 @@ export function KenoMesa({
 
       {/* Botón principal */}
       <button
+        className="jg-play"
         onClick={res ? onLimpiar : onJugar}
         disabled={btnDisabled}
         style={{

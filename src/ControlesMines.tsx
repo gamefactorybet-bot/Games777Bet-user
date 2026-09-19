@@ -195,7 +195,7 @@ export function ControlesMines({
       <button
         onClick={accion}
         disabled={botonDisabled}
-        className={b.imagen_url ? undefined : 'primary'}
+        className={b.imagen_url ? 'jg-play' : 'primary jg-play'}
         style={{
           position: 'absolute', left: `${b.x}%`, top: `${b.y}%`,
           transform: 'translate(-50%,-50%)',

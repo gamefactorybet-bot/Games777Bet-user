@@ -218,6 +218,7 @@ export function SieteUdMesa({
 
       {P('boton', (
         <button
+          className="jg-play-flow"
           onClick={() => {
             if (editando) return;
             onUnlock?.();

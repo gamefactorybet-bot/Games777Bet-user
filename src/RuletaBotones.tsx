@@ -276,7 +276,7 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
       </div>
 
       {/* Girar */}
-      <button className={pos.girar.imagen_url ? undefined : 'primary'} onClick={girar} disabled={girando} style={{
+      <button className={pos.girar.imagen_url ? 'jg-play' : 'primary jg-play'} onClick={girar} disabled={girando} style={{
         position: 'absolute', left: `${pos.girar.x}%`, top: `${pos.girar.y}%`, transform: 'translate(-50%,-50%)',
         width: pos.girar.ancho, height: pos.girar.alto, pointerEvents: 'auto',
         display: 'flex', alignItems: 'center', justifyContent: 'center',

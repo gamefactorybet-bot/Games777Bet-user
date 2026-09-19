@@ -102,6 +102,7 @@ export function ApuestaControl({ apuesta, minBet, maxBet, paso, ocupado, onApues
 export function BotonJugar({ texto, disabled, onClick }: { texto: string; disabled: boolean; onClick: () => void }) {
   return (
     <button
+      className="jg-play-flow"
       onClick={onClick}
       disabled={disabled}
       style={{

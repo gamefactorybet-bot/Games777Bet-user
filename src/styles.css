@@ -648,6 +648,66 @@ button { font-weight: 500; }
 .detail-actions { display:grid; gap:8px; margin-top:16px; }
 .detail-actions button { width:100%; }
 
+/* Botón de girar / jugar: pulso + brillo. Con imagen temática si no, queda muerto. */
+@keyframes jg-play-pulse {
+  0%, 100% { transform: translate(-50%,-50%) scale(1); filter: brightness(1); }
+  50% { transform: translate(-50%,-50%) scale(1.07); filter: brightness(1.12); }
+}
+@keyframes jg-play-pulse-flow {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.04); filter: brightness(1.1); }
+}
+@keyframes jg-play-busy {
+  0%, 100% { transform: translate(-50%,-50%) scale(.96); filter: brightness(.88); }
+  50% { transform: translate(-50%,-50%) scale(1.03); filter: brightness(1.08); }
+}
+@keyframes jg-play-busy-flow {
+  0%, 100% { transform: scale(.97); filter: brightness(.9); }
+  50% { transform: scale(1.02); filter: brightness(1.06); }
+}
+@keyframes jg-play-shine {
+  0% { transform: translateX(-140%) rotate(18deg); }
+  100% { transform: translateX(220%) rotate(18deg); }
+}
+.jg-play, .jg-play-flow {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+.jg-play { animation: jg-play-pulse 2.1s ease-in-out infinite; }
+.jg-play-flow { animation: jg-play-pulse-flow 2.1s ease-in-out infinite; }
+.jg-play::after, .jg-play-flow::after {
+  content: "";
+  position: absolute;
+  inset: -30% -40%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(255,255,255,.38) 50%, transparent 58%);
+  animation: jg-play-shine 2.6s ease-in-out infinite;
+}
+button.jg-play:active:not(:disabled) {
+  animation: none;
+  transform: translate(-50%,-50%) scale(.9);
+  filter: brightness(1.15);
+}
+button.jg-play-flow:active:not(:disabled) {
+  animation: none;
+  transform: scale(.96);
+  filter: brightness(1.12);
+}
+.jg-play:disabled {
+  animation: jg-play-busy .7s ease-in-out infinite;
+}
+.jg-play-flow:disabled {
+  animation: jg-play-busy-flow .7s ease-in-out infinite;
+}
+.jg-play:disabled::after, .jg-play-flow:disabled::after { animation: none; opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .jg-play, .jg-play-flow, .jg-play::after, .jg-play-flow::after {
+    animation: none !important;
+  }
+}
+
 @media (max-width: 1050px) { .games-kpis { grid-template-columns: repeat(2, 1fr); } .shell-inner { padding-inline:22px; } }
 @media (max-width: 720px) { .side { width:72px; padding-inline:8px; } .side-brand { justify-content:center; } .side-brand b, .side-label, .side-item:not(.on) .side-count, .side-item { font-size:0; } .side-item { justify-content:center; } .side-item svg { width:20px; height:20px; } .side-item .side-count { display:none; } .side-foot .side-who { display:none; } .shell-inner { padding:22px 14px 70px; } .page-head-modern { align-items:flex-start; } .page-head-modern h2 { font-size:25px; } .games-kpis { gap:8px; } .games-kpi { padding:12px; } .games-kpi strong { font-size:20px; } .modern-tools { align-items:stretch; } .modern-tools .buscar { max-width:none; flex-basis:100%; } }
 @media (max-width: 520px) { .games-kpis { grid-template-columns:1fr 1fr; } .games-kpi small { display:none; } .jcards { grid-template-columns:1fr 1fr; } .jcard .art { min-height:145px; } }

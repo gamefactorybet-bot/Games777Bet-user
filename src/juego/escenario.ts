@@ -310,7 +310,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     <div data-fichas style="position:absolute; z-index:10; display:flex; gap:4px; flex-wrap:wrap; justify-content:center; white-space:nowrap"></div>
     <div data-turbo style="position:absolute; z-index:10; display:flex; gap:3px; white-space:nowrap"></div>
 
-    <button data-girar style="position:absolute; z-index:11; padding:0; display:flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden">
+    <button data-girar class="jg-play" style="position:absolute; z-index:11; padding:0; display:flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden">
       <span data-girar-texto style="font-size:14px">Girar</span>
       <img data-girar-img style="display:none; object-fit:contain" />
     </button>

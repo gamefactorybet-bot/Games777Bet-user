@@ -102,6 +102,7 @@ export function PlinkoMesa({
       )}
 
       <button
+        className="jg-play"
         onClick={onSoltar}
         disabled={btnDisabled}
         style={{

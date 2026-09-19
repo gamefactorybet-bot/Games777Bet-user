@@ -148,6 +148,7 @@ export function TorreMesa({
 
       {/* Botón */}
       <button
+        className="jg-play"
         onClick={terminada ? onNueva : onRetirar}
         disabled={btnDisabled}
         style={{
