@@ -20,6 +20,7 @@ import type { CapaId, PosCapas, PosPremio } from './defaults.ts';
 import { pintarMonto } from './monto.ts';
 import { fichasDe } from '../../motor/fichas.js';
 import { engancharLoopVideo, htmlCapaFondo } from './fondo.ts';
+import { audiosDe } from './sfx.ts';
 import type {
   AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
   NivelPremio, PremioVisual, Rect, Simbolo, Sonido,
@@ -236,9 +237,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   }[];
 
   const cssEfectos = (efectos || []).map((ef) => ef.css || '').join('\n');
-  const audios: Partial<Record<string, HTMLAudioElement>> = {};
-  (sonidos || []).forEach((s) => { audios[s.tipo] = new Audio(s.archivo_url); });
-  if (audios.musica_fondo) { audios.musica_fondo.loop = true; audios.musica_fondo.volume = 0.5; }
+  const audios = audiosDe(sonidos, juego.motor);
 
   const fondoBg = juego.fondo_url ? `center/cover url('${juego.fondo_url}')` : 'var(--surface-alt)';
 

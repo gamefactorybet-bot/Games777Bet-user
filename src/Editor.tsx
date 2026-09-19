@@ -268,7 +268,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           : esRuleta
             ? (!simbolos.length || rtpReal > 100)
             : (!simbolos.length || simbolos.some((s) => !s.icono_url) || rtpReal > 100),
-    sonido: caps.familia === 'rodillos' && !sonidos.length,
+    sonido: false,
     efectos: false,
   };
 
@@ -348,6 +348,12 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     const url = await subirArchivo(archivo, `sonidos/${juego.id}`);
     if (!url) return;
     await supabase.from('sonidos').upsert({ juego_id: juego.id, tipo, archivo_url: url }, { onConflict: 'juego_id,tipo' });
+    marcarGuardado();
+    cargarSonidos();
+  };
+
+  const quitarSonido = async (tipo: string) => {
+    await supabase.from('sonidos').delete().eq('juego_id', juego.id).eq('tipo', tipo);
     marcarGuardado();
     cargarSonidos();
   };
@@ -524,7 +530,6 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
     if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
-    if (caps.familia === 'rodillos' && !sonidos.length) avisos.push('Sin sonidos cargados.');
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
     if (caps.girar && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };
@@ -809,22 +814,28 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
           <div className="card" style={{ marginBottom: 16 }}>
             <strong style={{ fontSize: 15 }}>Sonidos</strong>
             <p className="hint" style={{ marginBottom: 14 }}>
-              {caps.familia === 'rodillos'
-                ? 'Archivos cortos (mp3 u ogg). La música arranca con el primer toque del jugador.'
-                : caps.familia === 'mesa'
-                  ? 'Opcional. Música de fondo, un sonido al jugar y otro al ganar. Archivos cortos (mp3 u ogg).'
-                  : 'Opcional. Música de fondo y un sonido al ganar o perder. Archivos cortos (mp3 u ogg).'}
+              Cada juego ya trae sonidos base (giro, ganar, perder). Subí un mp3/ogg para reemplazar uno.
+              La música de fondo no tiene base: si no subís, el juego va en silencio de fondo.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
               {caps.sonidos.map((s) => {
                 const existe = sonidos.some((x) => x.tipo === s.tipo);
+                const esMusica = s.tipo === 'musica_fondo';
                 return (
-                  <label key={s.tipo} style={{ background: 'var(--surface-alt)', borderRadius: 10, padding: 12, textAlign: 'center', cursor: 'pointer', display: 'block' }}>
-                    <div style={{ fontSize: 20 }}>{existe ? '🔊' : '🎵'}</div>
-                    <p className="hint" style={{ margin: '6px 0 0', color: existe ? 'var(--accent)' : 'var(--text-dim)' }}>{s.etiqueta}</p>
-                    {existe && <p className="hint" style={{ margin: '2px 0 0', fontSize: 10 }}>cargado ✓</p>}
-                    <input type="file" accept="audio/*" hidden onChange={(e) => e.target.files?.[0] && subirSonido(s.tipo, e.target.files[0])} />
-                  </label>
+                  <div key={s.tipo} style={{ background: 'var(--surface-alt)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
+                    <label style={{ cursor: 'pointer', display: 'block' }}>
+                      <div style={{ fontSize: 20 }}>{existe ? '🔊' : esMusica ? '🎵' : '🔈'}</div>
+                      <p className="hint" style={{ margin: '6px 0 0', color: existe ? 'var(--accent)' : 'var(--text-dim)' }}>{s.etiqueta}</p>
+                      <p className="hint" style={{ margin: '2px 0 0', fontSize: 10 }}>
+                        {existe ? 'tuyo ✓' : esMusica ? 'sin música' : 'sonido base'}
+                      </p>
+                      <input type="file" accept="audio/*" hidden onChange={(e) => e.target.files?.[0] && subirSonido(s.tipo, e.target.files[0])} />
+                    </label>
+                    {existe && (
+                      <button type="button" style={{ marginTop: 8, fontSize: 11, color: 'var(--danger)' }}
+                        onClick={() => quitarSonido(s.tipo)}>usar base</button>
+                    )}
+                  </div>
                 );
               })}
             </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
+import { audiosDe, tocar } from './juego/sfx.ts';
 import { FichasStrip } from './Fichas.tsx';
 import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
@@ -13,9 +14,11 @@ type Jugar = (objetivo: number, apuesta: number) => Promise<{ resultado: TiradaI
 
 // UI del Limbo. `onJugar` la resuelve el servidor (JugarLimbo) o el
 // motor local (PreviewLimbo).
-function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, saldoInicial, minBet, maxBet, paso, onJugar }: {
+function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, saldoInicial, minBet, maxBet, paso, onJugar, sonidos, motor }: {
   cfg: LimboCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; abanicoApertura?: number; abanicoArco?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+  sonidos?: { tipo: string; archivo_url?: string | null }[]; motor?: string;
 }) {
+  const audios = useMemo(() => audiosDe(sonidos, motor || 'limbo'), [sonidos, motor]);
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
     fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000)),
@@ -35,6 +38,7 @@ function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sal
     const obj = clamp(parseFloat(texto.replace(',', '.')) || cfg.objetivoDefecto, 1.01, cfg.tope);
     setObjetivo(obj); setTexto(obj.toFixed(2));
     setFase('rolling'); setSaldo((s) => s - apuesta);
+    tocar(audios, 'giro');
     try {
       const r = await onJugar(obj, apuesta);
       const X = Number(r.resultado.resultado ?? 1);
@@ -48,6 +52,7 @@ function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sal
         if (p < 1) { rafRef.current = requestAnimationFrame(tick); return; }
         setNum(X.toFixed(2));
         setFase(gano ? 'gano' : 'perdio');
+        tocar(audios, gano ? 'premio_chico' : 'perder');
         setSaldo(r.saldo);
         setNota(gano ? `¡Ganaste! ×${r.resultado.objetivo?.toFixed(2)}` : `Cayó en ${X.toFixed(2)}× · objetivo ×${obj.toFixed(2)}`);
         setHist((h) => [{ texto: X.toFixed(2) + '×', gano }, ...h].slice(0, 12));
@@ -140,7 +145,7 @@ export function JugarLimbo({ datos, saldoInicial, slug, token }: {
     >
       <LimboJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} saldoInicial={Number(saldoInicial)}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
+        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} sonidos={datos.sonidos} motor={juego.motor} />
     </InstantShell>
   );
 }
@@ -164,7 +169,7 @@ export function PreviewLimbo({ juego, onClose }: { juego: Juego; onClose: () => 
     <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}>
       <LimboJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} saldoInicial={10000}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
+        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} motor={juego.motor} />
     </InstantShell>
   );
 }

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { crecimiento } from './juego/crash.ts';
 import { montarLottieEn } from './lottie.ts';
 import { cargarFuenteCrash } from './juego/crash-temas.ts';
+import { tocar } from './juego/sfx.ts';
 import type { TemaCrash } from './juego/crash-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { CrashCfg, EstadoCrash, PosControlesCrash } from './types.ts';
@@ -199,6 +200,7 @@ export function Crash({ escenario, cfg, tema, pos, estado, multVivoRef, onAuto, 
       escenario.lanzarAnimaciones(grande ? 'premio_mayor' : 'premio_chico');
     } else if (estado.fase === 'reventada') {
       if (a.giro) a.giro.pause();
+      tocar(a, 'perder');
       escenario.lanzarAnimaciones('perder');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

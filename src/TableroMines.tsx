@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import { casillaCara, LADO, TOTAL } from './juego/mines.ts';
 import type { Cara, EstadoPartida } from './juego/mines.ts';
 import { aplicarTemaMines, temaMinesDe } from './juego/mines-temas.ts';
+import { tocar, tocarPremio } from './juego/sfx.ts';
 import { montarLottieEn } from './lottie.ts';
 import { ControlesMines } from './ControlesMines.tsx';
 import type { Escenario } from './juego/escenario.ts';
@@ -170,6 +171,23 @@ export function TableroMines({
   const fondoPantalla = !!(juego.fondo_pantalla_url);
 
   useEffect(() => aplicarTemaMines(escenario.el, tema, fondoPantalla), [escenario, tema, fondoPantalla]);
+
+  const fasePrev = useRef(estado.fase);
+  useEffect(() => {
+    const antes = fasePrev.current;
+    fasePrev.current = estado.fase;
+    if (antes === estado.fase) return;
+    if (estado.fase === 'en_curso' && (antes === 'inactiva' || !antes)) tocar(escenario.audios, 'giro');
+    if (estado.fase === 'perdida') tocar(escenario.audios, 'perder');
+    if (estado.fase === 'retirada') tocarPremio(escenario.audios, estado.ganancia ?? 0, estado.apuesta);
+  }, [estado.fase, estado.ganancia, estado.apuesta, escenario.audios]);
+
+  const reveladasPrev = useRef(estado.reveladas.length);
+  useEffect(() => {
+    const n = estado.reveladas.length;
+    if (n > reveladasPrev.current && estado.fase === 'en_curso') tocar(escenario.audios, 'giro');
+    reveladasPrev.current = n;
+  }, [estado.reveladas.length, estado.fase, escenario.audios]);
 
   return (
     <>

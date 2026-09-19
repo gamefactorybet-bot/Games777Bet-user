@@ -4,6 +4,7 @@ import { KenoMesa } from './KenoMesa.tsx';
 import { Fichas } from './Fichas.tsx';
 import { fichasVistaDe } from '../motor/fichas.js';
 import { estadoInicial, tablaDe } from './juego/keno.ts';
+import { tocar, tocarPremio } from './juego/sfx.ts';
 import type { TemaKeno } from './juego/keno-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { EstadoKeno, Ficha, Juego, KenoCfg, PosControlesKeno, TiradaInstant } from './types.ts';
@@ -101,6 +102,14 @@ export function KenoJuego({
 }: KenoJuegoProps) {
   const inicial = fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000));
   const p = usePartidaKeno(cfg, saldoInicial, inicial, onJugar);
+  const fasePrev = useRef(p.estado.fase);
+  useEffect(() => {
+    const antes = fasePrev.current;
+    fasePrev.current = p.estado.fase;
+    if (antes === p.estado.fase) return;
+    if (p.estado.fase === 'rolling') tocar(escenario.audios, 'giro');
+    if (p.estado.fase === 'done') tocarPremio(escenario.audios, p.estado.res?.amount ?? 0, p.estado.apuesta);
+  }, [p.estado.fase, p.estado.res, p.estado.apuesta, escenario.audios]);
   const tabla = useMemo(
     () => (p.estado.picked.length ? tablaDe(cfg, p.estado.picked.length) : []),
     [cfg, p.estado.picked.length],

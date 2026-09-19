@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
+import { audiosDe, tocar } from './juego/sfx.ts';
 import { FichasStrip } from './Fichas.tsx';
 import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
 import { temaInstantDe } from './juego/instant-temas.ts';
@@ -15,9 +16,11 @@ type Dir = 'mayor' | 'menor';
 type Jugar = (umbral: number, direccion: Dir, apuesta: number) =>
   Promise<{ resultado: TiradaInstant; premio: number; saldo: number }>;
 
-function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, saldoInicial, minBet, maxBet, paso, onJugar }: {
+function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, saldoInicial, minBet, maxBet, paso, onJugar, sonidos, motor }: {
   cfg: DiceCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; abanicoApertura?: number; abanicoArco?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+  sonidos?: { tipo: string; archivo_url?: string | null }[]; motor?: string;
 }) {
+  const audios = useMemo(() => audiosDe(sonidos, motor || 'dice'), [sonidos, motor]);
   const [saldo, setSaldo] = useState(saldoInicial);
   const [apuesta, setApuesta] = useState(
     fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000)),
@@ -49,6 +52,7 @@ function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sald
   const jugar = async () => {
     if (fase === 'rolling' || saldo < apuesta) return;
     setFase('rolling'); setSaldo((s) => s - apuesta);
+    tocar(audios, 'giro');
     try {
       const r = await onJugar(umbral, dir, apuesta);
       const v = Number(r.resultado.roll ?? 0);
@@ -56,6 +60,7 @@ function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, sald
       setRoll(v);
       setTimeout(() => {
         setFase(gano ? 'gano' : 'perdio');
+        tocar(audios, gano ? 'premio_chico' : 'perder');
         setSaldo(r.saldo);
         setHist((h) => [{ texto: v.toFixed(2), gano }, ...h].slice(0, 12));
       }, 560);
@@ -178,7 +183,7 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
     >
       <DiceJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} saldoInicial={Number(saldoInicial)}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
+        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} sonidos={datos.sonidos} motor={juego.motor} />
     </InstantShell>
   );
 }
@@ -202,7 +207,7 @@ export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => v
     <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}>
       <DiceJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} saldoInicial={10000}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} />
+        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} motor={juego.motor} />
     </InstantShell>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { FondoLoop } from './FondoLoop.tsx';
+import { tocar, tocarPremio } from './juego/sfx.ts';
 import { montarLottieEn } from './lottie.ts';
 import { cargarFuenteRaspa } from './juego/raspadita-temas.ts';
 import type { TemaRaspa } from './juego/raspadita-temas.ts';
@@ -217,6 +218,7 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, p
     let raspando = false;
     let ultimo: { x: number; y: number } | null = null;
     let pid: number | null = null;
+    let yaGiro = false;
 
     const punto = (e: PointerEvent) => {
       const r = cv.getBoundingClientRect();
@@ -229,7 +231,10 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, p
       cv.style.opacity = '0';
       setTimeout(() => { cv.style.pointerEvents = 'none'; }, 320);
       festejar();
-      onRevelarRef.current(tirada ? tirada.mult : 0);
+      const m = tirada ? tirada.mult : 0;
+      if (m <= 0) tocar(escenario.audios, 'perder');
+      else tocarPremio(escenario.audios, m, 1);
+      onRevelarRef.current(m);
     };
     const raspar = (x: number, y: number) => {
       if (reveladoRef.current) return;
@@ -243,6 +248,7 @@ export function Raspadita({ escenario, juego, cfg, tema, pos, tirada, apuesta, p
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
       raspando = true; ultimo = null; pid = e.pointerId;
+      if (!yaGiro) { yaGiro = true; tocar(escenario.audios, 'giro'); }
       try { cv.setPointerCapture(e.pointerId); } catch { /* noop */ }
       const p = punto(e); raspar(p.x, p.y);
     };

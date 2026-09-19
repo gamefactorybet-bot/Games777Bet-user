@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { montarLottieEn } from './lottie.ts';
+import { tocar, tocarPremio } from './juego/sfx.ts';
 import { cargarFuentePlinko } from './juego/plinko-temas.ts';
 import type { TemaPlinko } from './juego/plinko-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -138,6 +139,7 @@ export function Plinko({ escenario, cfg, tema, filas, riesgo, tirada, onLand }: 
   // ---- soltar una bolita cuando llega la tirada ----
   useEffect(() => {
     if (!tirada) return;
+    tocar(escenario.audios, 'giro');
     bolaRef.current = {
       path: tirada.path, k: tirada.k, tabla: tirada.tabla, filas: tirada.filas,
       p: -0.5, landing: null, landAt: 0,
@@ -303,7 +305,10 @@ export function Plinko({ escenario, cfg, tema, filas, riesgo, tirada, onLand }: 
         b.landing = 0;
         b.landAt = now;
         flashRef.current[b.k] = performance.now();
-        onLandRef.current(b.tabla[b.k] ?? 1);
+        const m = b.tabla[b.k] ?? 1;
+        if (m < 1) tocar(escenario.audios, 'perder');
+        else tocarPremio(escenario.audios, m, 1);
+        onLandRef.current(m);
       }
     } else {
       b.landing = Math.min(1, (now - b.landAt) / 150);

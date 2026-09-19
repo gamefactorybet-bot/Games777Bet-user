@@ -4,6 +4,7 @@ import { TorreMesa } from './TorreMesa.tsx';
 import { Fichas } from './Fichas.tsx';
 import { fichasVistaDe } from '../motor/fichas.js';
 import { estadoInicial } from './juego/torre.ts';
+import { tocar, tocarPremio } from './juego/sfx.ts';
 import type { TemaTorre } from './juego/torre-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type {
@@ -146,6 +147,17 @@ export function TorreJuego({
     [fichas, minBet, maxBet],
   );
   const p = usePartidaTorre(cfg, saldoInicial, inicial, api);
+  const fasePrev = useRef(p.estado.fase);
+  const picksPrev = useRef(p.estado.picks.length);
+  useEffect(() => {
+    const antes = fasePrev.current;
+    fasePrev.current = p.estado.fase;
+    if (p.estado.picks.length > picksPrev.current) tocar(escenario.audios, 'giro');
+    picksPrev.current = p.estado.picks.length;
+    if (antes === p.estado.fase) return;
+    if (p.estado.fase === 'perdida') tocar(escenario.audios, 'perder');
+    if (p.estado.fase === 'retirada') tocarPremio(escenario.audios, p.estado.res?.amount ?? 0, p.estado.apuesta);
+  }, [p.estado.fase, p.estado.picks.length, p.estado.res, p.estado.apuesta, escenario.audios]);
 
   return (
     <>
