@@ -33,6 +33,10 @@ export interface Juego {
   portada_url?: string | null;
   premio_url?: string | null;
   girar_imagen_url?: string | null;
+  /** Color del borde iluminado de los botones con imagen. Vacío = acento. */
+  borde_luz?: string | null;
+  /** Qué botones se ven, y la imagen de Auto. Vacío = se ve todo. */
+  planilla?: { visibles?: Partial<Record<string, boolean>>; auto_imagen_url?: string | null } | null;
 
   grilla_icono_tamano?: number;
   capas_orden?: string[];

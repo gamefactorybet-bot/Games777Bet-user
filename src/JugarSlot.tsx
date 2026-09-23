@@ -8,6 +8,7 @@ import { animarSimboloGanador, detenerAnimacionesSimbolos, detenerAnimacionesJue
 import { crearEscenario } from './juego/escenario.ts';
 import { crearRodillosJugar } from './juego/rodillos-jugar.ts';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
+import { planillaDe } from './juego/planilla.ts';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosJugar } from './juego/rodillos-jugar.ts';
@@ -182,13 +183,17 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
   }, [auto.activo]);
 
   const imagenCarga = (datos.juego.carga_url as string) || (datos.juego.portada_url as string) || null;
+  const planilla = planillaDe(datos.juego);
 
   return (
     <>
       <div ref={hostRef} />
       {escListo && escRef.current && (
         <>
-          <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+          {planilla.visibles.fichas && (
+            <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+          )}
+          {planilla.visibles.auto && (
           <BotonAuto
             host={escRef.current.el}
             x={escRef.current.posGirar.girar_x}
@@ -196,10 +201,12 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
             offsetPx={-(escRef.current.posGirar.girar_tamano / 2 + 44)}
             restantes={auto.restantes}
             activo={auto.activo}
+            imagenUrl={planilla.autoImagen}
             disabled={escRef.current.saldo < escRef.current.apuesta}
             onStart={(n) => auto.start(n, () => girarRef.current())}
             onStop={auto.stop}
           />
+          )}
         </>
       )}
       {pantallaMontada && (

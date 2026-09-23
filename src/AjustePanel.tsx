@@ -6,6 +6,7 @@ import { NOMBRE_CAPA, NIVELES_PREMIO } from './juego/defaults.ts';
 import type { CapaId } from './juego/defaults.ts';
 import { fichasConDefaults, fichasDesdeMontos } from '../motor/fichas.js';
 import type { Escenario } from './juego/escenario.ts';
+import { CLAVES_PLANILLA, planillaJson, type ClavePlanilla } from './juego/planilla.ts';
 import type { AnimacionLottie, CadenaLuz, CapaLibre, FichasCfg, Juego, NivelPremio, Simbolo } from './types.ts';
 
 // ---------------- Constantes de panel (de preview.js) ----------------
@@ -14,13 +15,14 @@ const CATEGORIAS_PANEL = [
   { id: 'capas', etiqueta: 'Capas', tabs: ['fondo_pantalla', 'marco', 'grilla', 'cartel'] },
   { id: 'extras', etiqueta: 'Extras', tabs: ['libres', 'luces', 'animaciones'] },
   { id: 'controles', etiqueta: 'Controles', tabs: ['girar', 'controles'] },
+  { id: 'planillas', etiqueta: 'Planillas', tabs: ['jugabilidad'] },
   { id: 'premio', etiqueta: 'Premio', tabs: ['premio'] },
 ] as const;
 
 const ETIQUETA_CAPA: Record<string, string> = {
   fondo_pantalla: 'Fondo', marco: 'Marco', grilla: 'Grilla', cartel: 'Cartel',
   libres: 'Libres', luces: 'Luces', animaciones: 'Animaciones',
-  girar: 'Girar', controles: 'Controles', premio: 'Premio',
+  girar: 'Girar', controles: 'Controles', jugabilidad: 'Jugabilidad', premio: 'Premio',
 };
 
 type Campo = [clave: string, etiqueta: string, min: number, max: number];
@@ -102,9 +104,11 @@ interface AjustePanelProps {
   esMines?: boolean;
   /** El overlay React de fichas (abanico del 3×3) vive en la preview. */
   onFichasVista?: (cfg: FichasCfg) => void;
+  /** Auto y fichas viven en React: hay que redibujarlos al prender o apagar. */
+  onPlanilla?: () => void;
 }
 
-export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMines, onFichasVista }: AjustePanelProps) {
+export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMines, onFichasVista, onPlanilla }: AjustePanelProps) {
   const cats = CATEGORIAS_PANEL.filter((c) => !categorias || categorias.includes(c.id));
   const [categoria, setCategoria] = useState<string>(cats[0]?.id ?? 'capas');
   const [capa, setCapa] = useState<string>(cats[0]?.tabs[0] ?? 'grilla');
@@ -157,6 +161,7 @@ export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMi
         {capa === 'luces' && <PanelLuces escenario={escenario} juego={juego} />}
         {capa === 'girar' && <PanelGirar escenario={escenario} juego={juego} />}
         {capa === 'controles' && <PanelControles escenario={escenario} juego={juego} onFichasVista={onFichasVista} />}
+        {capa === 'jugabilidad' && <PanelPlanilla escenario={escenario} juego={juego} onPlanilla={onPlanilla} />}
         {esCapa && <PanelCapa escenario={escenario} capa={capa} esMines={esMines} onGrillaCambio={onGrillaCambio} />}
       </div>
 
@@ -704,6 +709,7 @@ function PanelGirar({ escenario, juego }: { escenario: Escenario; juego: Juego }
       girar_x: g.girar_x, girar_y: g.girar_y, girar_tamano: g.girar_tamano,
       girar_imagen_url: g.girar_imagen_url, girar_imagen_tamano: g.girar_imagen_tamano,
       girar_sin_fondo: g.girar_sin_fondo, paso_apuesta: Number(paso) || 500,
+      borde_luz: escenario.bordeLuz,
     }).eq('id', juego.id);
     msg(error ? error.message : 'Guardado ✓ (el paso nuevo se aplica al reabrir)');
   };
@@ -726,6 +732,7 @@ function PanelGirar({ escenario, juego }: { escenario: Escenario; juego: Juego }
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, margin: '10px 0' }}>
         <input type="checkbox" checked={g.girar_sin_fondo} onChange={(e) => { g.girar_sin_fondo = e.target.checked; escenario.aplicarGirar(); forzar((x) => x + 1); }} /> Ocultar el fondo del botón
       </label>
+      <ColorBorde escenario={escenario} />
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '10px 0 8px' }}>Apuesta</p>
       <label style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>Sube y baja de a
         <input type="number" value={paso} min={1} style={{ width: '100%' }} onChange={(e) => setPaso(Number(e.target.value))} />
@@ -797,6 +804,7 @@ function PanelControles({ escenario, juego, onFichasVista }: {
       modo_apuesta: escenario.modoApuesta, mostrar_nombre: escenario.mostrarNombre,
       contador_ms: escenario.contadorMs, fichas: escenario.fichas,
       fichas_cfg: juego.fichas_cfg ?? cfgFichas,
+      borde_luz: escenario.bordeLuz,
     }).eq('id', juego.id);
 
     const { error: errBtn } = await supabase.from('botones').upsert(
@@ -900,6 +908,7 @@ function PanelControles({ escenario, juego, onFichasVista }: {
       {sliderGrupo('turbo_x', 'Posición X', 0, 100, '%')}
       {sliderGrupo('turbo_y', 'Posición Y', 0, 100, '%')}
 
+      <ColorBorde escenario={escenario} />
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 8px' }}>Aspecto de cada botón</p>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
         {CLAVES_BOTON.map(({ clave, etiqueta }) => (
@@ -924,6 +933,150 @@ function PanelControles({ escenario, juego, onFichasVista }: {
 
       <BotonGuardar texto="Guardar todo" onGuardar={guardar} />
     </>
+  );
+}
+
+const IMAGEN_PLANILLA: { clave: 'girar' | 'auto' | ClavePlanilla; etiqueta: string }[] = [
+  { clave: 'girar', etiqueta: 'Girar' },
+  { clave: 'auto', etiqueta: 'Auto' },
+  { clave: 'menos', etiqueta: '−' },
+  { clave: 'mas', etiqueta: '+' },
+  { clave: 'x1', etiqueta: 'x1' },
+  { clave: 'x2', etiqueta: 'x2' },
+  { clave: 'x3', etiqueta: 'x3' },
+];
+
+function PanelPlanilla({ escenario, juego, onPlanilla }: {
+  escenario: Escenario; juego: Juego; onPlanilla?: () => void;
+}) {
+  const [, forzar] = useState(0);
+  const [cual, setCual] = useState<(typeof IMAGEN_PLANILLA)[number]['clave']>('girar');
+  const redibujar = () => forzar((x) => x + 1);
+
+  const urlDe = (clave: typeof cual): string | null => {
+    if (clave === 'girar') return escenario.posGirar.girar_imagen_url;
+    if (clave === 'auto') return escenario.planilla.autoImagen;
+    return escenario.botones[clave]?.imagen_url || null;
+  };
+
+  const ponerImagen = (clave: typeof cual, url: string | null) => {
+    if (clave === 'girar') {
+      const g = escenario.posGirar;
+      g.girar_imagen_url = url;
+      if (url) { g.girar_sin_fondo = true; g.girar_imagen_tamano = 100; }
+      escenario.aplicarGirar();
+    } else if (clave === 'auto') {
+      escenario.setAutoImagen(url);
+      onPlanilla?.();
+    } else {
+      const cfg = escenario.botones[clave];
+      if (!cfg) return;
+      cfg.imagen_url = url;
+      if (url) { cfg.sin_fondo = true; cfg.imagen_tamano = 100; }
+      escenario.aplicarBotonesApuesta();
+      escenario.pintarTurbo();
+    }
+    redibujar();
+  };
+
+  const subir = async (f: File) => {
+    const url = await subirArchivo(f, `botones/${juego.id}`);
+    if (url) ponerImagen(cual, url);
+  };
+
+  const guardar = async (msg: (t: string) => void) => {
+    msg('Guardando...');
+    const g = escenario.posGirar;
+    const { error: errJuego } = await supabase.from('juegos').update({
+      planilla: planillaJson(escenario.planilla),
+      girar_imagen_url: g.girar_imagen_url,
+      girar_imagen_tamano: g.girar_imagen_tamano,
+      girar_sin_fondo: g.girar_sin_fondo,
+    }).eq('id', juego.id);
+    const { error: errBtn } = await supabase.from('botones').upsert(
+      CLAVES_BOTON.map(({ clave }) => ({
+        juego_id: juego.id, clave,
+        imagen_url: escenario.botones[clave].imagen_url,
+        tamano: escenario.botones[clave].tamano,
+        imagen_tamano: escenario.botones[clave].imagen_tamano,
+        sin_fondo: escenario.botones[clave].sin_fondo,
+      })),
+      { onConflict: 'juego_id,clave' },
+    );
+    msg((errJuego || errBtn) ? (errJuego || errBtn)!.message : 'Guardado ✓');
+  };
+
+  const url = urlDe(cual);
+
+  return (
+    <>
+      <strong style={{ fontSize: 13 }}>Planillas de jugabilidad</strong>
+      <p className="hint" style={{ margin: '4px 0 10px' }}>
+        Lo que apagues no se muestra. Lo que no toques sigue prendido.
+      </p>
+      {CLAVES_PLANILLA.map(({ clave, etiqueta }) => (
+        <label key={clave} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 6 }}>
+          <input type="checkbox" checked={escenario.planilla.visibles[clave]} onChange={(e) => {
+            escenario.setVisible(clave, e.target.checked);
+            onPlanilla?.();
+            redibujar();
+          }} />
+          {etiqueta}
+        </label>
+      ))}
+
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 6px' }}>La imagen es el botón</p>
+      <p className="hint" style={{ margin: '0 0 8px' }}>
+        PNG con el dibujo y el resto transparente. El clic sigue esa forma, no un cuadrado. Fichas se cargan en Controles.
+      </p>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+        {IMAGEN_PLANILLA.map((b) => (
+          <button key={b.clave} type="button" style={{ fontSize: 11, ...(b.clave === cual ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : {}) }}
+            onClick={() => setCual(b.clave)}>{b.etiqueta}</button>
+        ))}
+      </div>
+      <label style={{ display: 'block', height: 64, borderRadius: 8, border: '1px dashed var(--border)', background: 'var(--surface-alt)', cursor: 'pointer', overflow: 'hidden', position: 'relative', marginBottom: 8 }}>
+        {url
+          ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          : <span className="hint" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>Subir imagen</span>}
+        <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && subir(e.target.files[0])} />
+      </label>
+      {url && (
+        <button type="button" style={{ width: '100%', marginBottom: 8, fontSize: 12 }} onClick={() => ponerImagen(cual, null)}>Quitar imagen</button>
+      )}
+      <BotonGuardar texto="Guardar planilla" onGuardar={guardar} />
+    </>
+  );
+}
+
+function acentoHex(): string {
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : '#6b8afd';
+}
+
+/** Un color para todos los botones con imagen de este juego. */
+function ColorBorde({ escenario }: { escenario: Escenario }) {
+  const [, forzar] = useState(0);
+  const propio = escenario.bordeLuz;
+  return (
+    <div style={{ margin: '4px 0 12px' }}>
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 6px' }}>Color del borde iluminado</p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="color"
+          aria-label="Color del borde iluminado"
+          value={propio || acentoHex()}
+          onChange={(e) => { escenario.setBordeLuz(e.target.value); forzar((x) => x + 1); }}
+          style={{ width: 36, height: 28, padding: 2, borderRadius: 6 }}
+        />
+        <span style={{ fontSize: 12 }}>{propio || 'Acento del editor'}</span>
+        {propio && (
+          <button type="button" style={{ fontSize: 11, marginLeft: 'auto' }} onClick={() => { escenario.setBordeLuz(null); forzar((x) => x + 1); }}>
+            Usar acento
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

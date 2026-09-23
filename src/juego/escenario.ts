@@ -21,6 +21,8 @@ import { pintarMonto } from './monto.ts';
 import { fichasDe } from '../../motor/fichas.js';
 import { engancharLoopVideo, htmlCapaFondo } from './fondo.ts';
 import { audiosDe } from './sfx.ts';
+import { planillaDe, planillaJson, type ClavePlanilla, type Planilla } from './planilla.ts';
+import { asignarImagen, engancharSilueta } from './silueta.ts';
 import type {
   AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
   NivelPremio, PremioVisual, Rect, Simbolo, Sonido,
@@ -162,7 +164,17 @@ export interface Escenario {
   lanzarAnimaciones(evento: string): void;
   setMontoDemo(texto: string | null): void;
   setMostrarNombre(v: boolean): void;
+  /** Color elegido para el borde iluminado. null = acento del editor. */
+  bordeLuz: string | null;
+  setBordeLuz(color: string | null): void;
+  planilla: Planilla;
+  setVisible(clave: ClavePlanilla, on: boolean): void;
+  setAutoImagen(url: string | null): void;
   destruir(): void;
+}
+
+function hexColor(v: unknown): string | null {
+  return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
 }
 
 export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
@@ -247,6 +259,9 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   el.className = 'jg-marco-cap';
   el.style.cssText = 'width:420px; height:860px; flex-shrink:0; transform-origin:top center;'
     + 'background:var(--surface); border-radius:20px; padding:22px; position:relative; overflow:visible';
+  const bordeInicial = hexColor(juego.borde_luz);
+  if (bordeInicial) el.style.setProperty('--jg-borde', bordeInicial);
+  const planilla = planillaDe(juego);
   if (modo === 'jugar') {
     el.style.transformOrigin = 'center center';
     wrap.style.cssText = 'min-height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden';
@@ -296,14 +311,14 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
     <div data-grupo-apuesta style="position:absolute; z-index:10; display:flex; align-items:center; gap:6px; white-space:nowrap">
       <button data-apuesta-menos aria-label="Bajar apuesta" style="padding:0; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <span class="jg-btn-texto">−</span><img class="jg-btn-img" style="display:none; object-fit:contain" />
+        <span class="jg-btn-texto">−</span><img class="jg-btn-img jg-silueta" alt="" style="display:none; object-fit:contain" />
       </button>
       <div data-caja-apuesta style="display:flex; flex-direction:column; align-items:center; justify-content:center; background-size:100% 100%; background-repeat:no-repeat">
         <p class="hint" style="margin:0">Apuesta</p>
         <strong data-apuesta style="font-size:15px"></strong>
       </div>
       <button data-apuesta-mas aria-label="Subir apuesta" style="padding:0; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <span class="jg-btn-texto">+</span><img class="jg-btn-img" style="display:none; object-fit:contain" />
+        <span class="jg-btn-texto">+</span><img class="jg-btn-img jg-silueta" alt="" style="display:none; object-fit:contain" />
       </button>
     </div>
 
@@ -312,7 +327,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
     <button data-girar class="jg-play" style="position:absolute; z-index:11; padding:0; display:flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden">
       <span data-girar-texto style="font-size:14px">Girar</span>
-      <img data-girar-img style="display:none; object-fit:contain" />
+      <img data-girar-img class="jg-silueta" alt="" style="display:none; object-fit:contain" />
     </button>
   `;
 
@@ -551,15 +566,27 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     });
     const img = n.querySelector<HTMLImageElement>('.jg-btn-img');
     const texto = n.querySelector<HTMLElement>('.jg-btn-texto');
-    if (cfg.imagen_url && img) {
+    const conImg = !!(cfg.imagen_url && img);
+    n.classList.toggle('jg-con-img', conImg);
+    if (conImg) {
       const tam = cfg.tamano * cfg.imagen_tamano / 100;
-      img.src = cfg.imagen_url;
+      asignarImagen(img, cfg.imagen_url as string);
       img.style.display = 'block';
       img.style.width = tam + 'px';
       img.style.height = tam + 'px';
+      // Con fondo oculto el PNG llena el botón: el clic mapea 1:1.
+      img.style.objectFit = cfg.sin_fondo ? 'fill' : 'contain';
+      n.style.overflow = 'visible';
+      n.style.borderColor = 'transparent';
+      n.dataset.forma = cfg.sin_fondo ? '1' : '';
+      engancharSilueta(n, img);
       if (texto) texto.style.display = 'none';
     } else if (img) {
+      img.removeAttribute('src');
+      img.dataset.url = '';
       img.style.display = 'none';
+      n.style.overflow = 'hidden';
+      n.dataset.forma = '';
       if (texto) texto.style.display = 'block';
     }
   };
@@ -577,16 +604,37 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
       background: posGirar.girar_sin_fondo ? 'transparent' : '',
       border: posGirar.girar_sin_fondo ? 'none' : '',
     });
-    if (posGirar.girar_imagen_url) {
-      girarImgEl.src = posGirar.girar_imagen_url;
+    const conImg = !!posGirar.girar_imagen_url;
+    btnGirar.classList.toggle('jg-con-img', conImg);
+    if (conImg) {
+      asignarImagen(girarImgEl, posGirar.girar_imagen_url as string);
       girarImgEl.style.display = 'block';
       girarImgEl.style.width = (tam * posGirar.girar_imagen_tamano / 100) + 'px';
       girarImgEl.style.height = (tam * posGirar.girar_imagen_tamano / 100) + 'px';
+      girarImgEl.style.objectFit = posGirar.girar_sin_fondo ? 'fill' : 'contain';
       girarTextoEl.style.display = 'none';
+      btnGirar.style.overflow = 'visible';
+      btnGirar.style.borderColor = 'transparent';
+      btnGirar.dataset.forma = posGirar.girar_sin_fondo ? '1' : '';
+      engancharSilueta(btnGirar, girarImgEl);
     } else {
+      girarImgEl.removeAttribute('src');
+      girarImgEl.dataset.url = '';
       girarImgEl.style.display = 'none';
       girarTextoEl.style.display = 'block';
+      btnGirar.style.overflow = 'hidden';
+      btnGirar.dataset.forma = '';
     }
+  };
+
+  const aplicarPlanilla = () => {
+    const v = planilla.visibles;
+    btnGirar.style.display = v.girar ? '' : 'none';
+    grupoTurboEl.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
+      const clave = ('x' + b.dataset.v) as ClavePlanilla;
+      b.style.display = v[clave] ? 'flex' : 'none';
+    });
+    grupoTurboEl.style.display = (v.x1 || v.x2 || v.x3) ? 'flex' : 'none';
   };
 
   const aplicarGrupos = () => {
@@ -663,16 +711,20 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   const pintarTurbo = () => {
     grupoTurboEl.innerHTML = [1, 2, 3].map((v) => {
       const activo = v === escenario.velocidad;
+      const conImg = !!botones['x' + v]?.imagen_url;
+      // Con imagen, el activo se marca con la silueta (jg-on), no con
+      // el borde de la caja. Sin imagen queda el recuadro de siempre.
       return `
-        <button data-v="${v}" style="padding:0; display:flex; align-items:center; justify-content:center; overflow:hidden; ${activo ? 'border-color:var(--accent); color:var(--accent)' : ''}">
+        <button data-v="${v}" class="${activo ? 'jg-on' : ''}" style="padding:0; display:flex; align-items:center; justify-content:center; overflow:hidden; ${activo && !conImg ? 'border-color:var(--accent); color:var(--accent)' : ''}">
           <span class="jg-btn-texto" style="font-size:11px">x${v}</span>
-          <img class="jg-btn-img" style="display:none; object-fit:contain" />
+          <img class="jg-btn-img jg-silueta" alt="" style="display:none; object-fit:contain" />
         </button>`;
     }).join('');
     grupoTurboEl.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
       aplicarBoton(b, botones['x' + b.dataset.v]);
       b.addEventListener('click', () => { escenario.velocidad = Number(b.dataset.v); pintarTurbo(); });
     });
+    aplicarPlanilla();
   };
 
   const aplicarModo = () => {
@@ -686,14 +738,16 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     const conFichasRicas = ricas.length > 0;
     const soloFichas = ricas.length > 0
       && !!(juego.fichas_cfg && (juego.fichas_cfg as { sinCaja?: boolean }).sinCaja);
-    const conFichas = !conFichasRicas && (escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto');
+    const ver = planilla.visibles;
+    const conFichas = ver.fichas && !conFichasRicas && (escenario.modoApuesta === 'fichas' || escenario.modoApuesta === 'mixto');
     const conMasMenos = !conFichasRicas
       && (escenario.modoApuesta === 'mas_menos' || escenario.modoApuesta === 'mixto');
     fichasEl.style.display = conFichas ? 'flex' : 'none';
-    btnMenos.style.display = conMasMenos ? 'flex' : 'none';
-    btnMas.style.display = conMasMenos ? 'flex' : 'none';
+    btnMenos.style.display = conMasMenos && ver.menos ? 'flex' : 'none';
+    btnMas.style.display = conMasMenos && ver.mas ? 'flex' : 'none';
     grupoApuestaEl.style.display = soloFichas ? 'none' : '';
     if (conFichas) pintarFichas();
+    aplicarPlanilla();
   };
 
   if (!sinControlesSlot) {
@@ -756,6 +810,24 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     aplicarGirar, aplicarGrupos, aplicarModo, aplicarBotonesApuesta, pintarTurbo, pintarFichas, pintarApuesta,
     rectMarco, reconstruirCadena, desactivarArrastreLuces,
     aplicarPosicionPremio, mostrarPremio, ocultarPremio, lanzarAnimaciones, setMontoDemo, setMostrarNombre,
+    bordeLuz: bordeInicial,
+    planilla,
+    setVisible(clave, on) {
+      this.planilla.visibles[clave] = on;
+      juego.planilla = planillaJson(this.planilla);
+      aplicarModo();
+    },
+    setAutoImagen(url) {
+      this.planilla.autoImagen = url;
+      juego.planilla = planillaJson(this.planilla);
+    },
+    setBordeLuz(color: string | null) {
+      const ok = hexColor(color);
+      this.bordeLuz = ok;
+      juego.borde_luz = ok;
+      if (ok) el.style.setProperty('--jg-borde', ok);
+      else el.style.removeProperty('--jg-borde');
+    },
     destruir,
   };
 

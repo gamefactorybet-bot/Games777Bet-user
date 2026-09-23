@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabase.ts';
 import { cargarMotor, resolverNivel } from '../motor/registro.js';
@@ -10,6 +10,7 @@ import { FichasEnEscenario } from './Fichas.tsx';
 import { BotonAuto } from './BotonAuto.tsx';
 import { useAutoplay } from './juego/autoplay.ts';
 import { fichasConDefaults, parcheFichas } from '../motor/fichas.js';
+import { planillaDe } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosPreview } from './juego/rodillos-preview.ts';
 import type {
@@ -40,6 +41,9 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
   const auto = useAutoplay();
   const girarRef = useRef<() => void>(() => {});
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const [planillaRev, setPlanillaRev] = useState(0);
+  const planilla = useMemo(() => planillaDe(juego), [planillaRev, juego]);
+  useEffect(() => { if (!planilla.visibles.auto) auto.stop(); }, [planilla.visibles.auto, auto.stop]);
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
     const next = parcheFichas(juego, fs);
@@ -160,6 +164,7 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
         <div ref={hostRef} />
         {listo && escRef.current && (
           <>
+          {planilla.visibles.auto && (
           <BotonAuto
             host={escRef.current.el}
             x={escRef.current.posGirar.girar_x}
@@ -167,9 +172,12 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
             offsetPx={-(escRef.current.posGirar.girar_tamano / 2 + 44)}
             restantes={auto.restantes}
             activo={auto.activo}
+            imagenUrl={planilla.autoImagen}
             onStart={(n) => auto.start(n, () => girarRef.current())}
             onStop={auto.stop}
           />
+          )}
+          {planilla.visibles.fichas && (
           <FichasEnEscenario
             juego={juego} escenario={escRef.current} fichas={fichas}
             editable
@@ -183,6 +191,7 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
               }
             }}
           />
+          )}
           </>
         )}
       </div>
@@ -197,6 +206,7 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
             (juego as { fichas_cfg?: unknown }).fichas_cfg = cfg;
             setFichas(cfg.fichas);
           }}
+          onPlanilla={() => setPlanillaRev((n) => n + 1)}
         />
       )}
 
