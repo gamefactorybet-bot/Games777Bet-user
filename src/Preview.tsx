@@ -10,7 +10,7 @@ import { FichasEnEscenario } from './Fichas.tsx';
 import { BotonAuto } from './BotonAuto.tsx';
 import { useAutoplay } from './juego/autoplay.ts';
 import { fichasConDefaults, parcheFichas } from '../motor/fichas.js';
-import { planillaDe } from './juego/planilla.ts';
+import { planillaDe, posAuto } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosPreview } from './juego/rodillos-preview.ts';
 import type {
@@ -42,7 +42,12 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
   const girarRef = useRef<() => void>(() => {});
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
   const [planillaRev, setPlanillaRev] = useState(0);
-  const planilla = useMemo(() => planillaDe(juego), [planillaRev, juego]);
+  // La posición vive en el escenario. `juego.planilla` puede ser otra copia
+  // y el botón se quedaba en el offset de Girar aunque el slider cambiara.
+  const planilla = useMemo(
+    () => escRef.current?.planilla ?? planillaDe(juego),
+    [planillaRev, listo, juego],
+  );
   useEffect(() => { if (!planilla.visibles.auto) auto.stop(); }, [planilla.visibles.auto, auto.stop]);
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
@@ -167,12 +172,19 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
           {planilla.visibles.auto && (
           <BotonAuto
             host={escRef.current.el}
-            x={escRef.current.posGirar.girar_x}
-            y={escRef.current.posGirar.girar_y}
-            offsetPx={-(escRef.current.posGirar.girar_tamano / 2 + 44)}
+            {...posAuto(planilla, {
+              x: escRef.current.posGirar.girar_x,
+              y: escRef.current.posGirar.girar_y,
+              tam: escRef.current.posGirar.girar_tamano,
+            })}
+            tam={planilla.autoTam}
             restantes={auto.restantes}
             activo={auto.activo}
             imagenUrl={planilla.autoImagen}
+            onMover={(x, y) => {
+              escRef.current?.setAutoPos(x, y);
+              setPlanillaRev((n) => n + 1);
+            }}
             onStart={(n) => auto.start(n, () => girarRef.current())}
             onStop={auto.stop}
           />
@@ -204,7 +216,7 @@ export function Preview({ juego, simbolos, sonidos, efectos, onClose }: PreviewP
           onGrillaCambio={() => rodRef.current?.pintarGrillaInicial()}
           onFichasVista={(cfg) => {
             (juego as { fichas_cfg?: unknown }).fichas_cfg = cfg;
-            setFichas(cfg.fichas);
+            setFichas(cfg.fichas.slice());
           }}
           onPlanilla={() => setPlanillaRev((n) => n + 1)}
         />

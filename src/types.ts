@@ -35,8 +35,15 @@ export interface Juego {
   girar_imagen_url?: string | null;
   /** Color del borde iluminado de los botones con imagen. Vacío = acento. */
   borde_luz?: string | null;
-  /** Qué botones se ven, y la imagen de Auto. Vacío = se ve todo. */
-  planilla?: { visibles?: Partial<Record<string, boolean>>; auto_imagen_url?: string | null } | null;
+  /** Qué botones se ven, la imagen de Auto y dónde está. Vacío = se ve todo, Auto a la izquierda de Girar. */
+  planilla?: {
+    visibles?: Partial<Record<string, boolean>>;
+    auto_imagen_url?: string | null;
+    auto_x?: number | null;
+    auto_y?: number | null;
+    auto_tam?: number | null;
+    turbo_pos?: Partial<Record<'x1' | 'x2' | 'x3', { x: number; y: number }>>;
+  } | null;
 
   grilla_icono_tamano?: number;
   capas_orden?: string[];
@@ -1051,6 +1058,10 @@ export interface FichasCfg {
   abanicoApertura?: number;
   /** Arco del abanico en grados (70–180). 136 = el de siempre, hacia arriba. */
   abanicoArco?: number;
+  /** Orden en el arco del slot 3×3/5×3. Sin valor, ese slot usa 'valor'. */
+  abanicoOrden?: 'lista' | 'valor' | 'valor-inv';
+  /** De qué lado empiezan a salir. Sin valor, ese slot usa 'centro'. */
+  abanicoSale?: 'izquierda' | 'centro' | 'derecha';
 }
 
 /** Todo lo que arma un juego, tal como lo devuelve `/api/jugar-datos`

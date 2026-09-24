@@ -4,9 +4,10 @@ import { subirArchivo } from './juego/subir.ts';
 import { mostrarAnimacionJuego, detenerAnimacionesJuego } from './lottie.ts';
 import { NOMBRE_CAPA, NIVELES_PREMIO } from './juego/defaults.ts';
 import type { CapaId } from './juego/defaults.ts';
-import { fichasConDefaults, fichasDesdeMontos } from '../motor/fichas.js';
+import { fichasCfgSlot, fichasConDefaults, fichasDesdeMontos } from '../motor/fichas.js';
+import { esSlotClasico } from './juego/kit-frutas.ts';
 import type { Escenario } from './juego/escenario.ts';
-import { CLAVES_PLANILLA, planillaJson, type ClavePlanilla } from './juego/planilla.ts';
+import { autoVisible, CLAVES_PLANILLA, planillaJson, posTurbo, type ClavePlanilla } from './juego/planilla.ts';
 import type { AnimacionLottie, CadenaLuz, CapaLibre, FichasCfg, Juego, NivelPremio, Simbolo } from './types.ts';
 
 // ---------------- Constantes de panel (de preview.js) ----------------
@@ -159,7 +160,7 @@ export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMi
         {capa === 'libres' && <PanelLibres escenario={escenario} juego={juego} redibujar={redibujar} />}
         {capa === 'animaciones' && <PanelAnimaciones escenario={escenario} juego={juego} />}
         {capa === 'luces' && <PanelLuces escenario={escenario} juego={juego} />}
-        {capa === 'girar' && <PanelGirar escenario={escenario} juego={juego} />}
+        {capa === 'girar' && <PanelGirar escenario={escenario} juego={juego} onPlanilla={onPlanilla} />}
         {capa === 'controles' && <PanelControles escenario={escenario} juego={juego} onFichasVista={onFichasVista} />}
         {capa === 'jugabilidad' && <PanelPlanilla escenario={escenario} juego={juego} onPlanilla={onPlanilla} />}
         {esCapa && <PanelCapa escenario={escenario} capa={capa} esMines={esMines} onGrillaCambio={onGrillaCambio} />}
@@ -693,7 +694,7 @@ function Colores({ cadena, redibujar }: { cadena: CadenaLuz; redibujar: () => vo
 
 // ---------------- Girar ----------------
 
-function PanelGirar({ escenario, juego }: { escenario: Escenario; juego: Juego }) {
+function PanelGirar({ escenario, juego, onPlanilla }: { escenario: Escenario; juego: Juego; onPlanilla?: () => void }) {
   const g = escenario.posGirar;
   const [, forzar] = useState(0);
   const [paso, setPaso] = useState(escenario.pasoApuesta);
@@ -710,6 +711,7 @@ function PanelGirar({ escenario, juego }: { escenario: Escenario; juego: Juego }
       girar_imagen_url: g.girar_imagen_url, girar_imagen_tamano: g.girar_imagen_tamano,
       girar_sin_fondo: g.girar_sin_fondo, paso_apuesta: Number(paso) || 500,
       borde_luz: escenario.bordeLuz,
+      planilla: planillaJson(escenario.planilla),
     }).eq('id', juego.id);
     msg(error ? error.message : 'Guardado ✓ (el paso nuevo se aplica al reabrir)');
   };
@@ -725,10 +727,16 @@ function PanelGirar({ escenario, juego }: { escenario: Escenario; juego: Juego }
       {g.girar_imagen_url && (
         <button style={{ width: '100%', marginBottom: 10, fontSize: 12 }} onClick={() => { g.girar_imagen_url = null; escenario.aplicarGirar(); forzar((x) => x + 1); }}>Quitar imagen</button>
       )}
-      <Rango etiqueta="Posición X" min={0} max={100} valor={g.girar_x} onInput={(n) => { g.girar_x = n; escenario.aplicarGirar(); }} />
-      <Rango etiqueta="Posición Y" min={0} max={100} valor={g.girar_y} onInput={(n) => { g.girar_y = n; escenario.aplicarGirar(); }} />
-      <Rango etiqueta="Tamaño del botón" min={36} max={140} unidad="px" valor={g.girar_tamano} onInput={(n) => { g.girar_tamano = n; escenario.aplicarGirar(); }} />
+      <Rango etiqueta="Posición X" min={0} max={100} valor={g.girar_x} onInput={(n) => { g.girar_x = n; escenario.aplicarGirar(); onPlanilla?.(); forzar((x) => x + 1); }} />
+      <Rango etiqueta="Posición Y" min={0} max={100} valor={g.girar_y} onInput={(n) => { g.girar_y = n; escenario.aplicarGirar(); onPlanilla?.(); forzar((x) => x + 1); }} />
+      <Rango etiqueta="Tamaño del botón" min={36} max={140} unidad="px" valor={g.girar_tamano} onInput={(n) => { g.girar_tamano = n; escenario.aplicarGirar(); onPlanilla?.(); forzar((x) => x + 1); }} />
       <Rango etiqueta="Tamaño de la imagen" min={20} max={140} valor={g.girar_imagen_tamano} onInput={(n) => { g.girar_imagen_tamano = n; escenario.aplicarGirar(); }} />
+      {g.girar_imagen_url && (
+        <p className="hint" style={{ margin: '0 0 8px' }}>
+          El tamaño es el lado más largo. El archivo conserva su forma.
+        </p>
+      )}
+      <ControlesAuto escenario={escenario} onPlanilla={onPlanilla} />
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, margin: '10px 0' }}>
         <input type="checkbox" checked={g.girar_sin_fondo} onChange={(e) => { g.girar_sin_fondo = e.target.checked; escenario.aplicarGirar(); forzar((x) => x + 1); }} /> Ocultar el fondo del botón
       </label>
@@ -752,7 +760,8 @@ function PanelControles({ escenario, juego, onFichasVista }: {
   const redibujar = () => forzar((x) => x + 1);
   const [botonActual, setBotonActual] = useState('menos');
   const cfg = escenario.botones[botonActual];
-  const cfgFichas = fichasConDefaults(juego.fichas_cfg) as FichasCfg;
+  const slot = esSlotClasico(juego.motor);
+  const cfgFichas = (slot ? fichasCfgSlot(juego.fichas_cfg) : fichasConDefaults(juego.fichas_cfg)) as FichasCfg;
 
   const aplicarFichasCfg = (next: FichasCfg, persistir = true) => {
     juego.fichas_cfg = next;
@@ -805,6 +814,7 @@ function PanelControles({ escenario, juego, onFichasVista }: {
       contador_ms: escenario.contadorMs, fichas: escenario.fichas,
       fichas_cfg: juego.fichas_cfg ?? cfgFichas,
       borde_luz: escenario.bordeLuz,
+      planilla: planillaJson(escenario.planilla),
     }).eq('id', juego.id);
 
     const { error: errBtn } = await supabase.from('botones').upsert(
@@ -875,6 +885,36 @@ function PanelControles({ escenario, juego, onFichasVista }: {
           <Rango etiqueta="Arco (qué tan abierto, hacia arriba)" min={70} max={180} unidad="°"
             valor={cfgFichas.abanicoArco ?? 136}
             onInput={(n) => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoArco: n })} />
+          {slot && (
+            <>
+              <p className="hint" style={{ margin: '10px 0 6px' }}>
+                Orden en el arco, de izquierda a derecha. La activa deja su hueco.
+                {cfgFichas.abanicoOrden === 'lista' && ' El orden de la lista se cambia en Jugabilidad, con las flechas de cada ficha.'}
+              </p>
+              <div className="grupo-nav" style={{ marginBottom: 8 }}>
+                <button type="button" title="De menor a mayor" className={`grupo-btn ${cfgFichas.abanicoOrden === 'valor' ? 'on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoOrden: 'valor' })}>Menor</button>
+                <button type="button" title="Como están en Jugabilidad" className={`grupo-btn ${cfgFichas.abanicoOrden === 'lista' ? 'on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoOrden: 'lista' })}>Lista</button>
+                <button type="button" title="De mayor a menor" className={`grupo-btn ${cfgFichas.abanicoOrden === 'valor-inv' ? 'on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoOrden: 'valor-inv' })}>Mayor</button>
+              </div>
+              <div className="grupo-nav" style={{ marginBottom: 4 }}>
+                <button type="button" className={`grupo-btn ${cfgFichas.abanicoSale === 'centro' ? 'on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoSale: 'centro' })}>Centro</button>
+                <button type="button" className={`grupo-btn ${cfgFichas.abanicoSale === 'izquierda' ? 'on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoSale: 'izquierda' })}>Izquierda</button>
+                <button type="button" className={`grupo-btn ${cfgFichas.abanicoSale === 'derecha' ? 'on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoSale: 'derecha' })}>Derecha</button>
+              </div>
+            </>
+          )}
         </div>
       )}
       <Rango etiqueta="Fichas — Posición X" min={0} max={100} unidad="%" valor={gr.fichas_x}
@@ -904,9 +944,24 @@ function PanelControles({ escenario, juego, onFichasVista }: {
       {sliderGrupo('apuesta_alto', 'Alto del recuadro', 24, 120, 'px')}
       <FondoRecuadro url={gr.apuesta_fondo_url} onSubir={(f) => subirFondo('apuesta_fondo_url', f)} onQuitar={() => { gr.apuesta_fondo_url = null; escenario.aplicarGrupos(); redibujar(); }} />
 
-      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '10px 0 8px' }}>Velocidad (x1 x2 x3)</p>
-      {sliderGrupo('turbo_x', 'Posición X', 0, 100, '%')}
-      {sliderGrupo('turbo_y', 'Posición Y', 0, 100, '%')}
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '10px 0 8px' }}>Velocidad</p>
+      <p className="hint" style={{ margin: '0 0 8px' }}>x1, x2 y x3 se mueven cada una por su lado.</p>
+      {(['x1', 'x2', 'x3'] as const).map((clave) => {
+        const pts = posTurbo(escenario.planilla, { x: gr.turbo_x, y: gr.turbo_y }, {
+          x1: escenario.botones.x1.tamano,
+          x2: escenario.botones.x2.tamano,
+          x3: escenario.botones.x3.tamano,
+        });
+        const p = pts[clave];
+        return (
+          <div key={clave}>
+            <Rango etiqueta={`${clave} — Posición X`} min={0} max={100} unidad="%" valor={p.x}
+              onInput={(n) => { escenario.setTurboPos(clave, n, p.y); redibujar(); }} />
+            <Rango etiqueta={`${clave} — Posición Y`} min={0} max={100} unidad="%" valor={p.y}
+              onInput={(n) => { escenario.setTurboPos(clave, p.x, n); redibujar(); }} />
+          </div>
+        );
+      })}
 
       <ColorBorde escenario={escenario} />
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 8px' }}>Aspecto de cada botón</p>
@@ -1025,9 +1080,11 @@ function PanelPlanilla({ escenario, juego, onPlanilla }: {
         </label>
       ))}
 
+      <ControlesAuto escenario={escenario} onPlanilla={onPlanilla} />
+
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 6px' }}>La imagen es el botón</p>
       <p className="hint" style={{ margin: '0 0 8px' }}>
-        PNG con el dibujo y el resto transparente. El clic sigue esa forma, no un cuadrado. Fichas se cargan en Controles.
+        PNG con el dibujo y el resto transparente. Se ve con la forma del archivo, sin meterlo en un círculo. El clic sigue el dibujo. Fichas se cargan en Controles.
       </p>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
         {IMAGEN_PLANILLA.map((b) => (
@@ -1045,6 +1102,36 @@ function PanelPlanilla({ escenario, juego, onPlanilla }: {
         <button type="button" style={{ width: '100%', marginBottom: 8, fontSize: 12 }} onClick={() => ponerImagen(cual, null)}>Quitar imagen</button>
       )}
       <BotonGuardar texto="Guardar planilla" onGuardar={guardar} />
+    </>
+  );
+}
+
+function ControlesAuto({ escenario, onPlanilla }: { escenario: Escenario; onPlanilla?: () => void }) {
+  const [, forzar] = useState(0);
+  const ancla = {
+    x: escenario.posGirar.girar_x,
+    y: escenario.posGirar.girar_y,
+    tam: escenario.posGirar.girar_tamano,
+  };
+  const vis = autoVisible(escenario.planilla, ancla);
+  const fijar = (x: number, y: number) => {
+    escenario.setAutoPos(x, y);
+    onPlanilla?.();
+    forzar((n) => n + 1);
+  };
+  return (
+    <>
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '12px 0 6px' }}>Auto</p>
+      <p className="hint" style={{ margin: '0 0 8px' }}>
+        Dónde está en la pantalla. También se arrastra en la vista previa. Con imagen, el tamaño es el lado más largo.
+      </p>
+      <Rango etiqueta="Auto — Posición X" min={0} max={100} unidad="%" valor={vis.x} onInput={(n) => fijar(n, vis.y)} />
+      <Rango etiqueta="Auto — Posición Y" min={0} max={100} unidad="%" valor={vis.y} onInput={(n) => fijar(vis.x, n)} />
+      <Rango etiqueta="Auto — Tamaño" min={28} max={220} unidad="px" valor={escenario.planilla.autoTam} onInput={(n) => {
+        escenario.setAutoTam(n);
+        onPlanilla?.();
+        forzar((k) => k + 1);
+      }} />
     </>
   );
 }

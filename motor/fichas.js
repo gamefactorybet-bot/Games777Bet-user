@@ -12,16 +12,21 @@
 
 export const FICHAS_DEFAULT = { fichas: [], sinCaja: false, modo: 'fila', abanicoApertura: 100, abanicoArco: 136 };
 
+const ABANICO_ORDENES = new Set(['lista', 'valor', 'valor-inv']);
+const ABANICO_SALIDAS = new Set(['izquierda', 'centro', 'derecha']);
+
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const str = (v, d) => (typeof v === 'string' && v ? v : d);
 
 /**
  * @param {{fichas?: unknown[], sinCaja?: boolean, modo?: string}} [cfg]
- * @returns {{sinCaja: boolean, modo: 'fila'|'abanico', abanicoApertura: number, abanicoArco: number, fichas: Array<{valor:number, imagen_url:string|null, x:number, y:number, tam:number, imgTam:number}>}}
+ * @returns {{sinCaja: boolean, modo: 'fila'|'abanico', abanicoApertura: number, abanicoArco: number, abanicoOrden?: 'lista'|'valor'|'valor-inv', abanicoSale?: 'izquierda'|'centro'|'derecha', fichas: Array<{valor:number, imagen_url:string|null, x:number, y:number, tam:number, imgTam:number}>}}
  */
 export function fichasConDefaults(cfg) {
   const arr = Array.isArray(cfg && cfg.fichas) ? cfg.fichas : [];
+  const orden = cfg && ABANICO_ORDENES.has(cfg.abanicoOrden) ? cfg.abanicoOrden : null;
+  const sale = cfg && ABANICO_SALIDAS.has(cfg.abanicoSale) ? cfg.abanicoSale : null;
   return {
     // Con fichas cargadas: oculta el recuadro "Apuesta: 5000" (cada
     // ficha ya muestra su valor). Sin efecto si no hay fichas.
@@ -33,6 +38,10 @@ export function fichasConDefaults(cfg) {
     abanicoApertura: clamp(Math.round(num(cfg && cfg.abanicoApertura, 100)), 50, 220),
     // Arco en grados (hacia arriba). 136 = el abanico original.
     abanicoArco: clamp(Math.round(num(cfg && cfg.abanicoArco, 136)), 70, 180),
+    // Solo si el juego ya eligió. Si faltan, el slot 3×3/5×3 pone
+    // menor→mayor y salida desde el centro (fichasCfgSlot).
+    ...(orden ? { abanicoOrden: orden } : {}),
+    ...(sale ? { abanicoSale: sale } : {}),
     fichas: arr
       .map((f) => {
         const o = f && typeof f === 'object' ? f : {};
@@ -75,6 +84,66 @@ export function fichasModoDe(juego) {
 export function fichasVistaDe(juego) {
   const c = fichasConDefaults(juego && juego.fichas_cfg);
   return { modo: c.modo, abanicoApertura: c.abanicoApertura, abanicoArco: c.abanicoArco };
+}
+
+/**
+ * Config del abanico para el slot 3×3 / 5×3. Si el juego todavía no
+ * eligió orden ni salida, arranca de menor a mayor y desde el centro.
+ * @param {object} [cfg]
+ */
+export function fichasCfgSlot(cfg) {
+  const base = fichasConDefaults(cfg);
+  return {
+    ...base,
+    abanicoOrden: base.abanicoOrden || 'valor',
+    abanicoSale: base.abanicoSale || 'centro',
+  };
+}
+
+function ordenarAbanico(fichas, orden) {
+  const conIdx = fichas.map((f, i) => ({ f, i }));
+  if (orden === 'valor') conIdx.sort((a, b) => a.f.valor - b.f.valor || a.i - b.i);
+  else if (orden === 'valor-inv') conIdx.sort((a, b) => b.f.valor - a.f.valor || a.i - b.i);
+  return conIdx.map((x) => x.f);
+}
+
+/**
+ * Lugares del arco, activa incluida en la cuenta para que su sitio
+ * quede vacío y el resto no se corra. `indice` va de izquierda a derecha.
+ * @param {Array<{valor:number}>} fichas
+ * @param {number} apuesta
+ * @param {'lista'|'valor'|'valor-inv'} orden
+ * @returns {Array<{ficha: {valor:number}, indice: number, total: number}>}
+ */
+export function puestosAbanico(fichas, apuesta, orden) {
+  const lista = Array.isArray(fichas) ? fichas : [];
+  if (!lista.length) return [];
+  const activa = lista.find((f) => Math.round(f.valor) === Math.round(apuesta)) ?? lista[0];
+  const ordenadas = ordenarAbanico(lista, orden);
+  const total = ordenadas.length;
+  const puestos = [];
+  for (let indice = 0; indice < total; indice++) {
+    const ficha = ordenadas[indice];
+    if (ficha === activa) continue;
+    puestos.push({ ficha, indice, total });
+  }
+  return puestos;
+}
+
+/**
+ * Milisegundos de demora al abrirse. Centro usa el arco completo
+ * (la activa puede ocupar el medio). Izquierda y derecha cuentan
+ * solo las fichas que se ven, para que la primera salga al toque.
+ * @param {number} indice
+ * @param {number[]} visibles
+ * @param {number} total
+ * @param {'izquierda'|'centro'|'derecha'} sale
+ */
+export function demoraAbanico(indice, visibles, total, sale) {
+  if (sale === 'centro') return Math.round(Math.abs(indice - (Math.max(1, total) - 1) / 2) * 26);
+  const orden = [...visibles].sort((a, b) => a - b);
+  const puesto = Math.max(0, orden.indexOf(indice));
+  return (sale === 'derecha' ? orden.length - 1 - puesto : puesto) * 26;
 }
 
 /**

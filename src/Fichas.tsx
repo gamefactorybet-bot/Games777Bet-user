@@ -1,7 +1,9 @@
-import { useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { fichasConDefaults } from '../motor/fichas.js';
-import type { Ficha, Juego } from './types.ts';
+import { demoraAbanico, fichasCfgSlot, fichasConDefaults, puestosAbanico } from '../motor/fichas.js';
+import { alphaEn, encajarImagen } from './juego/silueta.ts';
+import { esSlotClasico } from './juego/kit-frutas.ts';
+import type { Ficha, FichasCfg, Juego } from './types.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
 
@@ -24,12 +26,15 @@ interface FichasProps {
   abanicoApertura?: number;
   /** Arco en grados hacia arriba (70–180). 136 = el de siempre. */
   abanicoArco?: number;
+  /** Slot 3×3/5×3. Sin estos dos, el arco sigue el orden de la lista y cierra el hueco de la activa. */
+  abanicoOrden?: FichasCfg['abanicoOrden'];
+  abanicoSale?: FichasCfg['abanicoSale'];
 }
 
 // Fichas de apuesta rápida. Overlay puro: se monta por portal encima de
 // la pantalla del juego, sin tocar el resto de los controles. La misma
 // para todos los motores.
-export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, onMover, modo = 'fila', abanicoApertura = 100, abanicoArco = 136 }: FichasProps) {
+export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, onMover, modo = 'fila', abanicoApertura = 100, abanicoArco = 136, abanicoOrden, abanicoSale }: FichasProps) {
   const dragRef = useRef<{ i: number; movido: boolean } | null>(null);
 
   if (modo === 'abanico') {
@@ -41,6 +46,7 @@ export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, o
           fichas={fichas} apuesta={apuesta} onElegir={onElegir} bloqueado={bloqueado}
           host={host} x={ancla.x} y={ancla.y} ancho={host.getBoundingClientRect().width || 320}
           apertura={abanicoApertura} arco={abanicoArco}
+          orden={abanicoOrden} sale={abanicoSale}
           editable={editable} onMover={onMover ? (nx, ny) => onMover(0, nx, ny) : undefined}
         />
       </div>,
@@ -99,6 +105,12 @@ export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, o
           transform:translate(-50%,-50%) scale(1.09);
           z-index:3;
         }
+        .gw-ficha.con-img, .gw-ficha.con-img.on {
+          background:transparent; box-shadow:none; border-radius:0; filter:none;
+        }
+        .gw-ficha.con-img.on > .gw-ficha-foto {
+          filter:brightness(1.14) drop-shadow(0 0 4px var(--jg-borde, var(--accent))) drop-shadow(0 0 11px var(--jg-borde, var(--accent)));
+        }
         .gw-ficha.on .gw-ficha-val { color:var(--accent); }
         .gw-ficha.edit { outline:1px dashed rgba(255,255,255,.35); outline-offset:3px; }
         @media (prefers-reduced-motion: reduce){ .gw-ficha, .gw-ficha.on { transition:none } }
@@ -110,26 +122,36 @@ export function Fichas({ host, fichas, apuesta, onElegir, bloqueado, editable, o
         return (
           <button
             key={i}
-            className={`gw-ficha ${marcada ? 'on' : ''} ${editable ? 'edit' : ''}`}
-            style={{ left: `${f.x}%`, top: `${f.y}%`, width: f.tam, height: f.tam, opacity: bloqueado && !editable ? 0.55 : 1 }}
+            className={`gw-ficha ${conImg ? 'con-img' : ''} ${marcada ? 'on' : ''} ${editable ? 'edit' : ''}`}
+            style={{
+              left: `${f.x}%`, top: `${f.y}%`,
+              width: conImg ? 'auto' : f.tam, height: conImg ? 'auto' : f.tam,
+              padding: conImg ? 0 : undefined,
+              background: conImg ? 'transparent' : undefined,
+              boxShadow: conImg ? 'none' : undefined,
+              borderRadius: conImg ? 0 : undefined,
+              opacity: bloqueado && !editable ? 0.55 : 1,
+            }}
+            onPointerDownCapture={conImg ? huecoFicha : undefined}
             onPointerDown={(e) => onDown(e, i)}
             onPointerMove={onMove}
             onPointerUp={(e) => onUp(e, f.valor)}
             onPointerCancel={() => { dragRef.current = null; }}
           >
-            <span
-              className="gw-ficha-img"
-              style={{
-                width: `${f.imgTam}%`, height: `${f.imgTam}%`,
-                fontSize: Math.max(9, f.tam * f.imgTam / 100 * 0.34),
-                background: conImg
-                  ? `center/cover no-repeat url("${f.imagen_url}")`
-                  : 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))',
-                boxShadow: conImg ? 'inset 0 0 0 1px rgba(255,255,255,.14)' : 'none',
-              }}
-            >
-              {!conImg && fichaCorto(f.valor)}
-            </span>
+            {conImg
+              ? <FichaFoto url={f.imagen_url!} lado={ladoFicha(f)} />
+              : (
+                <span
+                  className="gw-ficha-img"
+                  style={{
+                    width: `${f.imgTam}%`, height: `${f.imgTam}%`,
+                    fontSize: Math.max(9, f.tam * f.imgTam / 100 * 0.34),
+                    background: 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))',
+                  }}
+                >
+                  {fichaCorto(f.valor)}
+                </span>
+              )}
             <span className="gw-ficha-val">{fmt(f.valor)}</span>
           </button>
         );
@@ -186,6 +208,9 @@ export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila
           box-shadow:0 0 0 2px var(--accent), 0 0 22px -2px var(--accent), 0 6px 16px -6px rgba(0,0,0,.6);
           filter:brightness(1.2) saturate(1.08); transform:scale(1.09);
         }
+        .gw-strip-ficha.con-img, .gw-strip-ficha.con-img.on {
+          background:transparent; box-shadow:none; border-radius:0; filter:none; transform:none;
+        }
         .gw-strip-ficha.on .gw-strip-val { color:var(--accent); }
         @media (prefers-reduced-motion: reduce){ .gw-strip-ficha { transition:none } }
       `}</style>
@@ -195,24 +220,30 @@ export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila
         return (
           <button
             key={i}
-            className={`gw-strip-ficha ${marcada ? 'on' : ''}`}
+            className={`gw-strip-ficha ${conImg ? 'con-img' : ''} ${marcada ? 'on' : ''}`}
             disabled={bloqueado}
-            style={{ width: f.tam, height: f.tam, opacity: bloqueado ? 0.55 : 1 }}
+            style={{
+              width: conImg ? 'auto' : f.tam, height: conImg ? 'auto' : f.tam,
+              padding: conImg ? 0 : undefined, background: conImg ? 'transparent' : undefined,
+              borderRadius: conImg ? 0 : undefined, opacity: bloqueado ? 0.55 : 1,
+            }}
+            onPointerDownCapture={conImg ? huecoFicha : undefined}
             onClick={() => !bloqueado && onElegir(f.valor)}
           >
-            <span
-              className="gw-strip-img"
-              style={{
-                width: `${f.imgTam}%`, height: `${f.imgTam}%`,
-                fontSize: Math.max(9, f.tam * f.imgTam / 100 * 0.34),
-                background: conImg
-                  ? `center/cover no-repeat url("${f.imagen_url}")`
-                  : 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))',
-                boxShadow: conImg ? 'inset 0 0 0 1px rgba(255,255,255,.14)' : 'none',
-              }}
-            >
-              {!conImg && fichaCorto(f.valor)}
-            </span>
+            {conImg
+              ? <FichaFoto url={f.imagen_url!} lado={ladoFicha(f)} />
+              : (
+                <span
+                  className="gw-strip-img"
+                  style={{
+                    width: `${f.imgTam}%`, height: `${f.imgTam}%`,
+                    fontSize: Math.max(9, f.tam * f.imgTam / 100 * 0.34),
+                    background: 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))',
+                  }}
+                >
+                  {fichaCorto(f.valor)}
+                </span>
+              )}
             <span className="gw-strip-val">{fmt(f.valor)}</span>
           </button>
         );
@@ -246,7 +277,8 @@ export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover 
   editable?: boolean;
   onMover?: (i: number, x: number, y: number) => void;
 }) {
-  const cfg = fichasConDefaults(juego.fichas_cfg);
+  const slot = esSlotClasico(juego.motor);
+  const cfg = (slot ? fichasCfgSlot(juego.fichas_cfg) : fichasConDefaults(juego.fichas_cfg)) as FichasCfg;
   const [apuesta, setApuesta] = useState(escenario.apuesta);
   const lista = fichas ?? cfg.fichas;
   if (!lista.length) return null;
@@ -272,6 +304,8 @@ export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover 
       modo={cfg.modo}
       abanicoApertura={cfg.abanicoApertura}
       abanicoArco={cfg.abanicoArco}
+      abanicoOrden={slot ? cfg.abanicoOrden : undefined}
+      abanicoSale={slot ? cfg.abanicoSale : undefined}
     />
   );
 }
@@ -307,6 +341,9 @@ interface AbanicoProps {
   apertura?: number;
   /** Arco en grados (hacia arriba). */
   arco?: number;
+  /** Definido solo en el slot 3×3/5×3. */
+  orden?: FichasCfg['abanicoOrden'];
+  sale?: FichasCfg['abanicoSale'];
 }
 
 /**
@@ -315,17 +352,29 @@ interface AbanicoProps {
  * todo se repliega solo. Pensado para no ocupar una franja fija de la
  * pantalla con todas las fichas a la vez.
  */
-function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, onMover, host, x, y, apertura = 100, arco = 136 }: AbanicoProps) {
+function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, onMover, host, x, y, apertura = 100, arco = 136, orden, sale }: AbanicoProps) {
   const [abierto, setAbierto] = useState(false);
   const dragRef = useRef<{ movido: boolean } | null>(null);
 
   if (!fichas.length) return null;
   const activa = fichas.find((f) => Math.round(f.valor) === Math.round(apuesta)) ?? fichas[0];
-  const resto = fichas.filter((f) => f !== activa);
   const radioAuto = Math.max(64, Math.min(112, ancho * 0.32));
   const radio = radioAuto * (Math.max(50, Math.min(220, apertura)) / 100);
   const arcoDeg = Math.max(70, Math.min(180, arco));
-  const n = resto.length;
+  // Sin orden: lista de siempre, y la activa se saca del arco (el hueco se cierra).
+  // Con orden (slot): el arco se arma con todas y la activa deja su sitio vacío.
+  const resto = orden
+    ? (() => {
+        const puestos = puestosAbanico(fichas, apuesta, orden) as { ficha: Ficha; indice: number; total: number }[];
+        const visibles = puestos.map((p) => p.indice);
+        return puestos.map((p) => ({
+          f: p.ficha,
+          k: p.indice,
+          n: p.total,
+          delay: demoraAbanico(p.indice, visibles, p.total, sale ?? 'centro') as number,
+        }));
+      })()
+    : fichas.filter((f) => f !== activa).map((f, k, arr) => ({ f, k, n: arr.length, delay: k * 26 }));
 
   const elegir = (valor: number) => { onElegir(valor); setAbierto(false); };
 
@@ -375,6 +424,9 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
           font-family:var(--mono, monospace); font-weight:700; color:#fff;
           box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
         }
+        .gw-abanico-ficha.con-img {
+          background:transparent; box-shadow:none; border-radius:0; width:auto; height:auto;
+        }
         .gw-abanico-val {
           position:absolute; bottom:-14px; left:50%; transform:translateX(-50%);
           font-family:var(--mono, monospace); font-size:10px; font-weight:600; color:var(--text-dim,#8a93a1);
@@ -387,17 +439,25 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
 
       <button
         type="button"
-        className="gw-abanico-ficha gw-abanico-principal"
+        className={`gw-abanico-ficha gw-abanico-principal${activa.imagen_url ? ' con-img' : ''}`}
         aria-haspopup="true" aria-expanded={abierto}
         aria-label={`Ficha activa: ${fmt(activa.valor)}. Tocar para elegir otra.`}
         disabled={bloqueado && !editable}
-        style={{ width: activa.tam, height: activa.tam, transform: 'translate(-50%,-50%)', opacity: bloqueado && !editable ? 0.55 : 1 }}
+        onPointerDownCapture={activa.imagen_url ? huecoFicha : undefined}
+        style={{
+          width: activa.imagen_url ? 'auto' : activa.tam,
+          height: activa.imagen_url ? 'auto' : activa.tam,
+          transform: 'translate(-50%,-50%)',
+          background: activa.imagen_url ? 'transparent' : undefined,
+          borderRadius: activa.imagen_url ? 0 : undefined,
+          opacity: bloqueado && !editable ? 0.55 : 1,
+        }}
         {...anclaProps}
       >
         <FichaContenido f={activa} />
       </button>
 
-      {resto.map((f, k) => {
+      {resto.map(({ f, k, n, delay }) => {
         const start = 90 + arcoDeg / 2;
         const end = 90 - arcoDeg / 2;
         const ang = n === 1 ? 90 : start + (end - start) * (k / Math.max(1, n - 1));
@@ -405,18 +465,22 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
         const tx = Math.cos(rad) * radio, ty = -Math.sin(rad) * radio;
         return (
           <button
-            key={f.valor}
+            key={`${f.valor}-${k}`}
             type="button"
-            className="gw-abanico-ficha gw-abanico-secundaria"
+            className={`gw-abanico-ficha gw-abanico-secundaria${f.imagen_url ? ' con-img' : ''}`}
             aria-label={fmt(f.valor)}
+            onPointerDownCapture={f.imagen_url ? huecoFicha : undefined}
             style={{
-              width: f.tam, height: f.tam,
+              width: f.imagen_url ? 'auto' : f.tam,
+              height: f.imagen_url ? 'auto' : f.tam,
+              background: f.imagen_url ? 'transparent' : undefined,
+              borderRadius: f.imagen_url ? 0 : undefined,
               transform: abierto
                 ? `translate(calc(-50% + ${tx.toFixed(1)}px), calc(-50% + ${ty.toFixed(1)}px)) scale(1)`
                 : 'translate(-50%,-50%) scale(.3)',
               opacity: abierto ? 1 : 0,
               pointerEvents: abierto ? 'auto' : 'none',
-              transitionDelay: abierto ? `${k * 26}ms` : '0ms',
+              transitionDelay: abierto ? `${delay}ms` : '0ms',
             }}
             onClick={() => elegir(f.valor)}
           >
@@ -428,8 +492,34 @@ function Abanico({ fichas, apuesta, onElegir, bloqueado, ancho = 320, editable, 
   );
 }
 
+function ladoFicha(f: Ficha) {
+  return Math.max(8, Math.round(f.tam * f.imgTam / 100));
+}
+
+function huecoFicha(e: React.PointerEvent) {
+  const img = (e.currentTarget as HTMLElement).querySelector('img');
+  if (img && alphaEn(img, e.clientX, e.clientY) === false) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+
+/** PNG con su forma. El lado más largo es el tamaño de la ficha. */
+function FichaFoto({ url, lado }: { url: string; lado: number }) {
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => { if (ref.current) encajarImagen(ref.current, lado); }, [url, lado]);
+  return <img ref={ref} className="gw-ficha-foto jg-silueta" alt="" draggable={false} src={url} />;
+}
+
 function FichaContenido({ f }: { f: Ficha }) {
-  const conImg = !!f.imagen_url;
+  if (f.imagen_url) {
+    return (
+      <>
+        <FichaFoto url={f.imagen_url} lado={ladoFicha(f)} />
+        <span className="gw-abanico-val">{fmt(f.valor)}</span>
+      </>
+    );
+  }
   return (
     <>
       <span
@@ -437,13 +527,10 @@ function FichaContenido({ f }: { f: Ficha }) {
         style={{
           width: `${f.imgTam}%`, height: `${f.imgTam}%`,
           fontSize: Math.max(9, f.tam * f.imgTam / 100 * 0.34),
-          background: conImg
-            ? `center/cover no-repeat url("${f.imagen_url}")`
-            : 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))',
-          boxShadow: conImg ? 'inset 0 0 0 1px rgba(255,255,255,.14)' : 'none',
+          background: 'radial-gradient(circle at 35% 30%, var(--accent-hover, #7d99ff), var(--accent, #6b8afd))',
         }}
       >
-        {!conImg && fichaCorto(f.valor)}
+        {fichaCorto(f.valor)}
       </span>
       <span className="gw-abanico-val">{fmt(f.valor)}</span>
     </>

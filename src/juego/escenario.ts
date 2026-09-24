@@ -21,8 +21,8 @@ import { pintarMonto } from './monto.ts';
 import { fichasDe } from '../../motor/fichas.js';
 import { engancharLoopVideo, htmlCapaFondo } from './fondo.ts';
 import { audiosDe } from './sfx.ts';
-import { planillaDe, planillaJson, type ClavePlanilla, type Planilla } from './planilla.ts';
-import { asignarImagen, engancharSilueta } from './silueta.ts';
+import { planillaDe, planillaJson, posTurbo, type ClavePlanilla, type Planilla } from './planilla.ts';
+import { asignarImagen, encajarImagen, engancharSilueta } from './silueta.ts';
 import type {
   AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
   NivelPremio, PremioVisual, Rect, Simbolo, Sonido,
@@ -170,6 +170,9 @@ export interface Escenario {
   planilla: Planilla;
   setVisible(clave: ClavePlanilla, on: boolean): void;
   setAutoImagen(url: string | null): void;
+  setAutoPos(x: number, y: number): void;
+  setAutoTam(tam: number): void;
+  setTurboPos(clave: 'x1' | 'x2' | 'x3', x: number, y: number): void;
   destruir(): void;
 }
 
@@ -559,33 +562,33 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
   // ---------------- Controles: girar, grupos, botones ----------------
   const aplicarBoton = (n: HTMLElement | null, cfg: CfgBoton) => {
     if (!n) return;
-    Object.assign(n.style, {
-      width: cfg.tamano + 'px', height: cfg.tamano + 'px',
-      background: cfg.sin_fondo ? 'transparent' : '',
-      border: cfg.sin_fondo ? 'none' : '',
-    });
     const img = n.querySelector<HTMLImageElement>('.jg-btn-img');
     const texto = n.querySelector<HTMLElement>('.jg-btn-texto');
     const conImg = !!(cfg.imagen_url && img);
     n.classList.toggle('jg-con-img', conImg);
     if (conImg) {
-      const tam = cfg.tamano * cfg.imagen_tamano / 100;
+      const lado = cfg.tamano * cfg.imagen_tamano / 100;
       asignarImagen(img, cfg.imagen_url as string);
+      encajarImagen(img, lado);
       img.style.display = 'block';
-      img.style.width = tam + 'px';
-      img.style.height = tam + 'px';
-      // Con fondo oculto el PNG llena el botón: el clic mapea 1:1.
-      img.style.objectFit = cfg.sin_fondo ? 'fill' : 'contain';
-      n.style.overflow = 'visible';
-      n.style.borderColor = 'transparent';
+      img.style.objectFit = 'fill';
+      Object.assign(n.style, {
+        width: 'auto', height: 'auto', overflow: 'visible',
+        background: 'transparent', border: 'none', borderRadius: '0', padding: '0',
+      });
       n.dataset.forma = cfg.sin_fondo ? '1' : '';
       engancharSilueta(n, img);
       if (texto) texto.style.display = 'none';
     } else if (img) {
+      Object.assign(n.style, {
+        width: cfg.tamano + 'px', height: cfg.tamano + 'px',
+        background: cfg.sin_fondo ? 'transparent' : '',
+        border: cfg.sin_fondo ? 'none' : '',
+        borderRadius: '', overflow: 'hidden',
+      });
       img.removeAttribute('src');
       img.dataset.url = '';
       img.style.display = 'none';
-      n.style.overflow = 'hidden';
       n.dataset.forma = '';
       if (texto) texto.style.display = 'block';
     }
@@ -598,31 +601,34 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
 
   const aplicarGirar = () => {
     const tam = posGirar.girar_tamano;
+    const conImg = !!posGirar.girar_imagen_url;
     Object.assign(btnGirar.style, {
       left: posGirar.girar_x + '%', top: posGirar.girar_y + '%',
-      transform: 'translate(-50%,-50%)', width: tam + 'px', height: tam + 'px',
-      background: posGirar.girar_sin_fondo ? 'transparent' : '',
-      border: posGirar.girar_sin_fondo ? 'none' : '',
+      transform: 'translate(-50%,-50%)',
+      background: conImg || posGirar.girar_sin_fondo ? 'transparent' : '',
+      border: conImg || posGirar.girar_sin_fondo ? 'none' : '',
+      borderRadius: conImg ? '0' : '50%',
+      overflow: conImg ? 'visible' : 'hidden',
+      padding: '0',
     });
-    const conImg = !!posGirar.girar_imagen_url;
     btnGirar.classList.toggle('jg-con-img', conImg);
     if (conImg) {
       asignarImagen(girarImgEl, posGirar.girar_imagen_url as string);
+      encajarImagen(girarImgEl, tam * posGirar.girar_imagen_tamano / 100);
       girarImgEl.style.display = 'block';
-      girarImgEl.style.width = (tam * posGirar.girar_imagen_tamano / 100) + 'px';
-      girarImgEl.style.height = (tam * posGirar.girar_imagen_tamano / 100) + 'px';
-      girarImgEl.style.objectFit = posGirar.girar_sin_fondo ? 'fill' : 'contain';
+      girarImgEl.style.objectFit = 'fill';
+      btnGirar.style.width = 'auto';
+      btnGirar.style.height = 'auto';
       girarTextoEl.style.display = 'none';
-      btnGirar.style.overflow = 'visible';
-      btnGirar.style.borderColor = 'transparent';
       btnGirar.dataset.forma = posGirar.girar_sin_fondo ? '1' : '';
       engancharSilueta(btnGirar, girarImgEl);
     } else {
+      btnGirar.style.width = tam + 'px';
+      btnGirar.style.height = tam + 'px';
       girarImgEl.removeAttribute('src');
       girarImgEl.dataset.url = '';
       girarImgEl.style.display = 'none';
       girarTextoEl.style.display = 'block';
-      btnGirar.style.overflow = 'hidden';
       btnGirar.dataset.forma = '';
     }
   };
@@ -643,7 +649,12 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     });
     ubicar(grupoSaldoEl, posGrupos.saldo_x, posGrupos.saldo_y);
     ubicar(grupoApuestaEl, posGrupos.apuesta_x, posGrupos.apuesta_y);
-    ubicar(grupoTurboEl, posGrupos.turbo_x, posGrupos.turbo_y);
+    // x1, x2 y x3 van cada uno en su sitio. El grupo solo les da el recuadro.
+    Object.assign(grupoTurboEl.style, {
+      left: '0', top: '0', width: '100%', height: '100%', transform: 'none',
+      pointerEvents: 'none',
+    });
+    posicionarTurbo();
     ubicar(fichasEl, posGrupos.fichas_x, posGrupos.fichas_y);
     Object.assign(grupoSaldoEl.style, {
       width: posGrupos.saldo_ancho + 'px', height: posGrupos.saldo_alto + 'px',
@@ -708,6 +719,20 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     });
   };
 
+  const posicionarTurbo = () => {
+    const pts = posTurbo(planilla, { x: posGrupos.turbo_x, y: posGrupos.turbo_y }, {
+      x1: botones.x1.tamano, x2: botones.x2.tamano, x3: botones.x3.tamano,
+    });
+    grupoTurboEl.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
+      const p = pts[('x' + b.dataset.v) as 'x1' | 'x2' | 'x3'];
+      if (!p) return;
+      Object.assign(b.style, {
+        position: 'absolute', left: p.x + '%', top: p.y + '%',
+        transform: 'translate(-50%,-50%)', pointerEvents: 'auto',
+      });
+    });
+  };
+
   const pintarTurbo = () => {
     grupoTurboEl.innerHTML = [1, 2, 3].map((v) => {
       const activo = v === escenario.velocidad;
@@ -724,6 +749,7 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
       aplicarBoton(b, botones['x' + b.dataset.v]);
       b.addEventListener('click', () => { escenario.velocidad = Number(b.dataset.v); pintarTurbo(); });
     });
+    posicionarTurbo();
     aplicarPlanilla();
   };
 
@@ -820,6 +846,23 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     setAutoImagen(url) {
       this.planilla.autoImagen = url;
       juego.planilla = planillaJson(this.planilla);
+    },
+    setAutoPos(x, y) {
+      this.planilla.autoX = Math.round(Math.max(0, Math.min(100, x)));
+      this.planilla.autoY = Math.round(Math.max(0, Math.min(100, y)));
+      juego.planilla = planillaJson(this.planilla);
+    },
+    setAutoTam(tam) {
+      this.planilla.autoTam = Math.round(Math.max(28, Math.min(220, tam)));
+      juego.planilla = planillaJson(this.planilla);
+    },
+    setTurboPos(clave, x, y) {
+      this.planilla.turboPos[clave] = {
+        x: Math.round(Math.max(0, Math.min(100, x))),
+        y: Math.round(Math.max(0, Math.min(100, y))),
+      };
+      juego.planilla = planillaJson(this.planilla);
+      posicionarTurbo();
     },
     setBordeLuz(color: string | null) {
       const ok = hexColor(color);

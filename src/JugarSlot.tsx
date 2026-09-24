@@ -8,7 +8,7 @@ import { animarSimboloGanador, detenerAnimacionesSimbolos, detenerAnimacionesJue
 import { crearEscenario } from './juego/escenario.ts';
 import { crearRodillosJugar } from './juego/rodillos-jugar.ts';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
-import { planillaDe } from './juego/planilla.ts';
+import { planillaDe, posAuto } from './juego/planilla.ts';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosJugar } from './juego/rodillos-jugar.ts';
@@ -196,9 +196,12 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
           {planilla.visibles.auto && (
           <BotonAuto
             host={escRef.current.el}
-            x={escRef.current.posGirar.girar_x}
-            y={escRef.current.posGirar.girar_y}
-            offsetPx={-(escRef.current.posGirar.girar_tamano / 2 + 44)}
+            {...posAuto(planilla, {
+              x: escRef.current.posGirar.girar_x,
+              y: escRef.current.posGirar.girar_y,
+              tam: escRef.current.posGirar.girar_tamano,
+            })}
+            tam={planilla.autoTam}
             restantes={auto.restantes}
             activo={auto.activo}
             imagenUrl={planilla.autoImagen}

@@ -709,6 +709,9 @@ button.jg-play-flow:active:not(:disabled) {
    alfa: lo transparente no brilla y el borde sigue la silueta. */
 .jg-con-img {
   overflow: visible;
+  border-radius: 0;
+  width: auto;
+  height: auto;
   -webkit-tap-highlight-color: transparent;
 }
 .jg-con-img:hover { background: transparent; }
@@ -732,10 +735,10 @@ button.jg-play-flow:active:not(:disabled) {
   cursor: pointer; white-space: nowrap;
 }
 .jg-auto-img {
-  width: 64px; height: 64px; padding: 0; border: none; background: transparent;
+  width: auto; height: auto; padding: 0; border: none; border-radius: 0; background: transparent;
   display: flex; align-items: center; justify-content: center; position: relative;
 }
-.jg-auto-img img { width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+.jg-auto-img img { width: auto; height: auto; max-width: none; object-fit: fill; pointer-events: none; display: block; }
 .jg-auto-cuenta {
   position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
   font-size: 10px; font-weight: 700; color: #fff; background: rgba(0,0,0,.55);
@@ -747,12 +750,13 @@ button.jg-play-flow:active:not(:disabled) {
 }
 .jg-auto-menu {
   position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-  display: flex; gap: 4px; padding: 6px; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  padding: 6px; border-radius: 12px; min-width: 64px;
   background: var(--surface); border: 1px solid var(--border);
   box-shadow: 0 10px 28px -10px rgba(0,0,0,.5); z-index: 20;
 }
 .jg-auto-menu button {
-  min-width: 40px; height: 32px; padding: 0 8px; border-radius: 8px;
+  width: 100%; min-width: 52px; height: 32px; padding: 0 8px; border-radius: 8px;
   font-size: 12px; font-weight: 700;
 }
 

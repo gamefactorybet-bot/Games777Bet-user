@@ -42,6 +42,30 @@ export function alphaEn(img: HTMLImageElement, clientX: number, clientY: number)
 
 /** Carga la imagen pidiendo permiso para leer sus píxeles. Si el
  *  servidor no lo da, se reintenta sin eso para que al menos se vea. */
+/** El lado más largo queda en `lado` px. La otra medida sigue el archivo. */
+export function medidaImagen(ancho: number, alto: number, lado: number): { w: number; h: number } {
+  const w0 = Math.max(1, ancho);
+  const h0 = Math.max(1, alto);
+  const esc = lado / Math.max(w0, h0);
+  return { w: Math.max(8, Math.round(w0 * esc)), h: Math.max(8, Math.round(h0 * esc)) };
+}
+
+/** Ajusta el <img> a su proporción. Si todavía no cargó, lo hace al cargar. */
+export function encajarImagen(img: HTMLImageElement, lado: number) {
+  const aplicar = () => {
+    if (!img.naturalWidth) {
+      img.style.width = lado + 'px';
+      img.style.height = 'auto';
+      return;
+    }
+    const { w, h } = medidaImagen(img.naturalWidth, img.naturalHeight, lado);
+    img.style.width = w + 'px';
+    img.style.height = h + 'px';
+  };
+  img.onload = () => aplicar();
+  aplicar();
+}
+
 export function asignarImagen(img: HTMLImageElement, url: string) {
   if (img.dataset.url === url && img.getAttribute('src')) return;
   img.dataset.url = url;
