@@ -20,7 +20,7 @@ type Jugar = (umbral: number, direccion: Dir, apuesta: number) =>
   Promise<{ resultado: TiradaInstant; premio: number; saldo: number }>;
 
 function DiceJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, abanicoOrden, abanicoSale, autoImagen, autoTam, saldoInicial, minBet, maxBet, paso, onJugar, sonidos, motor }: {
-  cfg: DiceCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; abanicoApertura?: number; abanicoArco?: number; abanicoOrden?: 'lista' | 'valor' | 'valor-inv'; abanicoSale?: 'izquierda' | 'centro' | 'derecha'; autoImagen?: string | null; autoTam?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+  cfg: DiceCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico' | 'columna'; abanicoApertura?: number; abanicoArco?: number; abanicoOrden?: 'lista' | 'valor' | 'valor-inv'; abanicoSale?: 'izquierda' | 'centro' | 'derecha'; autoImagen?: string | null; autoTam?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
   sonidos?: { tipo: string; archivo_url?: string | null }[]; motor?: string;
 }) {
   const audios = useMemo(() => audiosDe(sonidos, motor || 'dice'), [sonidos, motor]);

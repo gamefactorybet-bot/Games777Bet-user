@@ -33,7 +33,7 @@ export function fichasConDefaults(cfg) {
     sinCaja: !!(cfg && cfg.sinCaja),
     // 'abanico': se ve solo la ficha activa y las demás se abren al
     // tocarla. La posición de la ficha 0 hace de ancla del abanico.
-    modo: cfg && cfg.modo === 'abanico' ? 'abanico' : 'fila',
+    modo: cfg && (cfg.modo === 'abanico' || cfg.modo === 'columna') ? cfg.modo : 'fila',
     // 100 = radio automático. 50 = más apretado, 200 = más lejos.
     abanicoApertura: clamp(Math.round(num(cfg && cfg.abanicoApertura, 100)), 50, 220),
     // Arco en grados (hacia arriba). 136 = el abanico original.

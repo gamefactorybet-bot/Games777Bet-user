@@ -86,7 +86,7 @@ interface KenoJuegoProps {
   pos: PosControlesKeno;
   fichas: Ficha[];
   sinCaja: boolean;
-  modoFichas?: 'fila' | 'abanico';
+  modoFichas?: 'fila' | 'abanico' | 'columna';
   saldoInicial: number;
   minBet: number;
   maxBet: number;

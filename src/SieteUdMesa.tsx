@@ -25,7 +25,7 @@ interface Props {
   pos: PosControlesSieteUd;
   est: EstadoSieteUd;
   fichas: Ficha[];
-  modoFichas: 'fila' | 'abanico';
+  modoFichas: 'fila' | 'abanico' | 'columna';
   abanicoApertura?: number;
   abanicoArco?: number;
   abanicoOrden?: 'lista' | 'valor' | 'valor-inv';

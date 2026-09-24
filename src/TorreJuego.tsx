@@ -126,7 +126,7 @@ interface TorreJuegoProps {
   pos: PosControlesTorre;
   fichas: Ficha[];
   sinCaja: boolean;
-  modoFichas?: 'fila' | 'abanico';
+  modoFichas?: 'fila' | 'abanico' | 'columna';
   saldoInicial: number;
   minBet: number;
   maxBet: number;

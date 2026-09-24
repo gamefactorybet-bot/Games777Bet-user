@@ -1053,7 +1053,7 @@ export interface FichasCfg {
   /** 'fila' (por defecto): todas las fichas visibles a la vez.
    * 'abanico': se ve solo la ficha activa; al tocarla se abren las demás
    * alrededor y se repliegan solas al elegir una (ahorra espacio). */
-  modo?: 'fila' | 'abanico';
+  modo?: 'fila' | 'abanico' | 'columna';
   /** Radio del abanico, % del automático (50–220). 100 = el de siempre. */
   abanicoApertura?: number;
   /** Arco del abanico en grados (70–180). 136 = el de siempre, hacia arriba. */

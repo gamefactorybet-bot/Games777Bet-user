@@ -865,15 +865,25 @@ function PanelControles({ escenario, juego, onFichasVista }: {
       </label>
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px' }}>Cómo se ven las fichas</p>
       <div className="grupo-nav" style={{ marginBottom: 10 }}>
-        <button className={`grupo-btn ${cfgFichas.modo !== 'abanico' ? 'on' : ''}`}
+        <button className={`grupo-btn ${cfgFichas.modo === 'fila' ? 'on' : ''}`}
           style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
-          onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'fila' })}>Fila (todas visibles)</button>
+          onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'fila' })}>Fila</button>
+        <button className={`grupo-btn ${cfgFichas.modo === 'columna' ? 'on' : ''}`}
+          style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
+          onClick={() => aplicarFichasCfg({ ...asegurarFichasRicas(), modo: 'columna' })}>Columna</button>
         <button className={`grupo-btn ${cfgFichas.modo === 'abanico' ? 'on' : ''}`}
           style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
-          onClick={() => aplicarFichasCfg({ ...asegurarFichasRicas(), modo: 'abanico' })}>Abanico (una sola)</button>
+          onClick={() => aplicarFichasCfg({ ...asegurarFichasRicas(), modo: 'abanico' })}>Abanico</button>
       </div>
-      {cfgFichas.modo === 'abanico' && (
+      {cfgFichas.modo === 'columna' && (
+        <p className="hint" style={{ margin: '0 0 8px' }}>
+          Como Auto: se ve la ficha activa y las demás salen hacia arriba. La posición X/Y de abajo es el botón cerrado.
+        </p>
+      )}
+      {(cfgFichas.modo === 'abanico' || cfgFichas.modo === 'columna') && (
         <div style={{ margin: '0 0 12px' }}>
+          {cfgFichas.modo === 'abanico' && (
+            <>
           <p className="hint" style={{ margin: '0 0 8px' }}>
             Solo se ve la ficha activa. Al tocarla se abren las demás alrededor.
             La posición X/Y de abajo es el botón cerrado.
@@ -884,23 +894,26 @@ function PanelControles({ escenario, juego, onFichasVista }: {
           <Rango etiqueta="Arco (qué tan abierto, hacia arriba)" min={70} max={180} unidad="°"
             valor={cfgFichas.abanicoArco ?? 136}
             onInput={(n) => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoArco: n })} />
+            </>
+          )}
           {(
             <>
               <p className="hint" style={{ margin: '10px 0 6px' }}>
-                Orden en el arco, de izquierda a derecha. La activa deja su hueco.
+                {cfgFichas.modo === 'columna' ? 'Orden de la columna, de arriba hacia abajo.' : 'Orden en el arco, de izquierda a derecha. La activa deja su hueco.'}
                 {cfgFichas.abanicoOrden === 'lista' && ' El orden de la lista se cambia en Jugabilidad, con las flechas de cada ficha.'}
               </p>
               <div className="grupo-nav" style={{ marginBottom: 8 }}>
                 <button type="button" title="De menor a mayor" className={`grupo-btn ${cfgFichas.abanicoOrden === 'valor' ? 'on' : ''}`}
                   style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
-                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoOrden: 'valor' })}>Menor</button>
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: cfgFichas.modo, abanicoOrden: 'valor' })}>Menor</button>
                 <button type="button" title="Como están en Jugabilidad" className={`grupo-btn ${cfgFichas.abanicoOrden === 'lista' ? 'on' : ''}`}
                   style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
-                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoOrden: 'lista' })}>Lista</button>
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: cfgFichas.modo, abanicoOrden: 'lista' })}>Lista</button>
                 <button type="button" title="De mayor a menor" className={`grupo-btn ${cfgFichas.abanicoOrden === 'valor-inv' ? 'on' : ''}`}
                   style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
-                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoOrden: 'valor-inv' })}>Mayor</button>
+                  onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: cfgFichas.modo, abanicoOrden: 'valor-inv' })}>Mayor</button>
               </div>
+              {cfgFichas.modo === 'abanico' && (
               <div className="grupo-nav" style={{ marginBottom: 4 }}>
                 <button type="button" className={`grupo-btn ${cfgFichas.abanicoSale === 'centro' ? 'on' : ''}`}
                   style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
@@ -912,6 +925,7 @@ function PanelControles({ escenario, juego, onFichasVista }: {
                   style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
                   onClick={() => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoSale: 'derecha' })}>Derecha</button>
               </div>
+              )}
             </>
           )}
         </div>

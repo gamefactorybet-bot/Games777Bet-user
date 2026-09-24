@@ -18,7 +18,7 @@ type Jugar = (objetivo: number, apuesta: number) => Promise<{ resultado: TiradaI
 // UI del Limbo. `onJugar` la resuelve el servidor (JugarLimbo) o el
 // motor local (PreviewLimbo).
 function LimboJuego({ cfg, fichas, modoFichas, abanicoApertura, abanicoArco, abanicoOrden, abanicoSale, autoImagen, autoTam, saldoInicial, minBet, maxBet, paso, onJugar, sonidos, motor }: {
-  cfg: LimboCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico'; abanicoApertura?: number; abanicoArco?: number; abanicoOrden?: 'lista' | 'valor' | 'valor-inv'; abanicoSale?: 'izquierda' | 'centro' | 'derecha'; autoImagen?: string | null; autoTam?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
+  cfg: LimboCfg; fichas: Ficha[]; modoFichas: 'fila' | 'abanico' | 'columna'; abanicoApertura?: number; abanicoArco?: number; abanicoOrden?: 'lista' | 'valor' | 'valor-inv'; abanicoSale?: 'izquierda' | 'centro' | 'derecha'; autoImagen?: string | null; autoTam?: number; saldoInicial: number; minBet: number; maxBet: number; paso: number; onJugar: Jugar;
   sonidos?: { tipo: string; archivo_url?: string | null }[]; motor?: string;
 }) {
   const audios = useMemo(() => audiosDe(sonidos, motor || 'limbo'), [sonidos, motor]);
