@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ruleta } from './Ruleta.tsx';
 import { BotonAuto } from './BotonAuto.tsx';
+import { propsAuto } from './juego/planilla.ts';
 import { useAutoplay } from './juego/autoplay.ts';
 import { slotsDe } from './juego/ruleta.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -21,6 +22,7 @@ interface RuletaJuegoProps {
   simbolos: Simbolo[];
   /** Debita la apuesta y devuelve el resultado del giro. */
   resolver: (apuesta: number) => Promise<ResueltoRuleta>;
+  onAutoMovido?: () => void;
 }
 
 // Pega la rueda con el escenario: engancha el botón de girar, corre la
@@ -28,7 +30,7 @@ interface RuletaJuegoProps {
 // actualiza el saldo y dispara el cuadro de premio del escenario.
 // Sirve igual para la vista previa (resolver local) y la pantalla real
 // (resolver contra /api/jugar-girar).
-export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps) {
+export function RuletaJuego({ escenario, simbolos, resolver, onAutoMovido }: RuletaJuegoProps) {
   const [slots, setSlots] = useState<RuletaSlot[]>(() => slotsDe(simbolos));
   const [objetivo, setObjetivo] = useState<number | null>(null);
   const [spinning, setSpinning] = useState(false);
@@ -103,11 +105,14 @@ export function RuletaJuego({ escenario, simbolos, resolver }: RuletaJuegoProps)
     <>
       <BotonAuto
         host={escenario.el}
-        x={escenario.posGirar.girar_x}
-        y={escenario.posGirar.girar_y}
-        offsetPx={-(escenario.posGirar.girar_tamano / 2 + 44)}
+        {...propsAuto(escenario.planilla, {
+          x: escenario.posGirar.girar_x,
+          y: escenario.posGirar.girar_y,
+          tam: escenario.posGirar.girar_tamano,
+        })}
         restantes={auto.restantes}
         activo={auto.activo}
+        onMover={onAutoMovido ? (x, y) => { escenario.setAutoPos(x, y); onAutoMovido(); } : undefined}
         disabled={escenario.saldo < escenario.apuesta}
         onStart={(n) => auto.start(n, () => girarRef.current())}
         onStop={auto.stop}

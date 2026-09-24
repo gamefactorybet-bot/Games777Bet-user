@@ -10,6 +10,7 @@ import { AjustePanel } from './AjustePanel.tsx';
 import { AjustePlinkoControles } from './AjustePlinkoControles.tsx';
 import { cfgDe, estadoInicial, posControlesPlinkoDe, tirarLocal } from './juego/plinko.ts';
 import { BotonAuto } from './BotonAuto.tsx';
+import { propsAuto } from './juego/planilla.ts';
 import { useAutoplay } from './juego/autoplay.ts';
 import { temaPlinkoDe } from './juego/plinko-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -47,6 +48,7 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
   const [estado, setEstado] = useState<EstadoPlinko>(() => estadoInicial(minBet, SALDO_DEMO, cfg));
   const [tirada, setTirada] = useState<TiradaResuelta | null>(null);
   const auto = useAutoplay();
+  const [planillaRev, setPlanillaRev] = useState(0);
   const soltarRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -115,9 +117,9 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
           />
           <BotonAuto
             host={escRef.current.el}
-            x={posCtl.boton.x} y={posCtl.boton.y}
-            offsetPx={-(posCtl.boton.ancho / 2 + 44)}
+            {...propsAuto(escRef.current.planilla, { x: posCtl.boton.x, y: posCtl.boton.y, tam: posCtl.boton.ancho })}
             restantes={auto.restantes} activo={auto.activo}
+            onMover={(x, y) => { escRef.current?.setAutoPos(x, y); setPlanillaRev((n) => n + 1); }}
             disabled={!!tirada || estado.saldo < estado.apuesta}
             onStart={(n) => auto.start(n, () => soltarRef.current())} onStop={auto.stop}
           />
@@ -152,7 +154,7 @@ export function PreviewPlinko({ juego, onClose }: { juego: Juego; onClose: () =>
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjustePlinkoControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
+            : <AjustePlinkoControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} onPlanilla={() => setPlanillaRev((n) => n + 1)} />}
         </div>
       )}
     </div>

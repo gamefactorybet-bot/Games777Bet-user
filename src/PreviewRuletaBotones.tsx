@@ -22,6 +22,7 @@ export function PreviewRuletaBotones({ juego, onClose }: { juego: Juego; onClose
   const [tab, setTab] = useState<'controles' | 'arte'>('controles');
   const cfg = cfgDe(juego);
   const [posCtl, setPosCtl] = useState<PosControlesRuleta>(() => posControlesRuletaDe(cfg));
+  const [planillaRev, setPlanillaRev] = useState(0);
 
   useEffect(() => {
     let cancelado = false;
@@ -67,7 +68,7 @@ export function PreviewRuletaBotones({ juego, onClose }: { juego: Juego; onClose
       <div ref={hostRef} />
 
       {listo && escRef.current && (
-        <RuletaBotones escenario={escRef.current} cfg={cfg} pos={posCtl} saldoInicial={10000} resolver={resolver} />
+        <RuletaBotones escenario={escRef.current} cfg={cfg} pos={posCtl} saldoInicial={10000} resolver={resolver} onAutoMovido={() => setPlanillaRev((n) => n + 1)} />
       )}
 
       {listo && mostrarPanel && escRef.current && (
@@ -78,7 +79,7 @@ export function PreviewRuletaBotones({ juego, onClose }: { juego: Juego; onClose
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteRuletaControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} />}
+            : <AjusteRuletaControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onPlanilla={() => setPlanillaRev((n) => n + 1)} />}
         </div>
       )}
     </div>

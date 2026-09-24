@@ -8,6 +8,7 @@ import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesCrashDe } from './juego/crash.ts';
 import { BotonAuto } from './BotonAuto.tsx';
+import { propsAuto } from './juego/planilla.ts';
 import { useAutoplay } from './juego/autoplay.ts';
 import { temaCrashDe } from './juego/crash-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -187,8 +188,7 @@ export function JugarCrash({ datos, saldoInicial, slug, token }: JugarCrashProps
           />
           <BotonAuto
             host={escRef.current.el}
-            x={pos.boton.x} y={pos.boton.y}
-            offsetPx={-(pos.boton.ancho / 2 + 44)}
+            {...propsAuto(escRef.current.planilla, { x: pos.boton.x, y: pos.boton.y, tam: pos.boton.ancho })}
             restantes={auto.restantes} activo={auto.activo}
             disabled={estado.fase === 'en_curso' || estado.cargando || estado.saldo < estado.apuesta}
             onStart={(n) => auto.start(n, () => apostarRef.current())} onStop={auto.stop}

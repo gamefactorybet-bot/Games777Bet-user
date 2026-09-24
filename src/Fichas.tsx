@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { demoraAbanico, fichasCfgSlot, fichasConDefaults, puestosAbanico } from '../motor/fichas.js';
 import { alphaEn, encajarImagen } from './juego/silueta.ts';
-import { esSlotClasico } from './juego/kit-frutas.ts';
 import type { Ficha, FichasCfg, Juego } from './types.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
@@ -170,18 +169,20 @@ interface FichasStripProps {
   modo?: 'fila' | 'abanico';
   abanicoApertura?: number;
   abanicoArco?: number;
+  abanicoOrden?: FichasCfg['abanicoOrden'];
+  abanicoSale?: FichasCfg['abanicoSale'];
 }
 
 // Tira de fichas para los juegos instantáneos (Limbo, Dice, 7 Up 7
 // Down): no hay escenario 420×860 para posicionar, así que van en una
 // fila centrada. Se respeta el valor, la imagen redonda y el tamaño de
 // cada ficha.
-export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila', abanicoApertura = 100, abanicoArco = 136 }: FichasStripProps) {
+export function FichasStrip({ fichas, apuesta, onElegir, bloqueado, modo = 'fila', abanicoApertura = 100, abanicoArco = 136, abanicoOrden, abanicoSale }: FichasStripProps) {
   if (modo === 'abanico') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 20px' }}>
         <Abanico fichas={fichas} apuesta={apuesta} onElegir={onElegir} bloqueado={bloqueado} ancho={340}
-          apertura={abanicoApertura} arco={abanicoArco} />
+          apertura={abanicoApertura} arco={abanicoArco} orden={abanicoOrden} sale={abanicoSale} />
       </div>
     );
   }
@@ -277,8 +278,7 @@ export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover 
   editable?: boolean;
   onMover?: (i: number, x: number, y: number) => void;
 }) {
-  const slot = esSlotClasico(juego.motor);
-  const cfg = (slot ? fichasCfgSlot(juego.fichas_cfg) : fichasConDefaults(juego.fichas_cfg)) as FichasCfg;
+  const cfg = fichasCfgSlot(juego.fichas_cfg) as FichasCfg;
   const [apuesta, setApuesta] = useState(escenario.apuesta);
   const lista = fichas ?? cfg.fichas;
   if (!lista.length) return null;
@@ -304,8 +304,8 @@ export function FichasEnEscenario({ juego, escenario, fichas, editable, onMover 
       modo={cfg.modo}
       abanicoApertura={cfg.abanicoApertura}
       abanicoArco={cfg.abanicoArco}
-      abanicoOrden={slot ? cfg.abanicoOrden : undefined}
-      abanicoSale={slot ? cfg.abanicoSale : undefined}
+      abanicoOrden={cfg.abanicoOrden}
+      abanicoSale={cfg.abanicoSale}
     />
   );
 }

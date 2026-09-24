@@ -5,8 +5,9 @@ import { crearEscenario } from './juego/escenario.ts';
 import { cargarMotor } from '../motor/registro.js';
 import { RuletaJuego } from './RuletaJuego.tsx';
 import { FichasEnEscenario } from './Fichas.tsx';
-import { AjustePanel } from './AjustePanel.tsx';
+import { AjustePanel, ControlesAuto } from './AjustePanel.tsx';
 import { fichasConDefaults, parcheFichas } from '../motor/fichas.js';
+import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { MotorModulo } from './types.ts';
 import type { ResueltoRuleta } from './RuletaJuego.tsx';
@@ -31,6 +32,7 @@ export function PreviewRuleta({ juego, simbolos, onClose }: {
   const [listo, setListo] = useState(false);
   const [mostrarPanel, setMostrarPanel] = useState(false);
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const [planillaRev, setPlanillaRev] = useState(0);
   const guardarFichas = (fs: Ficha[]) => {
     setFichas(fs);
     const next = parcheFichas(juego, fs);
@@ -96,7 +98,7 @@ export function PreviewRuleta({ juego, simbolos, onClose }: {
 
       {listo && escRef.current && (
         <>
-          <RuletaJuego escenario={escRef.current} simbolos={simbolos} resolver={resolver} />
+          <RuletaJuego escenario={escRef.current} simbolos={simbolos} resolver={resolver} onAutoMovido={() => setPlanillaRev((n) => n + 1)} />
           <FichasEnEscenario
             juego={juego} escenario={escRef.current} fichas={fichas}
             editable
@@ -115,6 +117,16 @@ export function PreviewRuleta({ juego, simbolos, onClose }: {
             categorias={['capas', 'extras']}
             esMines
           />
+          <ControlesAuto
+            escenario={escRef.current}
+            juego={juego}
+            onPlanilla={() => setPlanillaRev((n) => n + 1)}
+          />
+          <button style={{ width: '100%', marginTop: 8 }} onClick={() => {
+            const esc = escRef.current;
+            if (!esc) return;
+            supabase.from('juegos').update({ planilla: planillaJson(esc.planilla) }).eq('id', juego.id).then(() => {});
+          }}>Guardar Auto</button>
         </div>
       )}
     </div>

@@ -117,6 +117,11 @@ export function posTurbo(
   return out;
 }
 
+/** Posición, tamaño e imagen del botón Auto, listos para <BotonAuto>. */
+export function propsAuto(p: Planilla, ancla: { x: number; y: number; tam: number }) {
+  return { ...posAuto(p, ancla), tam: p.autoTam, imagenUrl: p.autoImagen };
+}
+
 /** Si hay X e Y guardados, el botón va ahí. Si no, queda a la izquierda del ancla. */
 export function posAuto(
   p: Planilla,

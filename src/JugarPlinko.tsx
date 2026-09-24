@@ -8,6 +8,7 @@ import { PantallaCarga } from './PantallaCarga.tsx';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { cfgDe, estadoInicial, posControlesPlinkoDe } from './juego/plinko.ts';
 import { BotonAuto } from './BotonAuto.tsx';
+import { propsAuto } from './juego/planilla.ts';
 import { useAutoplay } from './juego/autoplay.ts';
 import { temaPlinkoDe } from './juego/plinko-temas.ts';
 import type { Escenario } from './juego/escenario.ts';
@@ -130,8 +131,7 @@ export function JugarPlinko({ datos, saldoInicial, slug, token }: JugarPlinkoPro
           />
           <BotonAuto
             host={escRef.current.el}
-            x={pos.boton.x} y={pos.boton.y}
-            offsetPx={-(pos.boton.ancho / 2 + 44)}
+            {...propsAuto(escRef.current.planilla, { x: pos.boton.x, y: pos.boton.y, tam: pos.boton.ancho })}
             restantes={auto.restantes} activo={auto.activo}
             disabled={!!tirada || estado.cargando || estado.saldo < estado.apuesta}
             onStart={(n) => auto.start(n, () => soltarRef.current())} onStop={auto.stop}

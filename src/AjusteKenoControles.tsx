@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
-import { Rango } from './AjustePanel.tsx';
+import { ControlesAuto, Rango } from './AjustePanel.tsx';
+import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesKeno } from './types.ts';
 
@@ -20,12 +21,13 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
 ];
 
 // Panel para ubicar los controles del Keno. Edita `keno_cfg.controles`.
-export function AjusteKenoControles({ juego, escenario, pos, onChange, onElem }: {
+export function AjusteKenoControles({ juego, escenario, pos, onChange, onElem, onPlanilla }: {
   juego: Juego;
   escenario: Escenario;
   pos: PosControlesKeno;
   onChange: (pos: PosControlesKeno) => void;
   onElem?: (id: ElemId) => void;
+  onPlanilla?: () => void;
 }) {
   const [elem, setElemRaw] = useState<ElemId>('tablero');
   const setElem = (id: ElemId) => { setElemRaw(id); onElem?.(id); };
@@ -51,7 +53,10 @@ export function AjusteKenoControles({ juego, escenario, pos, onChange, onElem }:
     const { data } = await supabase.from('juegos').select('keno_cfg').eq('id', juego.id).single();
     const base = (data?.keno_cfg || {}) as Record<string, unknown>;
     const next = { ...base, controles: pos };
-    const { error } = await supabase.from('juegos').update({ keno_cfg: next }).eq('id', juego.id);
+    const { error } = await supabase.from('juegos').update({
+      keno_cfg: next,
+      planilla: planillaJson(escenario.planilla),
+    }).eq('id', juego.id);
     setMsg(error ? error.message : 'Guardado ✓');
     (juego as { keno_cfg?: unknown }).keno_cfg = next;
   };
@@ -116,6 +121,12 @@ export function AjusteKenoControles({ juego, escenario, pos, onChange, onElem }:
         </>
       )}
 
+      <ControlesAuto
+        escenario={escenario}
+        onPlanilla={onPlanilla}
+        juego={juego}
+        ancla={{ x: pos.boton.x, y: pos.boton.y, tam: pos.boton.ancho }}
+      />
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
     </div>

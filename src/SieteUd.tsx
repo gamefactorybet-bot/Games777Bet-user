@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchJson } from './juego/recursos.ts';
 import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
+import { planillaDe } from './juego/planilla.ts';
 import { temaInstantDe } from './juego/instant-temas.ts';
 import { crearDados3D, type Dados3D, type MaterialDado } from './juego/dados3d.ts';
 import { crearAudioDados, type AudioDados } from './juego/dados-audio.ts';
@@ -137,6 +138,8 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
       <SieteUdMesa
         cfg={cfg} pos={pos} est={g.est} fichas={fichas} modoFichas={vistaFichas.modo}
         abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco}
+        abanicoOrden={vistaFichas.abanicoOrden} abanicoSale={vistaFichas.abanicoSale}
+        autoImagen={planillaDe(juego).autoImagen} autoTam={planillaDe(juego).autoTam}
         minBet={minBet} maxBet={maxBet} paso={paso} canvasRef={canvasRef}
         onApuesta={g.setApuesta} onZona={g.setZona} onJugar={g.jugar} onOtra={g.reset}
         auto={{

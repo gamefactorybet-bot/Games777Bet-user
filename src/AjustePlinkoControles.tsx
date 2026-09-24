@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
-import { Rango } from './AjustePanel.tsx';
+import { ControlesAuto, Rango } from './AjustePanel.tsx';
+import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesPlinko } from './types.ts';
 
@@ -17,12 +18,13 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
 ];
 
 // Panel para ubicar los controles del Plinko. Edita `plinko_cfg.controles`.
-export function AjustePlinkoControles({ juego, escenario, pos, onChange, onElem }: {
+export function AjustePlinkoControles({ juego, escenario, pos, onChange, onElem, onPlanilla }: {
   juego: Juego;
   escenario: Escenario;
   pos: PosControlesPlinko;
   onChange: (pos: PosControlesPlinko) => void;
   onElem?: (id: ElemId) => void;
+  onPlanilla?: () => void;
 }) {
   const [elem, setElemRaw] = useState<ElemId>('boton');
   const setElem = (id: ElemId) => { setElemRaw(id); onElem?.(id); };
@@ -48,7 +50,10 @@ export function AjustePlinkoControles({ juego, escenario, pos, onChange, onElem 
     const { data } = await supabase.from('juegos').select('plinko_cfg').eq('id', juego.id).single();
     const base = (data?.plinko_cfg || {}) as Record<string, unknown>;
     const next = { ...base, controles: pos };
-    const { error } = await supabase.from('juegos').update({ plinko_cfg: next }).eq('id', juego.id);
+    const { error } = await supabase.from('juegos').update({
+      plinko_cfg: next,
+      planilla: planillaJson(escenario.planilla),
+    }).eq('id', juego.id);
     setMsg(error ? error.message : 'Guardado ✓');
     (juego as { plinko_cfg?: unknown }).plinko_cfg = next;
   };
@@ -105,6 +110,12 @@ export function AjustePlinkoControles({ juego, escenario, pos, onChange, onElem 
         </>
       )}
 
+      <ControlesAuto
+        escenario={escenario}
+        onPlanilla={onPlanilla}
+        juego={juego}
+        ancla={{ x: pos.boton.x, y: pos.boton.y, tam: pos.boton.ancho }}
+      />
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
     </div>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { subirArchivo } from './juego/subir.ts';
-import { fichasCfgSlot, fichasConDefaults } from '../motor/fichas.js';
-import { esSlotClasico } from './juego/kit-frutas.ts';
+import { fichasCfgSlot } from '../motor/fichas.js';
 import type { Ficha, FichasCfg, Juego } from './types.ts';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-AR');
@@ -21,9 +20,7 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
   // El abanico va en todos: arrastre (ancla libre), tira (centrado) y
   // grupo (slots: el ancla es la posición de la primera ficha / grupo).
   const conAbanico = true;
-  // Orden y salida, por ahora solo en el slot 3×3 / 5×3.
-  const slot = esSlotClasico(juego.motor);
-  const cfgDe = (j: Juego) => (esSlotClasico(j.motor) ? fichasCfgSlot(j.fichas_cfg) : fichasConDefaults(j.fichas_cfg)) as FichasCfg;
+  const cfgDe = (j: Juego) => fichasCfgSlot(j.fichas_cfg) as FichasCfg;
   const [cfg, setCfg] = useState<FichasCfg>(() => cfgDe(juego));
   useEffect(() => { setCfg(cfgDe(juego)); }, [juego.id]);
   const [msg, setMsg] = useState('');
@@ -32,7 +29,7 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
     const next: FichasCfg = {
       fichas, sinCaja, modo,
       abanicoApertura: cfg.abanicoApertura, abanicoArco: cfg.abanicoArco,
-      ...(slot ? { abanicoOrden: cfg.abanicoOrden, abanicoSale: cfg.abanicoSale } : {}),
+      abanicoOrden: cfg.abanicoOrden, abanicoSale: cfg.abanicoSale,
       ...extra,
     };
     setCfg(next);
@@ -122,7 +119,7 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
                 valor={cfg.abanicoArco ?? 136}
                 onInput={(n) => guardar(cfg.fichas, cfg.sinCaja, 'abanico', { abanicoArco: n })}
               />
-              {slot && (
+              {(
                 <>
                   <p className="hint" style={{ margin: '12px 0 8px' }}>
                     Orden en el arco, de izquierda a derecha. Cada ficha se queda en su lugar; la activa deja el hueco.
@@ -182,7 +179,7 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
                       onChange={(e) => setFicha(i, { valor: Math.max(1, Number(e.target.value) || 1) })}
                       style={{ width: 96, marginLeft: 6, fontFamily: 'var(--mono)', textAlign: 'center' }} />
                   </label>
-                  {slot && cfg.modo === 'abanico' && cfg.abanicoOrden === 'lista' && cfg.fichas.length > 1 && (
+                  {cfg.modo === 'abanico' && cfg.abanicoOrden === 'lista' && cfg.fichas.length > 1 && (
                     <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                       <button type="button" title="Subir en el abanico" disabled={i === 0}
                         style={{ fontSize: 12, padding: '2px 8px' }}
@@ -193,7 +190,7 @@ export function SeccionFichas({ juego, onCampo, ubicacion = 'arrastre' }: {
                     </span>
                   )}
                   {cfg.fichas.length > 1 && (
-                    <button style={{ marginLeft: slot && cfg.modo === 'abanico' && cfg.abanicoOrden === 'lista' ? 0 : 'auto', fontSize: 12, color: 'var(--danger)' }}
+                    <button style={{ marginLeft: cfg.modo === 'abanico' && cfg.abanicoOrden === 'lista' ? 0 : 'auto', fontSize: 12, color: 'var(--danger)' }}
                       onClick={() => guardar(cfg.fichas.filter((_, k) => k !== i))}>Eliminar</button>
                   )}
                 </div>

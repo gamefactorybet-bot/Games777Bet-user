@@ -3,6 +3,7 @@ import { KenoTablero } from './KenoTablero.tsx';
 import { KenoMesa } from './KenoMesa.tsx';
 import { Fichas } from './Fichas.tsx';
 import { fichasVistaDe } from '../motor/fichas.js';
+import { propsAuto } from './juego/planilla.ts';
 import { estadoInicial, tablaDe } from './juego/keno.ts';
 import { tocar, tocarPremio } from './juego/sfx.ts';
 import { BotonAuto } from './BotonAuto.tsx';
@@ -94,13 +95,15 @@ interface KenoJuegoProps {
   /** Preview: la ficha se puede arrastrar. */
   fichasEditables?: boolean;
   onMoverFicha?: (i: number, x: number, y: number) => void;
+  /** Preview: arrastrar Auto y refrescar al moverlo desde el panel. */
+  onAutoMovido?: () => void;
   premioDemo?: number | null;
 }
 
 // El juego completo montado sobre el escenario: tablero + mesa + fichas.
 export function KenoJuego({
   escenario, juego, cfg, tema, pos, fichas, sinCaja, modoFichas, saldoInicial, minBet, maxBet, paso, onJugar,
-  fichasEditables, onMoverFicha, premioDemo,
+  fichasEditables, onMoverFicha, onAutoMovido, premioDemo,
 }: KenoJuegoProps) {
   const inicial = fichas.length ? Math.round(fichas[0].valor) : Math.max(minBet, Math.min(maxBet, 1000));
   const p = usePartidaKeno(cfg, saldoInicial, inicial, onJugar);
@@ -129,9 +132,9 @@ export function KenoJuego({
         estado={p.estado} onToggle={p.onToggle} premioDemo={premioDemo} />
       <BotonAuto
         host={escenario.el}
-        x={pos.boton.x} y={pos.boton.y}
-        offsetPx={-(pos.boton.ancho / 2 + 44)}
+        {...propsAuto(escenario.planilla, { x: pos.boton.x, y: pos.boton.y, tam: pos.boton.ancho })}
         restantes={auto.restantes} activo={auto.activo}
+        onMover={onAutoMovido ? (x, y) => { escenario.setAutoPos(x, y); onAutoMovido(); } : undefined}
         disabled={p.estado.fase === 'rolling' || !p.estado.picked.length || p.estado.saldo < p.estado.apuesta}
         onStart={(n) => auto.start(n, () => jugarRef.current())} onStop={auto.stop}
       />

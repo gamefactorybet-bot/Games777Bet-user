@@ -5,6 +5,9 @@ import { crearEscenario } from './juego/escenario.ts';
 import { Crash } from './Crash.tsx';
 import { CrashMesa } from './CrashMesa.tsx';
 import { Fichas } from './Fichas.tsx';
+import { BotonAuto } from './BotonAuto.tsx';
+import { useAutoplay } from './juego/autoplay.ts';
+import { propsAuto } from './juego/planilla.ts';
 import { fichasConDefaults, fichasVistaDe, parcheFichas } from '../motor/fichas.js';
 import { AjustePanel } from './AjustePanel.tsx';
 import { AjusteCrashControles } from './AjusteCrashControles.tsx';
@@ -47,6 +50,9 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
     (juego as { fichas_cfg?: unknown }).fichas_cfg = next;
   };
   const [estado, setEstado] = useState<EstadoCrash>(() => estadoInicial(minBet, SALDO_DEMO, cfg));
+  const [planillaRev, setPlanillaRev] = useState(0);
+  const auto = useAutoplay();
+  const apostarRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let cancelado = false;
@@ -106,6 +112,9 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
       : { ...estadoInicial(e.apuesta, e.saldo < e.apuesta ? SALDO_DEMO : e.saldo, cfg), autoActivo: e.autoActivo, autoObjetivo: e.autoObjetivo, historial: e.historial }
   ));
 
+  apostarRef.current = apostar;
+  void planillaRev;
+
   const overlay = (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.9)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -123,6 +132,14 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
             multVivoRef={multVivoRef}
             onAuto={(obj) => cerrarRonda(obj)}
             onTope={() => cerrarRonda()}
+          />
+          <BotonAuto
+            host={escRef.current.el}
+            {...propsAuto(escRef.current.planilla, { x: posCtl.boton.x, y: posCtl.boton.y, tam: posCtl.boton.ancho })}
+            restantes={auto.restantes} activo={auto.activo}
+            disabled={estado.fase === 'en_curso' || estado.saldo < estado.apuesta}
+            onMover={(x, y) => { escRef.current?.setAutoPos(x, y); setPlanillaRev((n) => n + 1); }}
+            onStart={(n) => auto.start(n, () => apostarRef.current())} onStop={auto.stop}
           />
           <CrashMesa
             escenario={escRef.current} cfg={cfg} pos={posCtl} estado={estado}
@@ -156,7 +173,7 @@ export function PreviewCrash({ juego, onClose }: { juego: Juego; onClose: () => 
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteCrashControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
+            : <AjusteCrashControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} onPlanilla={() => setPlanillaRev((n) => n + 1)} />}
         </div>
       )}
     </div>

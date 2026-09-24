@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
-import { Rango } from './AjustePanel.tsx';
+import { ControlesAuto, Rango } from './AjustePanel.tsx';
+import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesRuleta } from './types.ts';
 
@@ -19,11 +20,12 @@ const ELEMS: { id: ElemId; etiqueta: string }[] = [
 
 // Panel de ajuste de la posición de los controles de la ruleta de
 // botones. Edita `ruleta_botones_cfg.controles`.
-export function AjusteRuletaControles({ juego, escenario, pos, onChange }: {
+export function AjusteRuletaControles({ juego, escenario, pos, onChange, onPlanilla }: {
   juego: Juego;
   escenario: Escenario;
   pos: PosControlesRuleta;
   onChange: (pos: PosControlesRuleta) => void;
+  onPlanilla?: () => void;
 }) {
   const [elem, setElem] = useState<ElemId>('botones');
   const [msg, setMsg] = useState('');
@@ -46,7 +48,10 @@ export function AjusteRuletaControles({ juego, escenario, pos, onChange }: {
     const { data } = await supabase.from('juegos').select('ruleta_botones_cfg').eq('id', juego.id).single();
     const base = (data?.ruleta_botones_cfg || {}) as Record<string, unknown>;
     const next = { ...base, controles: pos };
-    const { error } = await supabase.from('juegos').update({ ruleta_botones_cfg: next }).eq('id', juego.id);
+    const { error } = await supabase.from('juegos').update({
+      ruleta_botones_cfg: next,
+      planilla: planillaJson(escenario.planilla),
+    }).eq('id', juego.id);
     setMsg(error ? error.message : 'Guardado ✓');
     (juego as { ruleta_botones_cfg?: unknown }).ruleta_botones_cfg = next;
   };
@@ -98,6 +103,12 @@ export function AjusteRuletaControles({ juego, escenario, pos, onChange }: {
         </>
       )}
 
+      <ControlesAuto
+        escenario={escenario}
+        onPlanilla={onPlanilla}
+        juego={juego}
+        ancla={{ x: pos.girar.x, y: pos.girar.y, tam: pos.girar.ancho }}
+      />
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
     </div>

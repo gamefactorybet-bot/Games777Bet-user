@@ -78,16 +78,22 @@ export function fichasModoDe(juego) {
 }
 
 /**
- * Props de vista para <Fichas> / <FichasStrip>: modo + geometría del abanico.
- * @returns {{ modo: 'fila'|'abanico', abanicoApertura: number, abanicoArco: number }}
+ * Props de vista para <Fichas> / <FichasStrip>: modo, geometría, orden y salida.
+ * @returns {{ modo: 'fila'|'abanico', abanicoApertura: number, abanicoArco: number, abanicoOrden: 'lista'|'valor'|'valor-inv', abanicoSale: 'izquierda'|'centro'|'derecha' }}
  */
 export function fichasVistaDe(juego) {
-  const c = fichasConDefaults(juego && juego.fichas_cfg);
-  return { modo: c.modo, abanicoApertura: c.abanicoApertura, abanicoArco: c.abanicoArco };
+  const c = fichasCfgSlot(juego && juego.fichas_cfg);
+  return {
+    modo: c.modo,
+    abanicoApertura: c.abanicoApertura,
+    abanicoArco: c.abanicoArco,
+    abanicoOrden: c.abanicoOrden,
+    abanicoSale: c.abanicoSale,
+  };
 }
 
 /**
- * Config del abanico para el slot 3×3 / 5×3. Si el juego todavía no
+ * Config del abanico en todos los motores. Si el juego todavía no
  * eligió orden ni salida, arranca de menor a mayor y desde el centro.
  * @param {object} [cfg]
  */

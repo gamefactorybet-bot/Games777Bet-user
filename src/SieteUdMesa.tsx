@@ -28,6 +28,10 @@ interface Props {
   modoFichas: 'fila' | 'abanico';
   abanicoApertura?: number;
   abanicoArco?: number;
+  abanicoOrden?: 'lista' | 'valor' | 'valor-inv';
+  abanicoSale?: 'izquierda' | 'centro' | 'derecha';
+  autoImagen?: string | null;
+  autoTam?: number;
   minBet: number; maxBet: number; paso: number;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   onApuesta: (n: number) => void;
@@ -46,7 +50,7 @@ interface Props {
 }
 
 export function SieteUdMesa({
-  cfg, pos, est, fichas, modoFichas, abanicoApertura, abanicoArco, minBet, maxBet, paso, canvasRef,
+  cfg, pos, est, fichas, modoFichas, abanicoApertura, abanicoArco, abanicoOrden, abanicoSale, autoImagen, autoTam, minBet, maxBet, paso, canvasRef,
   onApuesta, onZona, onJugar, onOtra, onUnlock, edicion, cartelDemo, auto,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -207,7 +211,7 @@ export function SieteUdMesa({
       {P('apuesta', (
         <div style={{ pointerEvents: editando ? 'none' : 'auto' }}>
           {fichas.length > 0
-            ? <FichasStrip fichas={fichas} apuesta={est.apuesta} bloqueado={rolling} onElegir={onApuesta} modo={modoFichas} abanicoApertura={abanicoApertura} abanicoArco={abanicoArco} />
+            ? <FichasStrip fichas={fichas} apuesta={est.apuesta} bloqueado={rolling} onElegir={onApuesta} modo={modoFichas} abanicoApertura={abanicoApertura} abanicoArco={abanicoArco} abanicoOrden={abanicoOrden} abanicoSale={abanicoSale} />
             : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button disabled={rolling} onClick={() => onApuesta(Math.max(minBet, est.apuesta - paso))} style={stepBtn}>−</button>
@@ -225,7 +229,7 @@ export function SieteUdMesa({
         <div>
         {auto && !editando && (
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-            <BotonAuto enFlujo restantes={auto.restantes} activo={auto.activo} disabled={auto.disabled}
+            <BotonAuto enFlujo restantes={auto.restantes} activo={auto.activo} disabled={auto.disabled} imagenUrl={autoImagen} tam={autoTam}
               onStart={auto.onStart} onStop={auto.onStop} />
           </div>
         )}

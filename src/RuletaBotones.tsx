@@ -5,6 +5,7 @@ import { Ruleta } from './Ruleta.tsx';
 import { slotsDe } from './juego/ruleta-botones.ts';
 import { cargarFuenteTema, temaDe } from './juego/ruleta-temas.ts';
 import { BotonAuto } from './BotonAuto.tsx';
+import { propsAuto } from './juego/planilla.ts';
 import { useAutoplay } from './juego/autoplay.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { PosControlesRuleta, ResueltoBotones, RuletaBotonesCfg, RuletaSlot } from './types.ts';
@@ -25,6 +26,7 @@ interface RuletaBotonesProps {
   /** Debita el total y devuelve el giro resuelto. `apuestas` = { idx: monto };
    *  `saldoActual` ya viene neto de lo apostado en esta ronda. */
   resolver: (apuestas: Record<number, number>, saldoActual: number) => Promise<GiroBotones>;
+  onAutoMovido?: () => void;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('es-PY');
@@ -38,7 +40,7 @@ const centrado = (p: { x: number; y: number }): CSSProperties => ({
 // escenario, y todo lo demás (fichas, botones, girar, saldo) en una
 // capa aparte. Sirve para la vista previa (resolver local) y la
 // pantalla real (resolver contra /api/ruleta-botones-girar).
-export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: RuletaBotonesProps) {
+export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver, onAutoMovido }: RuletaBotonesProps) {
   const numeros = cfg.numeros;
   const slotsBase = useMemo(() => slotsDe(numeros), [numeros]);
 
@@ -290,9 +292,10 @@ export function RuletaBotones({ escenario, cfg, pos, saldoInicial, resolver }: R
 
       {/* Girar */}
       <BotonAuto
-        x={pos.girar.x} y={pos.girar.y}
-        offsetPx={-(pos.girar.ancho / 2 + 44)}
+        host={escenario.el}
+        {...propsAuto(escenario.planilla, { x: pos.girar.x, y: pos.girar.y, tam: pos.girar.ancho })}
         restantes={auto.restantes} activo={auto.activo}
+        onMover={onAutoMovido ? (x, y) => { escenario.setAutoPos(x, y); onAutoMovido(); } : undefined}
         disabled={girando || total <= 0}
         onStart={(n) => auto.start(n, () => girarRef.current())} onStop={auto.stop}
       />

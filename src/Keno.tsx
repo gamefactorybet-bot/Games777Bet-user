@@ -35,6 +35,7 @@ export function PreviewKeno({ juego, onClose }: { juego: Juego; onClose: () => v
   const [posCtl, setPosCtl] = useState<PosControlesKeno>(() => posControlesKenoDe(cfg));
   const [ajusteElem, setAjusteElem] = useState('tablero');
   const [fichas, setFichas] = useState<Ficha[]>(() => fichasConDefaults(juego.fichas_cfg).fichas);
+  const [planillaRev, setPlanillaRev] = useState(0);
   const sinCaja = fichas.length > 0 && !!fichasConDefaults(juego.fichas_cfg).sinCaja;
   const modoFichas = fichasConDefaults(juego.fichas_cfg).modo;
   const guardarFichas = (fs: Ficha[]) => {
@@ -94,6 +95,7 @@ export function PreviewKeno({ juego, onClose }: { juego: Juego; onClose: () => v
           minBet={minBet} maxBet={maxBet} paso={paso} onJugar={jugarLocal}
           fichasEditables={mostrarPanel && tab === 'controles' && ajusteElem === 'fichas'}
           onMoverFicha={(i, x, y) => guardarFichas(fichas.map((f, k) => (k === i ? { ...f, x, y } : f)))}
+          onAutoMovido={() => setPlanillaRev((n) => n + 1)}
           premioDemo={mostrarPanel && tab === 'controles' && ajusteElem === 'premio' ? 24680 : null}
         />
       )}
@@ -106,7 +108,7 @@ export function PreviewKeno({ juego, onClose }: { juego: Juego; onClose: () => v
           </div>
           {tab === 'arte'
             ? <AjustePanel escenario={escRef.current} juego={juego} simbolos={[]} onGrillaCambio={() => {}} categorias={['capas', 'extras']} esMines />
-            : <AjusteKenoControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} />}
+            : <AjusteKenoControles juego={juego} escenario={escRef.current} pos={posCtl} onChange={setPosCtl} onElem={setAjusteElem} onPlanilla={() => setPlanillaRev((n) => n + 1)} />}
         </div>
       )}
     </div>

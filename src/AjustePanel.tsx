@@ -5,7 +5,7 @@ import { mostrarAnimacionJuego, detenerAnimacionesJuego } from './lottie.ts';
 import { NOMBRE_CAPA, NIVELES_PREMIO } from './juego/defaults.ts';
 import type { CapaId } from './juego/defaults.ts';
 import { fichasCfgSlot, fichasConDefaults, fichasDesdeMontos } from '../motor/fichas.js';
-import { esSlotClasico } from './juego/kit-frutas.ts';
+
 import type { Escenario } from './juego/escenario.ts';
 import { autoVisible, CLAVES_PLANILLA, planillaJson, posTurbo, type ClavePlanilla } from './juego/planilla.ts';
 import type { AnimacionLottie, CadenaLuz, CapaLibre, FichasCfg, Juego, NivelPremio, Simbolo } from './types.ts';
@@ -760,8 +760,7 @@ function PanelControles({ escenario, juego, onFichasVista }: {
   const redibujar = () => forzar((x) => x + 1);
   const [botonActual, setBotonActual] = useState('menos');
   const cfg = escenario.botones[botonActual];
-  const slot = esSlotClasico(juego.motor);
-  const cfgFichas = (slot ? fichasCfgSlot(juego.fichas_cfg) : fichasConDefaults(juego.fichas_cfg)) as FichasCfg;
+  const cfgFichas = fichasCfgSlot(juego.fichas_cfg) as FichasCfg;
 
   const aplicarFichasCfg = (next: FichasCfg, persistir = true) => {
     juego.fichas_cfg = next;
@@ -885,7 +884,7 @@ function PanelControles({ escenario, juego, onFichasVista }: {
           <Rango etiqueta="Arco (qué tan abierto, hacia arriba)" min={70} max={180} unidad="°"
             valor={cfgFichas.abanicoArco ?? 136}
             onInput={(n) => aplicarFichasCfg({ ...cfgFichas, modo: 'abanico', abanicoArco: n })} />
-          {slot && (
+          {(
             <>
               <p className="hint" style={{ margin: '10px 0 6px' }}>
                 Orden en el arco, de izquierda a derecha. La activa deja su hueco.
@@ -1106,9 +1105,16 @@ function PanelPlanilla({ escenario, juego, onPlanilla }: {
   );
 }
 
-function ControlesAuto({ escenario, onPlanilla }: { escenario: Escenario; onPlanilla?: () => void }) {
+export function ControlesAuto({ escenario, onPlanilla, ancla: anclaFija, juego }: {
+  escenario: Escenario;
+  onPlanilla?: () => void;
+  /** Si no se pasa, el ancla es el botón Girar del slot. */
+  ancla?: { x: number; y: number; tam: number };
+  /** Si viene, se puede subir la imagen de Auto desde este panel. */
+  juego?: Juego;
+}) {
   const [, forzar] = useState(0);
-  const ancla = {
+  const ancla = anclaFija ?? {
     x: escenario.posGirar.girar_x,
     y: escenario.posGirar.girar_y,
     tam: escenario.posGirar.girar_tamano,
@@ -1132,6 +1138,30 @@ function ControlesAuto({ escenario, onPlanilla }: { escenario: Escenario; onPlan
         onPlanilla?.();
         forzar((k) => k + 1);
       }} />
+      {juego && (
+        <label style={{ display: 'block', height: 54, borderRadius: 8, border: '1px dashed var(--border)', background: 'var(--surface-alt)', cursor: 'pointer', overflow: 'hidden', position: 'relative', marginTop: 6 }}>
+          {escenario.planilla.autoImagen
+            ? <img src={escenario.planilla.autoImagen} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            : <span className="hint" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>Imagen de Auto</span>}
+          <input type="file" accept="image/*" hidden onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            const url = await subirArchivo(f, `botones/${juego.id}`);
+            if (!url) return;
+            escenario.setAutoImagen(url);
+            onPlanilla?.();
+            forzar((k) => k + 1);
+          }} />
+        </label>
+      )}
+      {juego && escenario.planilla.autoImagen && (
+        <button type="button" style={{ width: '100%', marginTop: 4, fontSize: 12 }} onClick={() => {
+          escenario.setAutoImagen(null);
+          onPlanilla?.();
+          forzar((k) => k + 1);
+        }}>Quitar imagen de Auto</button>
+      )}
     </>
   );
 }
