@@ -10,6 +10,7 @@ import { crearRodillosJugar } from './juego/rodillos-jugar.ts';
 import { fetchJson, esperarRecursos, correrIntro } from './juego/recursos.ts';
 import { planillaDe, posAuto } from './juego/planilla.ts';
 import { PantallaCarga } from './PantallaCarga.tsx';
+import { AvisoSaldo } from './AvisoSaldo.tsx';
 import type { Escenario } from './juego/escenario.ts';
 import type { RodillosJugar } from './juego/rodillos-jugar.ts';
 import type { DatosJuego, MotorModulo, ResultadoGiro } from './types.ts';
@@ -34,6 +35,7 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
   const [pantallaVisible, setPantallaVisible] = useState(true);
   const [pantallaMontada, setPantallaMontada] = useState(true);
   const [escListo, setEscListo] = useState(false);
+  const [avisoSaldo, setAvisoSaldo] = useState<{ saldo: number; apuesta: number } | null>(null);
   const auto = useAutoplay();
   const girarRef = useRef<() => void>(() => {});
 
@@ -99,7 +101,11 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
   const girar = async () => {
     const esc = escRef.current, rod = rodRef.current, motor = motorRef.current;
     if (!esc || !rod || !motor || esc.girando) return;
-    if (esc.saldo < esc.apuesta) { alert('No te alcanza el saldo para esta apuesta.'); return; }
+    if (esc.saldo < esc.apuesta) {
+      auto.stop();
+      setAvisoSaldo({ saldo: esc.saldo, apuesta: esc.apuesta });
+      return;
+    }
 
     esc.girando = true;
     esc.btnGirar.disabled = true;
@@ -192,6 +198,14 @@ export function JugarSlot({ datos, saldoInicial, slug, token }: JugarSlotProps) 
         <>
           {planilla.visibles.fichas && (
             <FichasEnEscenario juego={datos.juego} escenario={escRef.current} />
+          )}
+          {avisoSaldo && (
+            <AvisoSaldo
+              host={escRef.current.el}
+              saldo={avisoSaldo.saldo}
+              apuesta={avisoSaldo.apuesta}
+              onCerrar={() => setAvisoSaldo(null)}
+            />
           )}
           {planilla.visibles.auto && (
           <BotonAuto
