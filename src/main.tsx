@@ -4,8 +4,15 @@ import { createRoot } from 'react-dom/client';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase.ts';
 import { iniciarApariencia } from './apariencia.ts';
+import { caraDe } from './dominio.ts';
 import { Login } from './Login.tsx';
 import { App } from './App.tsx';
+
+if (caraDe() === 'jugar') {
+  location.replace('/');
+} else {
+  document.title = 'Estudio';
+}
 
 // Aplica el tema guardado antes del primer render (sin parpadeo).
 iniciarApariencia();
@@ -59,4 +66,6 @@ function Root() {
   return <App session={session} onSalir={() => { supabase.auth.signOut(); }} />;
 }
 
-createRoot(document.getElementById('app')!).render(<Root />);
+if (caraDe() !== 'jugar') {
+  createRoot(document.getElementById('app')!).render(<Root />);
+}

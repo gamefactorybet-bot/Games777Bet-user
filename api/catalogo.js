@@ -1,4 +1,5 @@
 import { supabaseAdmin, errorAdmin } from './_lib/supabaseAdmin.js';
+import { origenJugar } from './_lib/dominio.js';
 
 // Catálogo público, en el formato que ya espera la función
 // "Sincronizar catálogo" del panel de Win777: { proveedor, juegos:
@@ -20,7 +21,7 @@ export default async function handler(req, res) {
 
   if (error) return res.status(500).json({ error: errorAdmin(error) });
 
-  const origen = `https://${req.headers.host}`;
+  const origen = origenJugar(req.headers.host);
 
   return res.status(200).json({
     proveedor: 'gameswin777',
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
       version: j.version,
       min_bet: Number(j.min_bet),
       max_bet: Number(j.max_bet),
-      launch_url: `${origen}/jugar.html?slug=${encodeURIComponent(j.slug)}`,
+      launch_url: `${origen}/jugar?slug=${encodeURIComponent(j.slug)}`,
     })),
   });
 }

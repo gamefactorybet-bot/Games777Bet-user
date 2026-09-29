@@ -1,14 +1,35 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-cara="jugar">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>gameswin777 — ensamblador</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title></title>
+  <style>
+    html, body { margin: 0; background: #0c0e12; height: 100%; }
+  </style>
+  <script>
+    (function () {
+      function lista(v) {
+        return String(v || '').split(',').map(function (s) {
+          return s.trim().toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .replace(/[:/].*$/, '');
+        }).filter(Boolean);
+      }
+      var h = location.hostname.toLowerCase().replace(/^www\./, '');
+      var fija = '__CARA__';
+      var estudio = lista('__DOMINIO_ESTUDIO__');
+      var jugar = lista('__DOMINIO_JUGAR__');
+      var cara = (fija === 'estudio' || fija === 'jugar')
+        ? fija
+        : (estudio.indexOf(h) !== -1 ? 'estudio' : jugar.indexOf(h) !== -1 ? 'jugar' : 'ambos');
+      var dest = document.documentElement.getAttribute('data-cara');
+      if (cara === 'ambos' || cara === dest) return;
+      location.replace(cara === 'estudio' ? '/estudio' : '/');
+    })();
+  </script>
 </head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.tsx"></script>
-</body>
+<body></body>
 </html>

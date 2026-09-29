@@ -2,8 +2,39 @@ import './styles.css';
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 import { fetchJson } from './juego/recursos.ts';
+import { caraDe } from './dominio.ts';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import type { DatosJuego } from './types.ts';
+
+const SESION_KEY = 'jugar-sesion';
+
+function leerCredenciales() {
+  const params = new URLSearchParams(location.search);
+  const slug = params.get('slug') || '';
+  const token = params.get('token') || '';
+  if (slug && token) {
+    let guardado = false;
+    try {
+      sessionStorage.setItem(SESION_KEY, JSON.stringify({ slug, token }));
+      guardado = true;
+    } catch { /* iframe sin storage: la query se queda */ }
+    if (guardado) {
+      const path = location.pathname.replace(/\/jugar\.html$/, '/jugar');
+      history.replaceState(null, '', path);
+    }
+    return { slug, token };
+  }
+  try {
+    const guardado = JSON.parse(sessionStorage.getItem(SESION_KEY) || '');
+    return { slug: String(guardado.slug || ''), token: String(guardado.token || '') };
+  } catch {
+    return { slug: '', token: '' };
+  }
+}
+
+if (caraDe() === 'estudio') {
+  location.replace('/estudio');
+}
 
 type PropsJugar = { datos: DatosJuego; saldoInicial: number; slug: string; token: string };
 type CompJugar = ComponentType<PropsJugar>;
@@ -55,9 +86,7 @@ function Jugar() {
   const [estado, setEstado] = useState<Estado>({ fase: 'cargando' });
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const slug = params.get('slug') || '';
-    const token = params.get('token') || '';
+    const { slug, token } = leerCredenciales();
 
     document.addEventListener('contextmenu', prevenir);
     document.addEventListener('dragstart', prevenir);
@@ -110,4 +139,6 @@ function Jugar() {
   );
 }
 
-createRoot(document.getElementById('app')!).render(<Jugar />);
+if (caraDe() !== 'estudio') {
+  createRoot(document.getElementById('app')!).render(<Jugar />);
+}
