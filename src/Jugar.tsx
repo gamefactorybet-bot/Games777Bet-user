@@ -8,28 +8,96 @@ import type { DatosJuego } from './types.ts';
 
 const SESION_KEY = 'jugar-sesion';
 
+type SesionJugar = { slug: string; token: string; nombre: string };
+
+function tituloDeSlug(slug: string) {
+  const texto = slug.replace(/-/g, ' ').trim();
+  if (!texto) return 'Jugar';
+  return texto.charAt(0).toLocaleUpperCase('es') + texto.slice(1);
+}
+
+function piezaDeRuta() {
+  const m = location.pathname.match(/\/jugar\/([^/?#]+)\/?$/);
+  if (!m) return '';
+  try { return decodeURIComponent(m[1]); } catch { return m[1]; }
+}
+
+function leerSesion(): SesionJugar | null {
+  try {
+    const g = JSON.parse(sessionStorage.getItem(SESION_KEY) || '');
+    const slug = String(g.slug || '');
+    const token = String(g.token || '');
+    if (!slug || !token) return null;
+    return { slug, token, nombre: String(g.nombre || '') };
+  } catch {
+    return null;
+  }
+}
+
+function recordar(slug: string, token: string, nombre: string) {
+  const previo = leerSesion();
+  const nombrePrevio = previo && previo.slug === slug ? previo.nombre : '';
+  try {
+    sessionStorage.setItem(SESION_KEY, JSON.stringify({
+      slug,
+      token,
+      nombre: nombre.trim() || nombrePrevio,
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function publicarBarra(visible: string) {
+  const ruta = '/jugar/' + encodeURIComponent(visible);
+  let actual = location.pathname;
+  try { actual = decodeURIComponent(location.pathname); } catch { /* pathname raro */ }
+  if (actual !== '/jugar/' + visible || location.search || location.hash) {
+    history.replaceState(null, '', ruta);
+  }
+}
+
+// El portal abre /jugar.html?slug=…&token=…. El token se guarda en la
+// pestaña y sale de la barra. Lo que se ve es el nombre del juego.
 function leerCredenciales() {
   const params = new URLSearchParams(location.search);
-  const slug = params.get('slug') || '';
-  const token = params.get('token') || '';
-  if (slug && token) {
-    let guardado = false;
-    try {
-      sessionStorage.setItem(SESION_KEY, JSON.stringify({ slug, token }));
-      guardado = true;
-    } catch { /* iframe sin storage: la query se queda */ }
-    if (guardado) {
-      const path = location.pathname.replace(/\/jugar\.html$/, '/jugar');
-      history.replaceState(null, '', path);
+  const slugQuery = params.get('slug') || '';
+  const tokenQuery = params.get('token') || '';
+  const pieza = piezaDeRuta();
+
+  if (tokenQuery && (slugQuery || pieza)) {
+    const slug = slugQuery || pieza;
+    if (recordar(slug, tokenQuery, '')) {
+      const guardado = leerSesion();
+      document.title = guardado?.nombre || tituloDeSlug(slug);
+      publicarBarra(guardado?.nombre || slug);
+    } else {
+      document.title = tituloDeSlug(slug);
     }
-    return { slug, token };
+    return { slug, token: tokenQuery };
   }
-  try {
-    const guardado = JSON.parse(sessionStorage.getItem(SESION_KEY) || '');
-    return { slug: String(guardado.slug || ''), token: String(guardado.token || '') };
-  } catch {
-    return { slug: '', token: '' };
+
+  const sesion = leerSesion();
+  if (!sesion) return { slug: pieza, token: '' };
+  if (pieza && pieza !== sesion.slug && pieza !== sesion.nombre) {
+    return { slug: pieza, token: '' };
   }
+  if (sesion.nombre) {
+    document.title = sesion.nombre;
+    publicarBarra(sesion.nombre);
+  } else {
+    document.title = tituloDeSlug(sesion.slug);
+    if (!pieza) publicarBarra(sesion.slug);
+  }
+  return { slug: sesion.slug, token: sesion.token };
+}
+
+function mostrarNombre(slug: string, token: string, nombre: string) {
+  const limpio = nombre.trim();
+  if (!limpio) return;
+  document.title = limpio;
+  if (recordar(slug, token, limpio)) publicarBarra(limpio);
 }
 
 if (caraDe() === 'estudio') {
@@ -67,10 +135,10 @@ function pantallaDe(motor: string): CompJugar {
   return JugarSlot;
 }
 
-// Pantalla jugable real, sin login: la abre directo el jugador cuando
-// toca el juego en el portal de Win777, con ?slug=...&token=... en la
-// URL. El token identifica al jugador pero por sí solo no mueve plata:
-// cada paso lo resuelve el servidor.
+// Pantalla jugable real, sin login: la abre el portal de Win777 con
+// ?slug=...&token=... El token identifica al jugador pero por sí solo
+// no mueve plata: cada paso lo resuelve el servidor. En la barra queda
+// el nombre del juego.
 //
 // Este componente solo trae los datos y el saldo, y según el motor del
 // juego monta la pantalla de slot o la de Mines.
@@ -108,7 +176,10 @@ function Jugar() {
             fetchJson<DatosJuego>(`/api/jugar-datos?slug=${encodeURIComponent(slug)}`),
             fetchJson<{ saldo: number }>(`/api/jugar-balance?token=${encodeURIComponent(token)}`),
           ]);
-          if (!cancelado) setEstado({ fase: 'listo', datos, saldo: Number(balance.saldo), slug, token });
+          if (!cancelado) {
+            mostrarNombre(slug, token, String(datos.juego.nombre || ''));
+            setEstado({ fase: 'listo', datos, saldo: Number(balance.saldo), slug, token });
+          }
         } catch (err) {
           if (!cancelado) setEstado({ fase: 'error', mensaje: (err as Error).message || 'No se pudo cargar el juego.' });
         }

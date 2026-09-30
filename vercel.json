@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/jugar/:slug", "destination": "/jugar.html" },
+    { "source": "/jugar/:slug/", "destination": "/jugar.html" },
     { "source": "/jugar", "destination": "/jugar.html" },
     { "source": "/estudio", "destination": "/estudio.html" }
   ],

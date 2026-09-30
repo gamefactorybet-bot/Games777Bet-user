@@ -52,14 +52,14 @@ function ruteoCaras(req, res, next) {
     res.end();
     return true;
   }
-  if (cara === 'estudio' && /^\/jugar(\.html)?\/?$/.test(soloRuta)) {
+  if (cara === 'estudio' && /^\/jugar(\.html)?(\/[^/]+)?\/?$/.test(soloRuta)) {
     res.statusCode = 302;
     res.setHeader('Location', '/estudio');
     res.end();
     return true;
   }
 
-  if (soloRuta === '/jugar' || soloRuta === '/jugar/') {
+  if (soloRuta === '/jugar' || soloRuta === '/jugar/' || /^\/jugar\/[^/]+\/?$/.test(soloRuta)) {
     req.url = '/jugar.html' + query;
     next();
     return true;

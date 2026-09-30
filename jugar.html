@@ -30,6 +30,41 @@
       location.replace(cara === 'estudio' ? '/estudio' : '/');
     })();
   </script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var slug = params.get('slug') || '';
+      var token = params.get('token') || '';
+      var m = location.pathname.match(/\/jugar\/([^/?#]+)\/?$/);
+      var pieza = '';
+      if (m) {
+        try { pieza = decodeURIComponent(m[1]); } catch (e) { pieza = m[1]; }
+      }
+      if (!slug) slug = pieza;
+      var nombre = '';
+      try {
+        var previo = JSON.parse(sessionStorage.getItem('jugar-sesion') || 'null');
+        if (previo && previo.slug === slug && previo.nombre) nombre = String(previo.nombre);
+      } catch (e) { /* sesión vieja o vacía */ }
+      function titulo(texto) {
+        var t = String(texto || '').replace(/-/g, ' ').trim();
+        return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Jugar';
+      }
+      function limpiar() {
+        if (!slug || !token) return;
+        try {
+          sessionStorage.setItem('jugar-sesion', JSON.stringify({ slug: slug, token: token, nombre: nombre }));
+          history.replaceState(null, '', '/jugar/' + encodeURIComponent(nombre || slug));
+        } catch (e) { /* sin storage: el token se queda en la query */ }
+      }
+      limpiar();
+      document.addEventListener('DOMContentLoaded', limpiar);
+      window.addEventListener('load', limpiar);
+      setTimeout(limpiar, 0);
+      if (nombre) document.title = nombre;
+      else if (slug || pieza) document.title = titulo(slug || pieza);
+    })();
+  </script>
 </head>
 <body>
   <div id="app"></div>
