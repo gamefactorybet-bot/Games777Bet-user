@@ -41,13 +41,15 @@ export function caraDeHost(host, env = process.env) {
   return 'ambos';
 }
 
+// El catálogo publica el dominio por el que lo llamaron. Así un cambio
+// de dominio no obliga a reescribir VITE_DOMINIO_JUGAR. Esa variable
+// solo cubre un pedido sin host público (local o una tarea interna).
 export function origenJugar(reqHost, env = process.env) {
-  const primero = hostsDe(env.VITE_DOMINIO_JUGAR, env.DOMINIO_JUGAR)[0];
-  if (primero) return `https://${primero}`;
   const crudo = String(reqHost || '').split(',')[0].trim();
   const h = normalizarHost(crudo);
-  if (!h || h === 'localhost' || h.startsWith('127.')) {
-    return `http://${crudo || 'localhost'}`;
-  }
-  return `https://${crudo}`;
+  if (h && h !== 'localhost' && !h.startsWith('127.')) return `https://${h}`;
+  if (h === 'localhost' || h.startsWith('127.')) return `http://${crudo}`;
+  const primero = hostsDe(env.VITE_DOMINIO_JUGAR, env.DOMINIO_JUGAR)[0];
+  if (primero) return `https://${primero}`;
+  return 'http://localhost';
 }

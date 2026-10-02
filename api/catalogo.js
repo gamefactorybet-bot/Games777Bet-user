@@ -21,7 +21,8 @@ export default async function handler(req, res) {
 
   if (error) return res.status(500).json({ error: errorAdmin(error) });
 
-  const origen = origenJugar(req.headers.host);
+  const hostPedido = req.headers['x-forwarded-host'] || req.headers.host;
+  const origen = origenJugar(hostPedido);
 
   return res.status(200).json({
     proveedor: 'gameswin777',
