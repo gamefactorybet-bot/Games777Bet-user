@@ -1,4 +1,5 @@
 import type { VistaPanel } from './App.tsx';
+import { nombreProveedor } from './marca.ts';
 
 interface SidebarProps {
   vista: VistaPanel;
@@ -19,7 +20,7 @@ export function Sidebar({ vista, cantidadJuegos, cantidadListos, email, onIr, on
     <aside className="side">
       <div className="side-brand">
         <img className="logo" src="/icon-192.png" alt="" />
-        <b>gameswin777</b>
+        <b>{nombreProveedor()}</b>
       </div>
 
       <div className="side-label">Contenido</div>

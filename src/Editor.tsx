@@ -11,6 +11,7 @@ import {
 import type { Sugerencia } from './juego/calibracion.ts';
 import { montarLottieEn } from './lottie.ts';
 import { listarClientesActivos } from './Clientes.tsx';
+import { nombreProveedor } from './marca.ts';
 import {
   Preview, PreviewMines, PreviewRuleta, PreviewRuletaBotones,
   PreviewCrash, PreviewPlinko, PreviewRaspadita, PreviewLimbo,
@@ -529,7 +530,7 @@ export function Editor({ juego: juegoProp, onCambio }: EditorProps) {
 
     if (Number(juego.min_bet) <= 0) errores.push('La apuesta mínima tiene que ser mayor a cero.');
     if (Number(juego.max_bet) < Number(juego.min_bet)) errores.push('La apuesta máxima es menor que la mínima.');
-    if (!juego.portada_url) avisos.push('Sin portada: en el catálogo de Win777 va a salir en blanco.');
+    if (!juego.portada_url) avisos.push(`Sin portada: en el catálogo de ${nombreProveedor()} va a salir en blanco.`);
     const x = Number(juego.girar_x ?? 50), y = Number(juego.girar_y ?? 90);
     if (caps.girar && (x < 0 || x > 100 || y < 0 || y > 100)) avisos.push('El botón de girar quedó fuera de la pantalla.');
     return { errores, avisos };

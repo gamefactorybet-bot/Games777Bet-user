@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_CARA?: string;
   readonly VITE_DOMINIO_JUGAR?: string;
   readonly VITE_DOMINIO_ESTUDIO?: string;
+  readonly VITE_PROVEEDOR_NOMBRE?: string;
 }
 
 interface ImportMeta {

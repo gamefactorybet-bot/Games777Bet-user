@@ -128,7 +128,7 @@ export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMi
   const guardarPosicion = async (msg: (t: string) => void) => {
     msg('Guardando...');
     const { error } = await supabase.from('juegos')
-      .update({ ...escenario.pos, capas_orden: escenario.ordenCapas })
+      .update({ ...escenario.pos, capas_orden: escenario.ordenCapas, planilla: planillaJson(escenario.planilla) })
       .eq('id', juego.id);
     msg(error ? error.message : 'Guardado ✓');
     Object.assign(juego, escenario.pos, { capas_orden: escenario.ordenCapas });
@@ -165,6 +165,8 @@ export function AjustePanel({ escenario, juego, onGrillaCambio, categorias, esMi
         {capa === 'jugabilidad' && <PanelPlanilla escenario={escenario} juego={juego} onPlanilla={onPlanilla} />}
         {esCapa && <PanelCapa escenario={escenario} capa={capa} esMines={esMines} onGrillaCambio={onGrillaCambio} />}
       </div>
+
+      <ControlesVolumen escenario={escenario} juego={juego} onPlanilla={onPlanilla} />
 
       {esCapa && (
         <>
@@ -1115,6 +1117,46 @@ function PanelPlanilla({ escenario, juego, onPlanilla }: {
         <button type="button" style={{ width: '100%', marginBottom: 8, fontSize: 12 }} onClick={() => ponerImagen(cual, null)}>Quitar imagen</button>
       )}
       <BotonGuardar texto="Guardar planilla" onGuardar={guardar} />
+    </>
+  );
+}
+
+export function ControlesVolumen({ escenario, juego, onPlanilla }: {
+  escenario: Escenario;
+  juego: Juego;
+  onPlanilla?: () => void;
+}) {
+  const [, forzar] = useState(0);
+  const [msg, setMsg] = useState('');
+  useEffect(() => escenario.alMoverVolumen(() => forzar((n) => n + 1)), [escenario]);
+  const p = escenario.planilla;
+  const fijar = (x: number, y: number) => {
+    escenario.setVolumenPos(x, y);
+    onPlanilla?.();
+    forzar((n) => n + 1);
+  };
+  const guardar = async () => {
+    setMsg('Guardando...');
+    const { error } = await supabase.from('juegos').update({
+      planilla: planillaJson(escenario.planilla),
+    }).eq('id', juego.id);
+    setMsg(error ? error.message : 'Guardado ✓');
+  };
+  return (
+    <>
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 6px' }}>Volumen</p>
+      <p className="hint" style={{ margin: '0 0 8px' }}>
+        Dónde está en la pantalla. Se arrastra en la vista previa y la esquina cambia el tamaño.
+      </p>
+      <Rango etiqueta="Volumen — Posición X" min={0} max={100} unidad="%" valor={p.volumenX} onInput={(n) => fijar(n, p.volumenY)} />
+      <Rango etiqueta="Volumen — Posición Y" min={0} max={100} unidad="%" valor={p.volumenY} onInput={(n) => fijar(p.volumenX, n)} />
+      <Rango etiqueta="Volumen — Tamaño" min={50} max={180} unidad="%" valor={p.volumenTam} onInput={(n) => {
+        escenario.setVolumenTam(n);
+        onPlanilla?.();
+        forzar((k) => k + 1);
+      }} />
+      <button className="primary" style={{ width: '100%', marginTop: 4 }} onClick={guardar}>Guardar volumen</button>
+      <p className="hint">{msg}</p>
     </>
   );
 }

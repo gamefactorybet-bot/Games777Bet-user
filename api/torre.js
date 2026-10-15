@@ -231,7 +231,7 @@ async function retirar(req, res) {
   if (ganancia > 0) {
     const trasPremiar = await premiar(token, roundId, ganancia);
     saldo = Number(trasPremiar.balance);
-    if (!Number.isFinite(saldo)) throw new Error('Win777 no devolvió un saldo válido después del retiro');
+    if (!Number.isFinite(saldo)) throw new Error('El panel no devolvió un saldo válido después del retiro');
   }
 
   return res.status(200).json({

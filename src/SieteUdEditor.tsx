@@ -25,6 +25,7 @@ export function SieteUdEditor({
   mostrarNombre, onToggleNombre,
   puedeDeshacer, puedeRehacer, onDeshacer, onRehacer,
   onAplicarVisual,
+  volumen,
 }: {
   juego: Juego;
   cfg: SieteUdCfg;
@@ -43,6 +44,7 @@ export function SieteUdEditor({
   onDeshacer: () => void;
   onRehacer: () => void;
   onAplicarVisual: (visual: SieteUdVisualCfg) => void;
+  volumen?: { x: number; y: number; tam: number; onChange: (patch: Partial<{ x: number; y: number; tam: number }>) => void };
 }) {
   const [tab, setTab] = useState<Pestana>('piezas');
 
@@ -67,6 +69,18 @@ export function SieteUdEditor({
       {tab === 'estilo' && <TabEstilo cfg={cfg} onCfg={onCfg} />}
       {tab === 'presets' && <TabPresets cfg={cfg} pos={pos} cfgActual={cfgActual} onCfg={onCfg} onAplicarVisual={onAplicarVisual} />}
       {tab === 'juego' && <TabJuego cfg={cfg} onCfg={onCfg} />}
+
+      {volumen && (
+        <>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 6px' }}>Volumen</p>
+          <p className="hint" style={{ margin: '0 0 8px' }}>
+            Arrastralo en la pantalla. La esquina cambia el tamaño. Se guarda solo.
+          </p>
+          <Rango etiqueta="Posición X" min={0} max={100} unidad="%" valor={volumen.x} onInput={(n) => volumen.onChange({ x: n })} />
+          <Rango etiqueta="Posición Y" min={0} max={100} unidad="%" valor={volumen.y} onInput={(n) => volumen.onChange({ y: n })} />
+          <Rango etiqueta="Tamaño" min={50} max={180} unidad="%" valor={volumen.tam} onInput={(n) => volumen.onChange({ tam: n })} />
+        </>
+      )}
     </div>
   );
 }

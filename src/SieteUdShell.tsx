@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode, type Ref } from 'react';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { FondoLoop } from './FondoLoop.tsx';
 import { esVideoFondo } from './juego/fondo.ts';
@@ -12,7 +12,7 @@ import type { AjusteImg } from './types.ts';
 // de teléfono en la Vista previa.
 export function SieteUdShell({
   nombre, mostrarNombre = true, tema, fondoUrl, fondoAjuste,
-  cargando, cargaImagen, children,
+  cargando, cargaImagen, stageRef, children,
 }: {
   nombre: string;
   mostrarNombre?: boolean;
@@ -21,6 +21,7 @@ export function SieteUdShell({
   fondoAjuste: AjusteImg;
   cargando?: boolean;
   cargaImagen?: string | null;
+  stageRef?: Ref<HTMLDivElement>;
   children: ReactNode;
 }) {
   useEffect(() => { cargarFuenteInstant(tema); }, [tema]);
@@ -29,7 +30,7 @@ export function SieteUdShell({
   if (tema.font) vars['--in-body'] = tema.font.family;
 
   return (
-    <div style={{
+    <div ref={stageRef} style={{
       position: 'absolute', inset: 0, overflow: 'hidden',
       background: tema.stageBg || 'var(--bg)',
       fontFamily: 'var(--in-body, inherit)',

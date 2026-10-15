@@ -22,6 +22,7 @@ import { fichasDe } from '../../motor/fichas.js';
 import { engancharLoopVideo, htmlCapaFondo } from './fondo.ts';
 import { audiosDe } from './sfx.ts';
 import { planillaDe, planillaJson, posTurbo, type ClavePlanilla, type Planilla } from './planilla.ts';
+import { montarVolumen, type VolumenWidget } from './volumenWidget.ts';
 import { asignarImagen, encajarImagen, engancharSilueta } from './silueta.ts';
 import type {
   AnimacionLottie, Boton, CadenaLuz, CapaLibre, Digito, Efecto, Juego,
@@ -173,6 +174,10 @@ export interface Escenario {
   setAutoPos(x: number, y: number): void;
   setAutoTam(tam: number): void;
   setTurboPos(clave: 'x1' | 'x2' | 'x3', x: number, y: number): void;
+  setVolumenPos(x: number, y: number): void;
+  setVolumenTam(tam: number): void;
+  /** El panel se entera cuando el control se arrastra en la vista previa. */
+  alMoverVolumen(fn: () => void): () => void;
   destruir(): void;
 }
 
@@ -807,8 +812,19 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
     detenerAnimacionesSimbolos();
     detenerAnimacionesJuego();
     Object.values(audios).forEach((a) => a?.pause());
+    widgetVol.destruir();
     wrap.remove();
   };
+
+  const oyentesVol = new Set<() => void>();
+  const avisarVol = () => { oyentesVol.forEach((fn) => fn()); };
+  // El callback nombra `escenario` antes de crearlo. Solo corre al arrastrar.
+  const widgetVol: VolumenWidget = montarVolumen(el, {
+    x: planilla.volumenX, y: planilla.volumenY, tam: planilla.volumenTam,
+    editable: modo === 'preview',
+    onMover: (x, y) => escenario.setVolumenPos(x, y),
+    onTam: (tam) => escenario.setVolumenTam(tam),
+  });
 
   const escenario: Escenario = {
     modo, el, wrap, motor,
@@ -863,6 +879,23 @@ export function crearEscenario(opts: CrearEscenarioOpts): Escenario {
       };
       juego.planilla = planillaJson(this.planilla);
       posicionarTurbo();
+    },
+    setVolumenPos(x, y) {
+      this.planilla.volumenX = Math.round(Math.max(0, Math.min(100, x)));
+      this.planilla.volumenY = Math.round(Math.max(0, Math.min(100, y)));
+      juego.planilla = planillaJson(this.planilla);
+      widgetVol.aplicar(this.planilla.volumenX, this.planilla.volumenY, this.planilla.volumenTam);
+      avisarVol();
+    },
+    setVolumenTam(tam) {
+      this.planilla.volumenTam = Math.round(Math.max(50, Math.min(180, tam)));
+      juego.planilla = planillaJson(this.planilla);
+      widgetVol.aplicar(this.planilla.volumenX, this.planilla.volumenY, this.planilla.volumenTam);
+      avisarVol();
+    },
+    alMoverVolumen(fn) {
+      oyentesVol.add(fn);
+      return () => { oyentesVol.delete(fn); };
     },
     setBordeLuz(color: string | null) {
       const ok = hexColor(color);

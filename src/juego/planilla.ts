@@ -25,7 +25,17 @@ export interface Planilla {
   autoTam: number;
   /** Posición propia de cada velocidad. Vacío = siguen en fila alrededor de turbo_x/y. */
   turboPos: Partial<Record<'x1' | 'x2' | 'x3', { x: number; y: number }>>;
+  /** Centro del control de volumen, en % del escenario. */
+  volumenX: number;
+  volumenY: number;
+  /** 100 = tamaño de siempre. 50 es la mitad, 180 el más grande. */
+  volumenTam: number;
 }
+
+/** A la derecha del escenario, sin tapar el botón de información. */
+export const VOLUMEN_X = 66;
+export const VOLUMEN_Y = 5;
+export const VOLUMEN_TAM = 100;
 
 const PRENDIDO: Record<ClavePlanilla, boolean> = {
   girar: true, auto: true, fichas: true, menos: true, mas: true, x1: true, x2: true, x3: true,
@@ -50,6 +60,9 @@ export function planillaDe(juego: { planilla?: unknown } | null | undefined): Pl
     autoY: pct(crudo.auto_y),
     autoTam: tamAuto(crudo.auto_tam),
     turboPos: turboPosDe(crudo.turbo_pos),
+    volumenX: pctDef(crudo.volumen_x, VOLUMEN_X),
+    volumenY: pctDef(crudo.volumen_y, VOLUMEN_Y),
+    volumenTam: tamVolumen(crudo.volumen_tam),
   };
 }
 
@@ -71,6 +84,16 @@ function pct(v: unknown): number | null {
   return Math.round(Math.max(0, Math.min(100, n)));
 }
 
+function pctDef(v: unknown, def: number): number {
+  return pct(v) ?? def;
+}
+
+function tamVolumen(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return VOLUMEN_TAM;
+  return Math.round(Math.max(50, Math.min(180, n)));
+}
+
 function tamAuto(v: unknown): number {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return 64;
@@ -85,6 +108,9 @@ export function planillaJson(p: Planilla) {
     auto_y: p.autoY,
     auto_tam: p.autoTam,
     turbo_pos: p.turboPos,
+    volumen_x: p.volumenX,
+    volumen_y: p.volumenY,
+    volumen_tam: p.volumenTam,
   };
 }
 

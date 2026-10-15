@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
-import { Rango } from './AjustePanel.tsx';
+import { ControlesVolumen, Rango } from './AjustePanel.tsx';
+import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesTorre } from './types.ts';
 
@@ -50,7 +51,10 @@ export function AjusteTorreControles({ juego, escenario, pos, onChange, onElem }
     const { data } = await supabase.from('juegos').select('torre_cfg').eq('id', juego.id).single();
     const base = (data?.torre_cfg || {}) as Record<string, unknown>;
     const next = { ...base, controles: pos };
-    const { error } = await supabase.from('juegos').update({ torre_cfg: next }).eq('id', juego.id);
+    const { error } = await supabase.from('juegos').update({
+      torre_cfg: next,
+      planilla: planillaJson(escenario.planilla),
+    }).eq('id', juego.id);
     setMsg(error ? error.message : 'Guardado ✓');
     (juego as { torre_cfg?: unknown }).torre_cfg = next;
   };
@@ -111,6 +115,7 @@ export function AjusteTorreControles({ juego, escenario, pos, onChange, onElem }
         </>
       )}
 
+      <ControlesVolumen escenario={escenario} juego={juego} />
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
     </div>

@@ -95,7 +95,7 @@ export default async function handler(req, res) {
       // Si Win777 no devuelve un saldo usable, mejor cortar acá con un
       // error visible que mostrarle al jugador un saldo inventado.
       if (!Number.isFinite(saldoFinal)) {
-        throw new Error('Win777 no devolvió un saldo válido después del premio');
+        throw new Error('El panel no devolvió un saldo válido después del premio');
       }
     } else {
       saldoFinal = Number(trasApostar.balance);

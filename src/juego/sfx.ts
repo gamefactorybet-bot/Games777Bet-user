@@ -2,6 +2,8 @@
 // Si el juego subió un mp3/ogg para ese tipo, se usa el archivo.
 // No hay música de fondo por defecto (eso sí tiene que ser del juego).
 
+import { registrarAudio } from './volumen.ts';
+
 export type TipoSfx = 'giro' | 'premio_chico' | 'premio_grande' | 'perder';
 
 const SR = 22050;
@@ -110,6 +112,7 @@ export function audioBase(tipo: TipoSfx): HTMLAudioElement {
   if (!cache[tipo]) {
     const a = new Audio(wavUri(samplesDe(tipo)));
     a.preload = 'auto';
+    registrarAudio(a);
     cache[tipo] = a;
   }
   return cache[tipo]!;
@@ -135,7 +138,8 @@ export function audiosDe(
   for (const s of sonidos || []) {
     if (!s?.tipo || !s.archivo_url) continue;
     const a = new Audio(s.archivo_url);
-    if (s.tipo === 'musica_fondo') { a.loop = true; a.volume = 0.45; }
+    if (s.tipo === 'musica_fondo') a.loop = true;
+    registrarAudio(a, s.tipo === 'musica_fondo' ? 0.45 : 1);
     out[s.tipo] = a;
   }
   return out;

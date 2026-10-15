@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
-import { Rango } from './AjustePanel.tsx';
+import { ControlesVolumen, Rango } from './AjustePanel.tsx';
+import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesRaspa } from './types.ts';
 
@@ -49,7 +50,10 @@ export function AjusteRaspaControles({ juego, escenario, pos, onChange, onElem }
     const { data } = await supabase.from('juegos').select('raspa_cfg').eq('id', juego.id).single();
     const base = (data?.raspa_cfg || {}) as Record<string, unknown>;
     const next = { ...base, controles: pos };
-    const { error } = await supabase.from('juegos').update({ raspa_cfg: next }).eq('id', juego.id);
+    const { error } = await supabase.from('juegos').update({
+      raspa_cfg: next,
+      planilla: planillaJson(escenario.planilla),
+    }).eq('id', juego.id);
     setMsg(error ? error.message : 'Guardado ✓');
     (juego as { raspa_cfg?: unknown }).raspa_cfg = next;
   };
@@ -110,6 +114,7 @@ export function AjusteRaspaControles({ juego, escenario, pos, onChange, onElem }
         </>
       )}
 
+      <ControlesVolumen escenario={escenario} juego={juego} />
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
     </div>

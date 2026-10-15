@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { ControlVolumen } from './ControlVolumen.tsx';
 import { PantallaCarga } from './PantallaCarga.tsx';
 import { FondoLoop } from './FondoLoop.tsx';
 import { esVideoFondo } from './juego/fondo.ts';
@@ -19,6 +20,16 @@ interface InstantShellProps {
   cargando?: boolean;
   progreso?: { hechos: number; total: number };
   cargaImagen?: string | null;
+  /** Botón extra en la barra de la vista previa. */
+  barra?: ReactNode;
+  /** Panel flotante (el ajuste del volumen). */
+  panel?: ReactNode;
+  volumen?: {
+    x: number; y: number; tam: number;
+    editable?: boolean;
+    onMover?: (x: number, y: number) => void;
+    onTam?: (tam: number) => void;
+  };
   children: ReactNode;
 }
 
@@ -26,8 +37,9 @@ interface InstantShellProps {
 // nombre + pantalla de carga. El juego en sí va como children.
 export function InstantShell({
   nombre, fondoUrl, tema, mostrarNombre = true, demo, onCerrar,
-  cargando, progreso, cargaImagen, children,
+  cargando, progreso, cargaImagen, barra, panel, volumen, children,
 }: InstantShellProps) {
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
   useEffect(() => { cargarFuenteInstant(tema); }, [tema]);
 
   const vars: Record<string, string> = { ...tema.vars };
@@ -39,6 +51,7 @@ export function InstantShell({
 
   const cuerpo = (
     <div
+      ref={setHost}
       style={{
         position: 'fixed', inset: 0, zIndex: demo ? 100 : 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -48,9 +61,17 @@ export function InstantShell({
       }}
     >
       {esVideoFondo(fondoUrl) && <FondoLoop url={fondoUrl} zIndex={0} />}
+      {volumen && host && (
+        <ControlVolumen
+          host={host} x={volumen.x} y={volumen.y} tam={volumen.tam}
+          editable={volumen.editable} onMover={volumen.onMover} onTam={volumen.onTam}
+        />
+      )}
+      {panel}
       {demo && (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center' }}>
           <span className="hint">plata de mentira</span>
+          {barra}
           <button onClick={onCerrar}>✕ Cerrar prueba</button>
         </div>
       )}

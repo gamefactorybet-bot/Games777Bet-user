@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { fetchJson } from './juego/recursos.ts';
 import { fichasDe, fichasVistaDe } from '../motor/fichas.js';
 import { planillaDe } from './juego/planilla.ts';
+import { ControlVolumen } from './ControlVolumen.tsx';
+import { useVolumenEditable } from './AjusteVolumen.tsx';
 import { temaInstantDe } from './juego/instant-temas.ts';
 import { crearDados3D, type Dados3D, type MaterialDado } from './juego/dados3d.ts';
 import { crearAudioDados, type AudioDados } from './juego/dados-audio.ts';
@@ -48,16 +50,25 @@ function useEscalaEscena(): number {
 
 // ---- Núcleo: motor de dados 3D + hook de partida + shell + mesa ----
 
-function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJugar, edicion }: {
+function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJugar, edicion, volumen }: {
   juego: Juego; cfg: SieteUdCfg; pos: PosControlesSieteUd;
   saldoInicial: number; minBet: number; maxBet: number; paso: number;
   onJugar: JugarSieteUdFn;
   edicion?: EdicionMesa | null;
+  volumen?: {
+    x: number; y: number; tam: number;
+    editable?: boolean;
+    onMover?: (x: number, y: number) => void;
+    onTam?: (tam: number) => void;
+  };
 }) {
   const fichas = useMemo(() => fichasDe(juego), [juego]);
   const vistaFichas = useMemo(() => fichasVistaDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hostVol, setHostVol] = useState<HTMLDivElement | null>(null);
+  const guardadoVol = planillaDe(juego);
+  const layVol = volumen ?? { x: guardadoVol.volumenX, y: guardadoVol.volumenY, tam: guardadoVol.volumenTam };
   const motorRef = useRef<Dados3D | null>(null);
   const audioRef = useRef<AudioDados | null>(null);
   // Al editar, se puede ubicar el cartel de premio sin haber ganado.
@@ -131,7 +142,9 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
   }, [g.est.fase, g.est.res?.suma, g.est.saldo, g.est.apuesta]);
 
   return (
+    <>
     <SieteUdShell
+      stageRef={setHostVol}
       nombre={juego.nombre} mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       tema={tema} fondoUrl={cfg.fondoPantallaUrl || (juego.fondo_url as string) || null} fondoAjuste={cfg.arte.pantalla}
     >
@@ -152,6 +165,11 @@ function SieteUdGame({ juego, cfg, pos, saldoInicial, minBet, maxBet, paso, onJu
         edicion={edicion} cartelDemo={cartelDemo}
       />
     </SieteUdShell>
+    <ControlVolumen
+      host={hostVol} x={layVol.x} y={layVol.y} tam={layVol.tam}
+      editable={volumen?.editable} onMover={volumen?.onMover} onTam={volumen?.onTam}
+    />
+    </>
   );
 }
 
@@ -289,6 +307,21 @@ export function PreviewSieteUd({ juego: juegoProp, onClose, onGuardarCfg, onGuar
     actualizarEstadoHistorial();
   }, [actualizarEstadoHistorial, aplicarPos]);
 
+  const tVol = useRef<number | undefined>(undefined);
+  const jsonVol = useRef<unknown>(null);
+  const vol = useVolumenEditable(juego, (json) => {
+    jsonVol.current = json;
+    window.clearTimeout(tVol.current);
+    tVol.current = window.setTimeout(() => {
+      jsonVol.current = null;
+      void onJuego({ planilla: json });
+    }, 400);
+  });
+  useEffect(() => () => {
+    window.clearTimeout(tVol.current);
+    if (jsonVol.current) void onJuego({ planilla: jsonVol.current });
+  }, [onJuego]);
+
   const jugar: JugarSieteUdFn = async (zona, apuesta) => {
     const r = _tirarLocal(cfg, zona) as TiradaInstant & { mult: number };
     const premio = r.gano ? Math.round(apuesta * (r.mult || 0)) : 0;
@@ -330,7 +363,11 @@ export function PreviewSieteUd({ juego: juegoProp, onClose, onGuardarCfg, onGuar
       }}>
         <SieteUdGame juego={juego} cfg={cfg} pos={pos} saldoInicial={10000}
           minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-          paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} edicion={edicion} />
+          paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} edicion={edicion}
+          volumen={{
+            x: vol.lay.x, y: vol.lay.y, tam: vol.lay.tam, editable: ajustar,
+            onMover: (x, y) => vol.poner({ x, y }), onTam: (tam) => vol.poner({ tam }),
+          }} />
       </div>
 
       {ajustar && (
@@ -339,7 +376,8 @@ export function PreviewSieteUd({ juego: juegoProp, onClose, onGuardarCfg, onGuar
           mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
           onToggleNombre={(v) => onJuego({ mostrar_nombre: v })}
           puedeDeshacer={estadoHistorial.atras} puedeRehacer={estadoHistorial.adelante} onDeshacer={deshacer} onRehacer={rehacer}
-          onAplicarVisual={aplicarVisual} />
+          onAplicarVisual={aplicarVisual}
+          volumen={{ x: vol.lay.x, y: vol.lay.y, tam: vol.lay.tam, onChange: vol.poner }} />
       )}
     </div>
   );

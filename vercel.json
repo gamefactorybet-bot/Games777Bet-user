@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/**/*.js": {
+      "includeFiles": ".env.production"
+    }
+  },
   "rewrites": [
     { "source": "/jugar/:slug", "destination": "/jugar.html" },
     { "source": "/jugar/:slug/", "destination": "/jugar.html" },

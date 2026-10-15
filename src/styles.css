@@ -30,6 +30,71 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+.vol {
+  --vol-s: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--vol-s));
+  padding: calc(4px * var(--vol-s)) calc(4px * var(--vol-s)) calc(4px * var(--vol-s)) calc(12px * var(--vol-s));
+  border-radius: 999px;
+  background: rgba(12, 14, 18, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  color: #fff;
+}
+.vol-esc {
+  position: absolute;
+  z-index: 40;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+.vol-edit {
+  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 3px;
+  cursor: grab;
+  touch-action: none;
+}
+.vol-edit:active { cursor: grabbing; }
+.vol-edit input, .vol-edit button { touch-action: auto; }
+.vol-tam {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--accent, #6b8afd);
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.vol button {
+  width: calc(36px * var(--vol-s));
+  height: calc(36px * var(--vol-s));
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.vol button:hover, .vol button:active { background: transparent; border-color: transparent; transform: none; }
+.vol svg { width: calc(20px * var(--vol-s)); height: calc(20px * var(--vol-s)); display: block; }
+.vol input[type="range"] {
+  width: calc(92px * var(--vol-s));
+  height: calc(28px * var(--vol-s));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: #fff;
+  cursor: pointer;
+}
+.vol input[type="range"]:focus { border: 0; box-shadow: none; }
+
 body {
   margin: 0;
   background: var(--bg);

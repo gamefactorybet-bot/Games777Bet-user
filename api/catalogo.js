@@ -1,15 +1,16 @@
 import { supabaseAdmin, errorAdmin } from './_lib/supabaseAdmin.js';
 import { origenJugar } from './_lib/dominio.js';
+import { nombreProveedor } from './_lib/marca.js';
 
-// Catálogo público, en el formato que ya espera la función
-// "Sincronizar catálogo" del panel de Win777: { proveedor, juegos:
-// [...] }. Solo trae juegos listo + publicado — un juego "listo"
-// pero sin publicar todavía no debe salir acá.
+// Catálogo público, en el formato que espera "Sincronizar catálogo"
+// del panel del casino: { proveedor, juegos: [...] }. El nombre sale
+// de VITE_PROVEEDOR_NOMBRE, así cada deploy se anuncia con la suya.
+// Solo trae juegos listo + publicado — un juego "listo" pero sin
+// publicar todavía no debe salir acá.
 //
-// Sin autenticación: Win777 hoy no manda ningún secreto al leer
-// esta URL (es un simple fetch), así que no hay nada que validar de
-// ese lado. No es un problema porque acá no viaja nada sensible —
-// nombres, imágenes, límites de apuesta, la URL pública del juego.
+// Sin autenticación: el panel no manda ningún secreto al leer esta
+// URL (es un simple fetch). No viaja nada sensible — nombres,
+// imágenes, límites de apuesta, la URL pública del juego.
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método no permitido' });
 
@@ -24,14 +25,16 @@ export default async function handler(req, res) {
   const hostPedido = req.headers['x-forwarded-host'] || req.headers.host;
   const origen = origenJugar(hostPedido);
 
+  const nombre = nombreProveedor();
+
   return res.status(200).json({
-    proveedor: 'gameswin777',
+    proveedor: nombre,
     juegos: (juegos || []).map((j) => ({
       slug: j.slug,
       nombre: j.nombre,
       descripcion: j.descripcion || undefined,
       imagen_url: j.portada_url || undefined,
-      motor: 'gameswin777',
+      motor: nombre,
       version: j.version,
       min_bet: Number(j.min_bet),
       max_bet: Number(j.max_bet),

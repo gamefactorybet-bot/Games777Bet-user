@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { fetchJson } from './juego/recursos.ts';
 import { InstantShell, ApuestaControl, BotonJugar, Saldo, Historial } from './InstantShell.tsx';
 import { BotonAuto } from './BotonAuto.tsx';
@@ -190,11 +190,13 @@ export function JugarDice({ datos, saldoInicial, slug, token }: {
     return { resultado: r.resultado, premio: r.premio, saldo: r.saldo };
   };
 
+  const vol = planillaDe(juego);
   return (
     <InstantShell
       nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema}
       mostrarNombre={(juego.mostrar_nombre ?? true) as boolean}
       cargando={cargando} cargaImagen={(juego.carga_url as string) || (juego.portada_url as string) || null}
+      volumen={{ x: vol.volumenX, y: vol.volumenY, tam: vol.volumenTam }}
     >
       <DiceJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} abanicoOrden={vistaFichas.abanicoOrden} abanicoSale={vistaFichas.abanicoSale} autoImagen={planillaDe(juego).autoImagen} autoTam={planillaDe(juego).autoTam} saldoInicial={Number(saldoInicial)}
         minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
@@ -210,6 +212,12 @@ export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => v
   const vistaFichas = useMemo(() => fichasVistaDe(juego), [juego]);
   const tema = useMemo(() => temaInstantDe(cfg.tema), [cfg.tema]);
   const saldoRef = useRef(10000);
+  const [Marco, setMarco] = useState<ComponentType<MarcoVolumenProps> | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    import('./AjusteVolumen.tsx').then((m) => { if (vivo) setMarco(() => m.MarcoVolumen); });
+    return () => { vivo = false; };
+  }, []);
 
   const jugar: Jugar = async (umbral, direccion, apuesta) => {
     const r = _tirarDice(juego.dice_cfg, umbral, direccion) as TiradaInstant & { roll: number };
@@ -218,11 +226,34 @@ export function PreviewDice({ juego, onClose }: { juego: Juego; onClose: () => v
     return { resultado: { ...r, tipo: 'dice' as const }, premio, saldo: saldoRef.current };
   };
 
-  return (
-    <InstantShell nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}>
-      <DiceJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} abanicoOrden={vistaFichas.abanicoOrden} abanicoSale={vistaFichas.abanicoSale} autoImagen={planillaDe(juego).autoImagen} autoTam={planillaDe(juego).autoTam} saldoInicial={10000}
-        minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
-        paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} motor={juego.motor} />
+  const base = planillaDe(juego);
+  const mesa = (
+    <DiceJuego cfg={cfg} fichas={fichas} modoFichas={vistaFichas.modo} abanicoApertura={vistaFichas.abanicoApertura} abanicoArco={vistaFichas.abanicoArco} abanicoOrden={vistaFichas.abanicoOrden} abanicoSale={vistaFichas.abanicoSale} autoImagen={base.autoImagen} autoTam={base.autoTam} saldoInicial={10000}
+      minBet={Number(juego.min_bet) || 1000} maxBet={Number(juego.max_bet) || 100000}
+      paso={Number(juego.paso_apuesta) || 500} onJugar={jugar} motor={juego.motor} />
+  );
+  const shell = (extra?: MarcoVolumenProps['children'] extends (api: infer A) => ReactNode ? A : never) => (
+    <InstantShell
+      nombre={juego.nombre} fondoUrl={(juego.fondo_url as string) || cfg.fondoUrl || null} tema={tema} demo onCerrar={onClose}
+      barra={extra?.barra} panel={extra?.panel}
+      volumen={extra?.volumen ?? { x: base.volumenX, y: base.volumenY, tam: base.volumenTam }}
+    >
+      {mesa}
     </InstantShell>
   );
+  if (!Marco) return shell();
+  return <Marco juego={juego}>{(api) => shell(api)}</Marco>;
 }
+
+type MarcoVolumenProps = {
+  juego: Juego;
+  children: (api: {
+    barra: ReactNode;
+    panel: ReactNode;
+    volumen: {
+      x: number; y: number; tam: number; editable: boolean;
+      onMover: (x: number, y: number) => void;
+      onTam: (tam: number) => void;
+    };
+  }) => ReactNode;
+};

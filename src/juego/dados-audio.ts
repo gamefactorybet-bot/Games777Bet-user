@@ -4,6 +4,7 @@
 // el tap de "Tirar" (gesto del usuario) para iOS.
 
 import type { MaterialDado } from './dados3d.ts';
+import { alCambiarVolumen, volumenActual } from './volumen.ts';
 
 export interface AudioDados {
   unlock: () => void;
@@ -53,6 +54,9 @@ export function crearAudioDados(material: MaterialDado = 'marfil'): AudioDados {
   let receta = RECETA[material] || RECETA.marfil;
   let lastClick = 0;
   let vivo = true;
+  const soltarVolumen = alCambiarVolumen((v) => {
+    if (master) master.gain.value = 0.42 * v;
+  });
 
   function ensure(): AudioContext | null {
     if (!vivo || !AC) return null;
@@ -60,7 +64,7 @@ export function crearAudioDados(material: MaterialDado = 'marfil'): AudioDados {
       try {
         ctx = new AC();
         master = ctx.createGain();
-        master.gain.value = 0.42;
+        master.gain.value = 0.42 * volumenActual();
         master.connect(ctx.destination);
         noise = makeNoise(ctx);
       } catch {
@@ -190,6 +194,7 @@ export function crearAudioDados(material: MaterialDado = 'marfil'): AudioDados {
     },
     destruir() {
       vivo = false;
+      soltarVolumen();
       if (ctx) {
         const c = ctx;
         ctx = null; master = null; noise = null;

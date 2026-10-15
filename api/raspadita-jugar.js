@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     let saldoFinal;
     if (ganancia > 0) {
       saldoFinal = Number((await premiar(token, clientId, ganancia)).balance);
-      if (!Number.isFinite(saldoFinal)) throw new Error('Win777 no devolvió un saldo válido después del premio');
+      if (!Number.isFinite(saldoFinal)) throw new Error('El panel no devolvió un saldo válido después del premio');
     } else {
       saldoFinal = Number(trasApostar.balance);
     }

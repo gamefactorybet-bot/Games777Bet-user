@@ -28,10 +28,30 @@ alter table simbolos
   add column if not exists lottie_chico_url  text,
   add column if not exists lottie_grande_url text;
 
--- Renombrar preserva los datos, las políticas RLS y los índices —
--- no hace falta recrear nada de eso.
-alter table animaciones_rive rename to animaciones_lottie;
-alter table animaciones_lottie rename column riv_url to lottie_url;
+-- Renombrar preserva los datos, las políticas RLS y los índices.
+-- Si el script se corre de nuevo, animaciones_lottie ya existe y el
+-- "create table if not exists" de la planilla anterior vuelve a crear
+-- animaciones_rive vacía: esa copia se tira, no se renombra encima.
+do $$
+begin
+  if to_regclass('public.animaciones_rive') is not null
+     and to_regclass('public.animaciones_lottie') is null then
+    alter table animaciones_rive rename to animaciones_lottie;
+  elsif to_regclass('public.animaciones_rive') is not null
+        and to_regclass('public.animaciones_lottie') is not null then
+    drop table animaciones_rive;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'animaciones_lottie'
+      and column_name = 'riv_url'
+  ) then
+    alter table animaciones_lottie rename column riv_url to lottie_url;
+  end if;
+end $$;
+
 alter table animaciones_lottie drop column if exists disparador;
 
 -- duplicar_juego apuntaba a la tabla vieja por nombre; se actualiza

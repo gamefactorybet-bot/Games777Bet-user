@@ -1,10 +1,11 @@
 import crypto from 'node:crypto';
 
-// Llama a /api/proveedor del panel de Win777, firmando cada pedido
-// con el secreto que nos dieron al darnos de alta como proveedor.
-// El secreto vive SOLO acá (variables de entorno del servidor) —
-// nunca en el navegador del jugador. Mismo protocolo que describe
-// deploy/integracion-proveedores.md del lado de ellos.
+import { credencialesPanel } from './marca.js';
+
+// Llama a /api/proveedor del panel del casino de ESTE deploy, firmando
+// cada pedido con el secreto que nos dieron al darnos de alta como
+// proveedor. El secreto vive SOLO acá (variables de entorno del
+// servidor) — nunca en el navegador del jugador.
 
 function b64url(buf) {
   return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -16,9 +17,8 @@ function firmar(secreto, accion, token, monto, roundId, timestamp) {
 }
 
 async function llamarProveedor(accion, { token, monto, roundId }) {
-  const secreto = process.env.WIN777_PROVEEDOR_SECRETO;
-  const base = process.env.WIN777_API_BASE;
-  if (!secreto || !base) throw new Error('Falta configurar WIN777_PROVEEDOR_SECRETO o WIN777_API_BASE');
+  const { secreto, base } = credencialesPanel();
+  if (!secreto || !base) throw new Error('Falta configurar PROVEEDOR_SECRETO o PROVEEDOR_API_BASE');
 
   const timestamp = Math.floor(Date.now() / 1000);
   const firma = firmar(secreto, accion, token, monto, roundId, timestamp);

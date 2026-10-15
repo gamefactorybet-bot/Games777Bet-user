@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from './supabase.ts';
 import { subirArchivo } from './juego/subir.ts';
-import { ControlesAuto, Rango } from './AjustePanel.tsx';
+import { ControlesAuto, ControlesVolumen, Rango } from './AjustePanel.tsx';
 import { planillaJson } from './juego/planilla.ts';
 import type { Escenario } from './juego/escenario.ts';
 import type { Juego, PosControlesPlinko } from './types.ts';
@@ -116,6 +116,7 @@ export function AjustePlinkoControles({ juego, escenario, pos, onChange, onElem,
         juego={juego}
         ancla={{ x: pos.boton.x, y: pos.boton.y, tam: pos.boton.ancho }}
       />
+      <ControlesVolumen escenario={escenario} juego={juego} onPlanilla={onPlanilla} />
       <button className="primary" style={{ width: '100%', marginTop: 14 }} onClick={guardar}>Guardar posición</button>
       <p className="hint">{msg}</p>
     </div>

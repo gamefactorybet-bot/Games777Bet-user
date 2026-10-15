@@ -92,8 +92,8 @@ export function Clientes() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
-        <input placeholder="Nombre (ej: Win777)" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        <input placeholder="https://win777bet-panel.vercel.app" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <input placeholder="Nombre del casino" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <input placeholder="https://panel-del-casino.ejemplo" value={url} onChange={(e) => setUrl(e.target.value)} />
       </div>
       <input
         placeholder="Secreto que te dio el panel del cliente"
